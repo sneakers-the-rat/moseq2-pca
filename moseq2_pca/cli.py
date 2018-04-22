@@ -1,5 +1,5 @@
 from moseq2_pca.util import recursive_find_h5s, command_with_config, clean_frames,\
-    select_strel
+    select_strel, insert_nans
 from moseq2_pca.viz import display_components, scree_plot
 import click
 import os
@@ -20,9 +20,8 @@ def cli():
     pass
 
 
-@cli.command(name='train-pca')
+@cli.command(name='train-pca', cls=command_with_config['config_file'])
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
-@click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
 @click.option('--cluster-type', type=click.Choice(['local']),
               default='local', help='Cluster type')
 @click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store results')
@@ -38,10 +37,11 @@ def cli():
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
-def train_pca(input_dir, config_file, cluster_type, output_dir, gaussfilter_space,
+@click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
+def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, tailfilter_iters,
               tailfilter_size, tailfilter_shape, rank, output_file,
-              h5_path, chunk_size, visualize_results):
+              h5_path, chunk_size, visualize_results, config_file):
     # find directories with .dat files that either have incomplete or no extractions
 
     params = locals()
@@ -137,7 +137,7 @@ def train_pca(input_dir, config_file, cluster_type, output_dir, gaussfilter_spac
 @click.option('--cluster-type', type=click.Choice(['local']),
               default='local', help='Cluster type')
 @click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store results')
-@click.option('--output-file', default='pca', type=str, help='Name of h5 file for storing pca results')
+@click.option('--output-file', default='pca_scores', type=str, help='Name of h5 file for storing pca results')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
 @click.option('--h5-timestamp-path', default='/metadata/timestamps', type=str, help='Path to timestamps in h5 files')
 @click.option('--pca-path', default='/components', type=str, help='Path to pca components')
@@ -151,16 +151,39 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
     params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    save_file = os.path.join(output_dir, output_file)
+
     print('Loading PCs from {}'.format(pca_file))
     with h5py.File(pca_file, 'r') as f:
         pca_components = f[pca_path].value
 
-    for h5 in tqdm.tqdm(h5s, desc='Computing scores'):
-        with h5py.File(h5, 'r') as f:
-            frames = f[h5_path].value.reshape(-1, 6400)
-            timestamps = f[h5_timestamp_path].value / 1000.0
-            scores = frames.dot(pca_components.T)
+    with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
+        for h5, yml in tqdm.tqdm(zip(h5s, yamls), total=len(h5s),
+                                 desc='Computing scores'):
+            with h5py.File(h5, 'r') as f:
+                frames = f[h5_path].value.reshape(-1, 6400)
+                timestamps = f[h5_timestamp_path].value / 1000.0
 
+            scores = frames.dot(pca_components.T)
+            scores, score_idx, _ = insert_nans(data=scores, timestamps=timestamps,
+                                               fps=int(1 / np.mean(np.diff(timestamps))))
+
+            with open(yml, 'r') as yml_f:
+                yml_dat = yml_f.read()
+                try:
+                    data = yaml.load(yml_dat, Loader=yaml.RoundTripLoader)
+                except yaml.constructor.ConstructorError:
+                    data = yaml.load(yml_dat, Loader=yaml.Loader)
+
+            uuid = data['uuid']
+            f_scores.create_dataset('scores/{}'.format(uuid), data=scores,
+                                    dtype='float32', compression='gzip')
+
+            f_scores.create_dataset('scores_idx/{}'.format(uuid), data=score_idx,
+                                    dtype='float32', compression='gzip')
 
 
 if __name__ == '__main__':

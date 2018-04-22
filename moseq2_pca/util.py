@@ -22,19 +22,18 @@ def command_with_config(config_file_param_name):
                     param_defaults[param.human_readable_name] = param.default
 
             if config_file is not None:
-                with open(config_file) as f:
-                    config_data = yaml.load(f, yaml.RoundTripLoader)
-                    for param, value in ctx.params.items():
-                        if param in config_data:
-                            if type(value) is tuple and type(config_data[param]) is int:
-                                ctx.params[param] = tuple([config_data[param]])
-                            elif type(value) is tuple:
-                                ctx.params[param] = tuple(config_data[param])
-                            else:
-                                ctx.params[param] = config_data[param]
+                config_data = read_yaml(config_file)
+                for param, value in ctx.params.items():
+                    if param in config_data:
+                        if type(value) is tuple and type(config_data[param]) is int:
+                            ctx.params[param] = tuple([config_data[param]])
+                        elif type(value) is tuple:
+                            ctx.params[param] = tuple(config_data[param])
+                        else:
+                            ctx.params[param] = config_data[param]
 
-                            if param_defaults[param] != value:
-                                ctx.params[param] = value
+                        if param_defaults[param] != value:
+                            ctx.params[param] = value
 
             return super(custom_command_class, self).invoke(ctx)
 
@@ -53,13 +52,12 @@ def recursive_find_h5s(root_dir=os.getcwd(),
         for file in files:
             yaml_file = yaml_string.format(os.path.splitext(file)[0])
             if file.endswith(ext) and os.path.exists(os.path.join(root, yaml_file)):
-                with h5py.File(os.path.join(root,file), 'r') as f:
+                with h5py.File(os.path.join(root, file), 'r') as f:
                     if 'frames' not in f.keys():
                         continue
                 h5s.append(os.path.join(root, file))
                 yamls.append(os.path.join(root, yaml_file))
-                with open(os.path.join(root, yaml_file), 'r') as f:
-                    dicts.append(yaml.load(f.read(), Loader=yaml.Loader))
+                dicts.append(read_yaml(os.path.join(root, yaml_file)))
 
     return h5s, dicts, yamls
 
@@ -150,15 +148,31 @@ def insert_nans(timestamps, data, fps=30):
 
     df_timestamps = np.diff(np.insert(timestamps, 0, timestamps[0] - 1.0 / fps))
     missing_frames = np.floor(df_timestamps / (1.0 / fps))
-    fill_idx = np.where(missing_frames > 1)
-    data_idx = np.arange(len(timestamps))
+    fill_idx = np.where(missing_frames > 1)[0]
+    data_idx = np.arange(len(timestamps)).astype('float64')
 
     filled_data = deepcopy(data)
+    filled_timestamps = deepcopy(timestamps)
     nframes, nfeatures = filled_data.shape
 
     for idx in fill_idx[::-1]:
-        data_idx = np.insert(data_idx, idx, [np.nan] * missing_frames[idx])
+        ninserts = int(missing_frames[idx]-1)
+        data_idx = np.insert(data_idx, idx, [np.nan] * ninserts)
+        insert_timestamps = timestamps[idx-1] + np.cumsum(np.ones(ninserts,) * 1.0 / fps)
         filled_data = np.insert(filled_data, idx,
-                                np.ones((missing_frames[idx], nfeatures)) * np.nan, axis=0)
+                                np.ones((ninserts, nfeatures)) * np.nan, axis=0)
+        filled_timestamps = np.insert(filled_timestamps, idx, insert_timestamps)
 
-    return filled_data, data_idx
+    return filled_data, data_idx, filled_timestamps
+
+
+def read_yaml(yaml_file):
+
+    with open(yaml_file, 'r') as f:
+        dat = f.read()
+        try:
+            return_dict = yaml.load(dat, Loader=yaml.RoundTripLoader)
+        except yaml.constructor.ConstructorError:
+            return_dict = yaml.load(dat, Loader=yaml.Loader)
+
+    return return_dict
