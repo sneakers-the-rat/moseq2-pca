@@ -1,0 +1,16 @@
+#specs for travis ci
+language: python
+os: linux
+python: 3.6
+# get the dependencies
+install:
+  - pip install .
+# install what we need for testing
+before_install:
+  - pip install pytest pytest-cov codecov
+  - export PYTHONPATH=$PYTHONPATH:$(pwd)
+# script for tests
+script:
+  - pytest --cov=./moseq2_pca
+# after_success:
+#   - codecov -t 120653e3-fb8e-4928-a751-bd4fdc880ff0
