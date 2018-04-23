@@ -90,7 +90,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 
         if use_fft:
             print('Using FFT...')
-            stacked_array = np.abs(da.fft.fft2(stacked_array, axes=(1, 2)))
+            stacked_array = stacked_array.map_blocks(lambda x: np.abs(np.fft.fft2(x)), dtype='float32')
 
         stacked_array = stacked_array.reshape(-1, nfeatures)
         nsamples, nfeatures = stacked_array.shape
@@ -176,6 +176,16 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
     print('Loading PCs from {}'.format(pca_file))
     with h5py.File(pca_file, 'r') as f:
         pca_components = f[pca_path].value
+
+    # get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
+    pca_yaml = '{}.yaml'.format(os.path.splitext(pca_file)[0])
+
+    if os.path.exists(pca_yaml):
+        with open(pca_yaml, 'r') as f:
+            pca_config = yaml.load(f.read, Dumper=yaml.RoundTripLoader)
+            use_fft = pca_config['use_fft']
+    else:
+        IOError('Could not find {}'.format(pca_yaml))
 
     with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
         for h5, yml in tqdm.tqdm(zip(h5s, yamls), total=len(h5s),
