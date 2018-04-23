@@ -32,7 +32,7 @@ def cli():
 @click.option('--tailfilter-iters', default=1, type=int, help="Number of tail filter iterations")
 @click.option('--tailfilter-size', default=(9, 9), type=(int, int), help='Tail filter size')
 @click.option('--tailfilter-shape', default='ellipse', type=str, help='Tail filter shape')
-@click.option('--use-fft', default=False, type=bool, help='Use 2D fft')
+@click.option('--use-fft', type=bool, is_flag=True, help='Use 2D fft')
 @click.option('--rank', default=50, type=int, help="Rank for compressed SVD (generally>>nPCS)")
 @click.option('--output-file', default='pca', type=str, help='Name of h5 file for storing pca results')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
