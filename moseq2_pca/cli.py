@@ -1,5 +1,5 @@
 from moseq2_pca.util import recursive_find_h5s, command_with_config, clean_frames,\
-    select_strel, insert_nans
+    select_strel, insert_nans, read_yaml, recursively_load_dict_contents_from_group
 from moseq2_pca.viz import display_components, scree_plot
 import click
 import os
@@ -20,7 +20,7 @@ def cli():
     pass
 
 
-@cli.command(name='train-pca', cls=command_with_config['config_file'])
+@cli.command(name='train-pca', cls=command_with_config('config_file'))
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
 @click.option('--cluster-type', type=click.Choice(['local']),
               default='local', help='Cluster type')
@@ -140,13 +140,17 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('--output-file', default='pca_scores', type=str, help='Name of h5 file for storing pca results')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
 @click.option('--h5-timestamp-path', default='/metadata/timestamps', type=str, help='Path to timestamps in h5 files')
+@click.option('--h5-metadata-path', default='/metadata/extraction', type=str, help='Path to metadata in h5 files')
 @click.option('--pca-path', default='/components', type=str, help='Path to pca components')
 @click.option('--pca-file', type=click.Path(exists=True), default=os.path.join(os.getcwd(), '_pca/pca.h5'), help='Path to PCA results')
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--fill-gaps', default=True, type=bool, help='Fill dropped frames with nans')
-def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_timestamp_path, pca_path,
-              pca_file, chunk_size, fill_gaps):
+@click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
+def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_timestamp_path,
+              h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps):
     # find directories with .dat files that either have incomplete or no extractions
+    # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
+    # moseq2-model processes these files correctly
 
     params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
@@ -163,27 +167,31 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
     with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
         for h5, yml in tqdm.tqdm(zip(h5s, yamls), total=len(h5s),
                                  desc='Computing scores'):
+
+            data = read_yaml(yml)
+            uuid = data['uuid']
+
             with h5py.File(h5, 'r') as f:
                 frames = f[h5_path].value.reshape(-1, 6400)
-                timestamps = f[h5_timestamp_path].value / 1000.0
+
+                if h5_timestamp_path is not None:
+                    timestamps = f[h5_timestamp_path].value / 1000.0
+                else:
+                    timestamps = np.arange(frames.shape[0]) / fps
+
+                if h5_metadata_path is not None:
+                    metadata_name = 'metadata/{}'.format(uuid)
+                    f.copy(h5_metadata_path, f_scores, name=metadata_name)
 
             scores = frames.dot(pca_components.T)
             scores, score_idx, _ = insert_nans(data=scores, timestamps=timestamps,
                                                fps=int(1 / np.mean(np.diff(timestamps))))
 
-            with open(yml, 'r') as yml_f:
-                yml_dat = yml_f.read()
-                try:
-                    data = yaml.load(yml_dat, Loader=yaml.RoundTripLoader)
-                except yaml.constructor.ConstructorError:
-                    data = yaml.load(yml_dat, Loader=yaml.Loader)
-
-            uuid = data['uuid']
             f_scores.create_dataset('scores/{}'.format(uuid), data=scores,
                                     dtype='float32', compression='gzip')
-
             f_scores.create_dataset('scores_idx/{}'.format(uuid), data=score_idx,
                                     dtype='float32', compression='gzip')
+
 
 
 if __name__ == '__main__':

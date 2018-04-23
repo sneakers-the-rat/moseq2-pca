@@ -176,3 +176,16 @@ def read_yaml(yaml_file):
             return_dict = yaml.load(dat, Loader=yaml.Loader)
 
     return return_dict
+
+
+def recursively_load_dict_contents_from_group(h5file, path):
+    """
+    ....
+    """
+    ans = {}
+    for key, item in h5file[path].items():
+        if isinstance(item, h5py._hl.dataset.Dataset):
+            ans[key] = item.value
+        elif isinstance(item, h5py._hl.group.Group):
+            ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
+    return ans
