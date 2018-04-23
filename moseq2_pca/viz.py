@@ -2,7 +2,10 @@ import skimage.util.montage
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-plt.switch_backend('agg')
+import os
+
+if os.name == 'posix' and 'DISPLAY' not in os.environ:
+    plt.switch_backend('agg')
 
 
 def display_components(components, cmap='gray', path='components'):
@@ -15,9 +18,8 @@ def display_components(components, cmap='gray', path='components'):
     plt.imshow(plotv, cmap=cmap)
     plt.xticks([])
     plt.yticks([])
-    plt.savefig('{}.png'.format(path))
-    plt.savefig('{}.pdf'.format(path))
-    plt.close()
+
+    return plt
 
 
 def scree_plot(explained_variance_ratio, path='scree'):
@@ -35,6 +37,5 @@ def scree_plot(explained_variance_ratio, path='scree'):
     plt.ylabel('Variance explained (percent)')
     plt.xlabel('nPCs')
     sns.despine()
-    plt.savefig('{}.png'.format(path))
-    plt.savefig('{}.pdf'.format(path))
-    plt.close()
+    
+    return plt

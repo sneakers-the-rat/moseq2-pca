@@ -32,6 +32,7 @@ def cli():
 @click.option('--tailfilter-iters', default=1, type=int, help="Number of tail filter iterations")
 @click.option('--tailfilter-size', default=(9, 9), type=(int, int), help='Tail filter size')
 @click.option('--tailfilter-shape', default='ellipse', type=str, help='Tail filter shape')
+@click.option('--use-fft', default=False, type=bool, help='Use 2D fft')
 @click.option('--rank', default=50, type=int, help="Rank for compressed SVD (generally>>nPCS)")
 @click.option('--output-file', default='pca', type=str, help='Name of h5 file for storing pca results')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
@@ -40,7 +41,7 @@ def cli():
 @click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, tailfilter_iters,
-              tailfilter_size, tailfilter_shape, rank, output_file,
+              tailfilter_size, tailfilter_shape, use_fft, rank, output_file,
               h5_path, chunk_size, visualize_results, config_file):
     # find directories with .dat files that either have incomplete or no extractions
 
@@ -87,6 +88,10 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         else:
             stacked_array = stacked_array.map_blocks(clean_frames, dtype='float32', **clean_params)
 
+        if use_fft:
+            print('Using FFT...')
+            stacked_array = np.abs(da.fft.fft2(stacked_array, axes=(1, 2)))
+
         stacked_array = stacked_array.reshape(-1, nfeatures)
         nsamples, nfeatures = stacked_array.shape
         mean = stacked_array.mean(axis=0)
@@ -119,10 +124,17 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         }
 
         if visualize_results:
-            display_components(output_dict['components'],
-                               path='{}_components'.format(save_file))
-            scree_plot(output_dict['explained_variance_ratio'],
-                       path='{}_scree'.format(save_file))
+            plt = display_components(output_dict['components'],
+                                     path='{}_components'.format(save_file))
+            plt.savefig('{}.png'.format(save_file))
+            plt.savefig('{}.pdf'.format(save_file))
+            plt.close()
+
+            plt = scree_plot(output_dict['explained_variance_ratio'],
+                             path='{}_scree'.format(save_file))
+            plt.savefig('{}.png'.format(save_file))
+            plt.savefig('{}.pdf'.format(save_file))
+            plt.close()
 
         with h5py.File('{}.h5'.format(save_file)) as f:
             for k, v in output_dict.items():
@@ -146,8 +158,9 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--fill-gaps', default=True, type=bool, help='Fill dropped frames with nans')
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
+@click.option('--detrend-window', default=0, type=float, help="Length of detrend window (in seconds, 0 for no detrending)")
 def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_timestamp_path,
-              h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps):
+              h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window):
     # find directories with .dat files that either have incomplete or no extractions
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
     # moseq2-model processes these files correctly
