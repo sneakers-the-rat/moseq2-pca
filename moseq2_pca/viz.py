@@ -1,9 +1,8 @@
-import matplotlib.pyplot as plt
-import matplotlib
 import skimage.util.montage
 import numpy as np
+import matplotlib.pyplot as plt
 import seaborn as sns
-matplotlib.use('Agg')
+plt.switch_backend('agg')
 
 
 def display_components(components, cmap='gray', path='components'):
