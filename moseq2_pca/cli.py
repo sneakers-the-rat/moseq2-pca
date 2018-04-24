@@ -190,6 +190,9 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
     else:
         IOError('Could not find {}'.format(pca_yaml))
 
+    if use_fft:
+        print('Using FFT...')
+
     with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
         for h5, yml in tqdm.tqdm(zip(h5s, yamls), total=len(h5s),
                                  desc='Computing scores'):
