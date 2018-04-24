@@ -90,7 +90,9 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 
         if use_fft:
             print('Using FFT...')
-            stacked_array = stacked_array.map_blocks(lambda x: np.abs(np.fft.fft2(x)), dtype='float32')
+            stacked_array = stacked_array.map_blocks(
+                lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
+                dtype='float32')
 
         stacked_array = stacked_array.reshape(-1, nfeatures)
         nsamples, nfeatures = stacked_array.shape
