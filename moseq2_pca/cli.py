@@ -183,7 +183,10 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
             pca_config = yaml.load(f.read, Dumper=yaml.RoundTripLoader)
-            use_fft = pca_config['use_fft']
+            if 'use_fft' in pca_config.keys():
+                use_fft = pca_config['use_fft']
+            else:
+                use_fft = False
     else:
         IOError('Could not find {}'.format(pca_yaml))
 
@@ -195,7 +198,13 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
             uuid = data['uuid']
 
             with h5py.File(h5, 'r') as f:
-                frames = f[h5_path].value.reshape(-1, 6400)
+
+                frames = f[h5_path].value
+
+                if use_fft:
+                    frames = np.abs(np.fft.fft2(frames))
+
+                frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
 
                 if h5_timestamp_path is not None:
                     timestamps = f[h5_timestamp_path].value / 1000.0
