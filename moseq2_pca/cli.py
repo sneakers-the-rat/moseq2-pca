@@ -182,7 +182,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
 
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
-            pca_config = yaml.load(f.read, Dumper=yaml.RoundTripLoader)
+            pca_config = yaml.load(f.read, Loader=yaml.RoundTripLoader)
             if 'use_fft' in pca_config.keys():
                 use_fft = pca_config['use_fft']
             else:
