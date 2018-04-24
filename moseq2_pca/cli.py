@@ -124,14 +124,12 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         }
 
         if visualize_results:
-            plt = display_components(output_dict['components'],
-                                     path='{}_components'.format(save_file))
+            plt = display_components(output_dict['components'], headless=True)
             plt.savefig('{}.png'.format(save_file))
             plt.savefig('{}.pdf'.format(save_file))
             plt.close()
 
-            plt = scree_plot(output_dict['explained_variance_ratio'],
-                             path='{}_scree'.format(save_file))
+            plt = scree_plot(output_dict['explained_variance_ratio'], headless=True)
             plt.savefig('{}.png'.format(save_file))
             plt.savefig('{}.pdf'.format(save_file))
             plt.close()

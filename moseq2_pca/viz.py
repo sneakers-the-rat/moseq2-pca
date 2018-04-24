@@ -1,18 +1,17 @@
 import skimage.util.montage
 import numpy as np
-import matplotlib
-import os
-if os.name == 'posix' and 'DISPLAY' not in os.environ:
-    matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-def display_components(components, cmap='gray', path='components'):
+def display_components(components, cmap='gray', headless=False):
 
     im_size = int(np.sqrt(components.shape[1]))
     plotv = components.reshape((-1, im_size, im_size))
     plotv = skimage.util.montage.montage2d(plotv)
+
+    if headless:
+        plt.switch_backend('agg')
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
     plt.imshow(plotv, cmap=cmap)
@@ -22,10 +21,13 @@ def display_components(components, cmap='gray', path='components'):
     return plt
 
 
-def scree_plot(explained_variance_ratio, path='scree'):
+def scree_plot(explained_variance_ratio, headless=False):
 
     csum = np.cumsum(explained_variance_ratio)*1e2
     idx = np.min(np.where(csum > 90))
+
+    if headless:
+        plt.switch_backend('agg')
 
     sns.set_style('ticks')
     plt.plot(np.cumsum(explained_variance_ratio)*1e2)
