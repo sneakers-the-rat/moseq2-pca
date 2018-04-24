@@ -1,11 +1,11 @@
 import skimage.util.montage
 import numpy as np
+import matplotlib
+import os
+if os.name == 'posix' and 'DISPLAY' not in os.environ:
+    matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
-import os
-
-if os.name == 'posix' and 'DISPLAY' not in os.environ:
-    plt.switch_backend('agg')
 
 
 def display_components(components, cmap='gray', path='components'):
@@ -37,5 +37,5 @@ def scree_plot(explained_variance_ratio, path='scree'):
     plt.ylabel('Variance explained (percent)')
     plt.xlabel('nPCs')
     sns.despine()
-    
+
     return plt
