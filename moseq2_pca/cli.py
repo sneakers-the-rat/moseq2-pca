@@ -42,12 +42,14 @@ def cli():
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
 @click.option('-w', '--workers', type=int, default=0, help="Number of workers")
-@click.option('-t', '--threads', type=int, default=4, help="Number of threads per workers")
+@click.option('-t', '--threads', type=int, default=1, help="Number of threads per workers")
+@click.option('-p', '--processes', type=int, default=4, help="Number of processes to run on each worker")
 @click.option('--memory', type=str, default="4GB", help="RAM usage per workers")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, tailfilter_iters,
               tailfilter_size, tailfilter_shape, use_fft, rank, output_file,
-              h5_path, chunk_size, visualize_results, config_file, workers, threads, memory):
+              h5_path, chunk_size, visualize_results, config_file, workers, threads,
+              processes, memory):
     # find directories with .dat files that either have incomplete or no extractions
 
     params = locals()
@@ -87,7 +89,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
     elif cluster_type == 'slurm':
 
         # register the cluster with dask and start workers
-        cluster = SLURMCluster(processes=1, threads=threads, memory=memory)
+        cluster = SLURMCluster(processes=processes, threads=threads, memory=memory)
         workers = cluster.start_workers(workers)
         client = Client(cluster)
 
