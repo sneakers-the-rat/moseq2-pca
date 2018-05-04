@@ -24,7 +24,7 @@ def cli():
 
 @cli.command(name='train-pca', cls=command_with_config('config_file'))
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
-@click.option('--cluster-type', type=click.Choice(['local']),
+@click.option('--cluster-type', type=click.Choice(['local','slurm']),
               default='local', help='Cluster type')
 @click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store results')
 @click.option('--gaussfilter-space', default=(1.5, 1), type=(float, float), help="Spatial filter for data (Gaussian)")
