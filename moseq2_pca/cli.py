@@ -91,7 +91,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         workers = cluster.start_workers(workers)
         client = Client(cluster)
 
-    dsets = [h5py.File(h5)[h5_path] for h5 in h5s]
+    dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
     stacked_array = da.concatenate(arrays, axis=0).astype('float32')
     nfeatures = stacked_array.shape[1] * stacked_array.shape[2]
