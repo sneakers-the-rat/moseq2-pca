@@ -14,6 +14,7 @@ import dask.array as da
 import dask.array.linalg as lng
 import dask
 import time
+import warnings
 from dask.diagnostics import ProgressBar
 from chest import Chest
 
@@ -91,18 +92,22 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 
         # register the cluster with dask and start workers
         cluster = SLURMCluster(processes=processes, threads=threads, memory=memory)
+
         workers = cluster.start_workers(workers)
         client = Client(cluster)
 
         nworkers = 0
-        pbar = tqdm.tqdm(total=len(workers), desc="Intializating workers")
 
-        while nworkers < len(workers):
-            tmp = len(client.scheduler_info()['workers'])
-            if tmp - nworkers > 0:
-                pbar.update(tmp - nworkers)
-            nworkers += tmp - nworkers
-            time.sleep(5)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
+            pbar = tqdm.tqdm(total=len(workers)*processes, desc="Intializating workers")
+
+            while nworkers < len(workers)*processes:
+                tmp = len(client.scheduler_info()['workers'])
+                if tmp - nworkers > 0:
+                    pbar.update(tmp - nworkers)
+                nworkers += tmp - nworkers
+                time.sleep(5)
 
     dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
