@@ -1,3 +1,7 @@
+from dask_jobqueue import SLURMCluster
+from dask.distributed import Client
+from chest import Chest
+from copy import deepcopy
 import ruamel.yaml as yaml
 import os
 import cv2
@@ -5,8 +9,9 @@ import h5py
 import numpy as np
 import click
 import scipy.signal
-from copy import deepcopy
-
+import time
+import warnings
+import tqdm
 
 # from https://stackoverflow.com/questions/46358797/
 # python-click-supply-arguments-and-options-from-a-configuration-file
@@ -189,3 +194,38 @@ def recursively_load_dict_contents_from_group(h5file, path):
         elif isinstance(item, h5py._hl.group.Group):
             ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
     return ans
+
+
+def initialize_dask(workers, processes, memory, threads, cluster='local'):
+
+    # only use distributed if we need it
+
+    client = None
+    workers = None
+    cache = None
+    cluster = None
+
+    if cluster == 'local':
+
+        cache = Chest()
+
+    elif cluster == 'slurm':
+
+        cluster = SLURMCluster(processes=processes, threads=threads, memory=memory)
+        workers = cluster.start_workers(workers)
+        client = Client(cluster)
+
+        nworkers = 0
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
+            pbar = tqdm.tqdm(total=len(workers)*processes, desc="Intializating workers")
+
+            while nworkers < len(workers)*processes:
+                tmp = len(client.scheduler_info()['workers'])
+                if tmp - nworkers > 0:
+                    pbar.update(tmp - nworkers)
+                nworkers += tmp - nworkers
+                time.sleep(5)
+
+    return client, cluster, workers, cache

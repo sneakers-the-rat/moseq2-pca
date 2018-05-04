@@ -1,8 +1,7 @@
 from moseq2_pca.util import recursive_find_h5s, command_with_config, clean_frames,\
-    select_strel, insert_nans, read_yaml
+    select_strel, insert_nans, read_yaml, initialize_dask
 from moseq2_pca.viz import display_components, scree_plot
-from dask_jobqueue import SLURMCluster
-from dask.distributed import Client, progress
+from dask.distributed import progress
 import click
 import os
 import ruamel.yaml as yaml
@@ -16,7 +15,6 @@ import dask
 import time
 import warnings
 from dask.diagnostics import ProgressBar
-from chest import Chest
 
 
 @click.group()
@@ -83,31 +81,10 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         'medfilter_space': medfilter_space
     }
 
-    if cluster_type == 'local':
-
-        # use a cache of running locally
-        cache = Chest()
-
-    elif cluster_type == 'slurm':
-
-        # register the cluster with dask and start workers
-        cluster = SLURMCluster(processes=processes, threads=threads, memory=memory)
-
-        workers = cluster.start_workers(workers)
-        client = Client(cluster)
-
-        nworkers = 0
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
-            pbar = tqdm.tqdm(total=len(workers)*processes, desc="Intializating workers")
-
-            while nworkers < len(workers)*processes:
-                tmp = len(client.scheduler_info()['workers'])
-                if tmp - nworkers > 0:
-                    pbar.update(tmp - nworkers)
-                nworkers += tmp - nworkers
-                time.sleep(5)
+    client, cluster, workers, cache = initialize_dask(cluster=cluster_type,
+                                                      workers=workers,
+                                                      threads=threads,
+                                                      processes=processes)
 
     dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
@@ -181,7 +158,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 
 @cli.command(name='apply-pca')
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
-@click.option('--cluster-type', type=click.Choice(['local']),
+@click.option('--cluster-type', type=click.Choice(['local','slurm']),
               default='local', help='Cluster type')
 @click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store results')
 @click.option('--output-file', default='pca_scores', type=str, help='Name of h5 file for storing pca results')
@@ -194,8 +171,13 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('--fill-gaps', default=True, type=bool, help='Fill dropped frames with nans')
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
 @click.option('--detrend-window', default=0, type=float, help="Length of detrend window (in seconds, 0 for no detrending)")
+@click.option('-w', '--workers', type=int, default=0, help="Number of workers")
+@click.option('-t', '--threads', type=int, default=1, help="Number of threads per workers")
+@click.option('-p', '--processes', type=int, default=1, help="Number of processes to run on each worker")
+@click.option('--memory', type=str, default="4GB", help="RAM usage per workers")
 def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_timestamp_path,
-              h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window):
+              h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window,
+              workers, threads, processes, memory):
     # find directories with .dat files that either have incomplete or no extractions
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
     # moseq2-model processes these files correctly
@@ -207,6 +189,11 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
         os.makedirs(output_dir)
 
     save_file = os.path.join(output_dir, output_file)
+
+    client, cluster, workers, cache = initialize_dask(cluster=cluster_type,
+                                                      workers=workers,
+                                                      threads=threads,
+                                                      processes=processes)
 
     print('Loading PCs from {}'.format(pca_file))
     with h5py.File(pca_file, 'r') as f:
@@ -247,25 +234,40 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
             data = read_yaml(yml)
             uuid = data['uuid']
 
-            with h5py.File(h5, 'r') as f:
+            dset = h5py.File(h5, mode='r')['frames']
+            frames = da.from_array(dset, chunks=(chunk_size, -1, -1))
 
-                frames = clean_frames(f[h5_path].value.astype('float32'), **clean_params)
+            if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
+                frames = frames.map_overlap(
+                    clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
+            else:
+                frames = frames.map_blocks(clean_frames, dtype='float32', **clean_params)
 
-                if use_fft:
-                    frames = np.fft.fftshift(np.abs(np.fft.fft2(frames)), axes=(1, 2))
+            if use_fft:
+                print('Using FFT...')
+                frames = frames.map_blocks(
+                    lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
+                    dtype='float32')
 
-                frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
+            frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
 
-                if h5_timestamp_path is not None:
-                    timestamps = f[h5_timestamp_path].value / 1000.0
-                else:
-                    timestamps = np.arange(frames.shape[0]) / fps
-
-                if h5_metadata_path is not None:
-                    metadata_name = 'metadata/{}'.format(uuid)
-                    f.copy(h5_metadata_path, f_scores, name=metadata_name)
+            if cluster_type == 'local':
+                frames = dask.compute(frames, cache=cache)
+            elif cluster_type == 'slurm':
+                futures = client.compute(frames)
+                frames = client.gather(futures)
 
             scores = frames.dot(pca_components.T)
+
+            if h5_timestamp_path is not None:
+                timestamps = f[h5_timestamp_path].value / 1000.0
+            else:
+                timestamps = np.arange(frames.shape[0]) / fps
+
+            if h5_metadata_path is not None:
+                metadata_name = 'metadata/{}'.format(uuid)
+                f.copy(h5_metadata_path, f_scores, name=metadata_name)
+
             scores, score_idx, _ = insert_nans(data=scores, timestamps=timestamps,
                                                fps=int(1 / np.mean(np.diff(timestamps))))
 
@@ -274,6 +276,8 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
             f_scores.create_dataset('scores_idx/{}'.format(uuid), data=score_idx,
                                     dtype='float32', compression='gzip')
 
+        if cluster_type == 'slurm':
+            cluster.stop_workers(workers)
 
 
 if __name__ == '__main__':
