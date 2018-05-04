@@ -160,9 +160,6 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         for k, v in output_dict.items():
             f.create_dataset(k, data=v, compression='gzip', dtype='float32')
 
-    else:
-        raise NotImplementedError('Other cluster types not supported')
-
 
 @cli.command(name='apply-pca')
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
