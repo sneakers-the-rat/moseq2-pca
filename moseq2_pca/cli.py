@@ -13,6 +13,7 @@ import numpy as np
 import dask.array as da
 import dask.array.linalg as lng
 import dask
+import time
 from dask.diagnostics import ProgressBar
 from chest import Chest
 
@@ -43,7 +44,7 @@ def cli():
 @click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
 @click.option('-w', '--workers', type=int, default=0, help="Number of workers")
 @click.option('-t', '--threads', type=int, default=1, help="Number of threads per workers")
-@click.option('-p', '--processes', type=int, default=4, help="Number of processes to run on each worker")
+@click.option('-p', '--processes', type=int, default=1, help="Number of processes to run on each worker")
 @click.option('--memory', type=str, default="4GB", help="RAM usage per workers")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, tailfilter_iters,
@@ -92,6 +93,14 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         cluster = SLURMCluster(processes=processes, threads=threads, memory=memory)
         workers = cluster.start_workers(workers)
         client = Client(cluster)
+
+        nworkers = 0
+        pbar = tqdm.tqdm(total=workers, desc="Intializating workers")
+
+        while nworkers < workers:
+            nworkers = len(client.scheduler_info()['workers'])
+            pbar.update(nworkers)
+            time.sleep(5)
 
     dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
