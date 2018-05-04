@@ -222,6 +222,18 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
                 use_fft = pca_config['use_fft']
             else:
                 use_fft = False
+
+            tailfilter = select_strel(pca_config['tailfilter_shape'],
+                                      pca_config['tailfilter_size'])
+
+            clean_params = {
+                'gaussfilter_space': pca_config['gaussfilter_space'],
+                'gaussfilter_time': pca_config['gaussfilter_time'],
+                'tailfilter': tailfilter,
+                'medfilter_time': pca_config['medfilter_time'],
+                'medfilter_space': pca_config['medfilter_space']
+            }
+
     else:
         IOError('Could not find {}'.format(pca_yaml))
 
@@ -237,7 +249,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
 
             with h5py.File(h5, 'r') as f:
 
-                frames = f[h5_path].value
+                frames = clean_frames(f[h5_path].value, **clean_params)
 
                 if use_fft:
                     frames = np.fft.fftshift(np.abs(np.fft.fft2(frames)), axes=(1, 2))
