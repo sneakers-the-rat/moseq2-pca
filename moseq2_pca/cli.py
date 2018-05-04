@@ -84,7 +84,8 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
     client, cluster, workers, cache = initialize_dask(cluster=cluster_type,
                                                       workers=workers,
                                                       threads=threads,
-                                                      processes=processes)
+                                                      processes=processes,
+                                                      memory=memory)
 
     dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
@@ -193,7 +194,8 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
     client, cluster, workers, cache = initialize_dask(cluster=cluster_type,
                                                       workers=workers,
                                                       threads=threads,
-                                                      processes=processes)
+                                                      processes=processes.
+                                                      memory=memory)
 
     print('Loading PCs from {}'.format(pca_file))
     with h5py.File(pca_file, 'r') as f:
