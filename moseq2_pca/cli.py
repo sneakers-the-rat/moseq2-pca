@@ -237,7 +237,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
             uuid = data['uuid']
 
             dset = h5py.File(h5, mode='r')['frames']
-            frames = da.from_array(dset, chunks=(chunk_size, -1, -1))
+            frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
 
             if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
                 frames = frames.map_overlap(
