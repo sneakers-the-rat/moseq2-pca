@@ -1,6 +1,8 @@
 from moseq2_pca.util import recursive_find_h5s, command_with_config, clean_frames,\
-    select_strel, insert_nans, read_yaml, recursively_load_dict_contents_from_group
+    select_strel, insert_nans, read_yaml
 from moseq2_pca.viz import display_components, scree_plot
+from dask_jobqueue import SLURMCluster
+from dask.distributed import Client, progress
 import click
 import os
 import ruamel.yaml as yaml
@@ -39,10 +41,13 @@ def cli():
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
+@click.option('-w', '--workers', type=int, default=0, help="Number of workers")
+@click.option('-t', '--threads', type=int, default=4, help="Number of threads per workers")
+@click.option('--memory', type=str, default="4GB", help="RAM usage per workers")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, tailfilter_iters,
               tailfilter_size, tailfilter_shape, use_fft, rank, output_file,
-              h5_path, chunk_size, visualize_results, config_file):
+              h5_path, chunk_size, visualize_results, config_file, workers, threads, memory):
     # find directories with .dat files that either have incomplete or no extractions
 
     params = locals()
@@ -76,69 +81,84 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 
     if cluster_type == 'local':
 
+        # use a cache of running locally
         cache = Chest()
-        dsets = [h5py.File(h5)[h5_path] for h5 in h5s]
-        arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
-        stacked_array = da.concatenate(arrays, axis=0).astype('float32')
-        nfeatures = stacked_array.shape[1] * stacked_array.shape[2]
 
-        if gaussfilter_time > 0 or np.any(np.array(medfilter_time) > 0):
-            stacked_array = stacked_array.map_overlap(
-                clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
-        else:
-            stacked_array = stacked_array.map_blocks(clean_frames, dtype='float32', **clean_params)
+    elif cluster_type == 'slurm':
 
-        if use_fft:
-            print('Using FFT...')
-            stacked_array = stacked_array.map_blocks(
-                lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
-                dtype='float32')
+        # register the cluster with dask and start workers
+        cluster = SLURMCluster(processes=1, threads=threads, memory=memory)
+        workers = cluster.start_workers(workers)
+        client = Client(cluster)
 
-        stacked_array = stacked_array.reshape(-1, nfeatures)
-        nsamples, nfeatures = stacked_array.shape
-        mean = stacked_array.mean(axis=0)
-        u, s, v = lng.svd_compressed(stacked_array-mean, rank, 0)
-        total_var = stacked_array.var(ddof=1, axis=0).sum()
+    dsets = [h5py.File(h5)[h5_path] for h5 in h5s]
+    arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
+    stacked_array = da.concatenate(arrays, axis=0).astype('float32')
+    nfeatures = stacked_array.shape[1] * stacked_array.shape[2]
 
-        print('Calculation setup complete...')
+    if gaussfilter_time > 0 or np.any(np.array(medfilter_time) > 0):
+        stacked_array = stacked_array.map_overlap(
+            clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
+    else:
+        stacked_array = stacked_array.map_blocks(clean_frames, dtype='float32', **clean_params)
 
+    if use_fft:
+        print('Using FFT...')
+        stacked_array = stacked_array.map_blocks(
+            lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
+            dtype='float32')
+
+    stacked_array = stacked_array.reshape(-1, nfeatures)
+    nsamples, nfeatures = stacked_array.shape
+    mean = stacked_array.mean(axis=0)
+    u, s, v = lng.svd_compressed(stacked_array-mean, rank, 0)
+    total_var = stacked_array.var(ddof=1, axis=0).sum()
+
+    print('Calculation setup complete...')
+
+    if cluster_type == 'local':
         with ProgressBar():
             s, v, mean, total_var = dask.compute(s, v, mean, total_var,
                                                  cache=cache)
+    elif cluster_type == 'slurm':
+        futures = client.compute([s, v, mean, total_var])
+        progress(futures)
+        s, v, mean, total_var = client.gather(futures)
+        client.stop_workers(workers)
 
-        print('Calculation complete...')
+    print('Calculation complete...')
 
-        # correct the sign of the singular vectors
+    # correct the sign of the singular vectors
 
-        tmp = np.argmax(np.abs(v), axis=1)
-        correction = np.sign(v[np.arange(v.shape[0]), tmp])
-        v *= correction[:, None]
+    tmp = np.argmax(np.abs(v), axis=1)
+    correction = np.sign(v[np.arange(v.shape[0]), tmp])
+    v *= correction[:, None]
 
-        explained_variance = s**2 / (nsamples-1)
-        explained_variance_ratio = explained_variance / total_var
+    explained_variance = s**2 / (nsamples-1)
+    explained_variance_ratio = explained_variance / total_var
 
-        output_dict = {
-            'components': v,
-            'singular_values': s,
-            'explained_variance': explained_variance,
-            'explained_variance_ratio': explained_variance_ratio,
-            'mean': mean
-        }
+    output_dict = {
+        'components': v,
+        'singular_values': s,
+        'explained_variance': explained_variance,
+        'explained_variance_ratio': explained_variance_ratio,
+        'mean': mean
+    }
 
-        if visualize_results:
-            plt = display_components(output_dict['components'], headless=True)
-            plt.savefig('{}_components.png'.format(save_file))
-            plt.savefig('{}_components.pdf'.format(save_file))
-            plt.close()
+    if visualize_results:
+        plt = display_components(output_dict['components'], headless=True)
+        plt.savefig('{}_components.png'.format(save_file))
+        plt.savefig('{}_components.pdf'.format(save_file))
+        plt.close()
 
-            plt = scree_plot(output_dict['explained_variance_ratio'], headless=True)
-            plt.savefig('{}_scree.png'.format(save_file))
-            plt.savefig('{}_scree.pdf'.format(save_file))
-            plt.close()
+        plt = scree_plot(output_dict['explained_variance_ratio'], headless=True)
+        plt.savefig('{}_scree.png'.format(save_file))
+        plt.savefig('{}_scree.pdf'.format(save_file))
+        plt.close()
 
-        with h5py.File('{}.h5'.format(save_file)) as f:
-            for k, v in output_dict.items():
-                f.create_dataset(k, data=v, compression='gzip', dtype='float32')
+    with h5py.File('{}.h5'.format(save_file)) as f:
+        for k, v in output_dict.items():
+            f.create_dataset(k, data=v, compression='gzip', dtype='float32')
 
     else:
         raise NotImplementedError('Other cluster types not supported')
