@@ -40,9 +40,9 @@ def cli():
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
-@click.option('-n', '--nworkers', type=int, default=0, help="Number of workers")
-@click.option('-t', '--threads', type=int, default=1, help="Number of threads per workers")
-@click.option('-p', '--processes', type=int, default=1, help="Number of processes to run on each worker")
+@click.option('-n', '--nworkers', type=int, default=50, help="Number of workers")
+@click.option('-t', '--threads', type=int, default=2, help="Number of threads per workers")
+@click.option('-p', '--processes', type=int, default=4, help="Number of processes to run on each worker")
 @click.option('--memory', type=str, default="4GB", help="RAM usage per workers")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, tailfilter_iters,
@@ -171,9 +171,9 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('--fill-gaps', default=True, type=bool, help='Fill dropped frames with nans')
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
 @click.option('--detrend-window', default=0, type=float, help="Length of detrend window (in seconds, 0 for no detrending)")
-@click.option('-n', '--nworkers', type=int, default=0, help="Number of workers")
-@click.option('-t', '--threads', type=int, default=1, help="Number of threads per workers")
-@click.option('-p', '--processes', type=int, default=1, help="Number of processes to run on each worker")
+@click.option('-n', '--nworkers', type=int, default=20, help="Number of workers")
+@click.option('-t', '--threads', type=int, default=2, help="Number of threads per workers")
+@click.option('-p', '--processes', type=int, default=4, help="Number of processes to run on each worker")
 @click.option('--memory', type=str, default="4GB", help="RAM usage per workers")
 def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_timestamp_path,
               h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window,
