@@ -124,7 +124,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         futures = client.compute([s, v, mean, total_var])
         progress(futures)
         s, v, mean, total_var = client.gather(futures)
-        client.stop_workers(workers)
+        cluster.stop_workers(workers)
 
     print('Calculation complete...')
 
