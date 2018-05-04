@@ -224,7 +224,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
                 use_fft = False
 
             tailfilter = select_strel(pca_config['tailfilter_shape'],
-                                      pca_config['tailfilter_size'])
+                                      tuple(pca_config['tailfilter_size']))
 
             clean_params = {
                 'gaussfilter_space': pca_config['gaussfilter_space'],
