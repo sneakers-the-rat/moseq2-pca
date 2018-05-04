@@ -278,7 +278,10 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
                                             dtype='float32', compression='gzip')
 
         elif cluster_type == 'slurm':
+
             futures = []
+            uuids = []
+
             for h5, yml in zip(h5s, yamls):
                 data = read_yaml(yml)
                 uuid = data['uuid']
@@ -302,11 +305,13 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
                 scores = frames.dot(pca_components.T)
                 future = client.compute(scores)
                 futures.append(future)
+                uuids.append(uuid)
 
-            keys = [future.key for future in futures]
+            keys = [tmp.key for tmp in futures]
 
             for future, result in as_completed(futures, with_results=True):
 
+                print(uuid[keys.index(future.key)])
                 print(keys.index(future.key))
                 print(future)
                 print(result.shape)
