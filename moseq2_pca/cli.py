@@ -309,12 +309,28 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
 
             keys = [tmp.key for tmp in futures]
 
-            for future, result in as_completed(futures, with_results=True):
+            with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
+                for future, result in tqdm.tqdm(as_completed(futures, with_results=True)):
 
-                print(uuids[keys.index(future.key)])
-                print(keys.index(future.key))
-                print(future)
-                print(result.shape)
+                    file_idx = keys.index(future.key)
+
+                    with h5py.File(h5s[file_idx], mode='r') as f:
+                        if h5_timestamp_path is not None:
+                            timestamps = f[h5_timestamp_path].value / 1000.0
+                        else:
+                            timestamps = np.arange(frames.shape[0]) / fps
+
+                        if h5_metadata_path is not None:
+                            metadata_name = 'metadata/{}'.format(uuid)
+                            f.copy(h5_metadata_path, f_scores, name=metadata_name)
+
+                    scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
+                                                       fps=int(1 / np.mean(np.diff(timestamps))))
+
+                    f_scores.create_dataset('scores/{}'.format(uuids[file_idx]), data=scores,
+                                            dtype='float32', compression='gzip')
+                    f_scores.create_dataset('scores_idx/{}'.format(uuids[file_idx]), data=score_idx,
+                                            dtype='float32', compression='gzip')
 
             cluster.stop_workers(workers)
 
