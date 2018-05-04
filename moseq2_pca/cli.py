@@ -39,14 +39,14 @@ def cli():
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
-@click.option('-w', '--workers', type=int, default=0, help="Number of workers")
+@click.option('-n', '--nworkers', type=int, default=0, help="Number of workers")
 @click.option('-t', '--threads', type=int, default=1, help="Number of threads per workers")
 @click.option('-p', '--processes', type=int, default=1, help="Number of processes to run on each worker")
 @click.option('--memory', type=str, default="4GB", help="RAM usage per workers")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, tailfilter_iters,
               tailfilter_size, tailfilter_shape, use_fft, rank, output_file,
-              h5_path, chunk_size, visualize_results, config_file, workers, threads,
+              h5_path, chunk_size, visualize_results, config_file, nworkers, threads,
               processes, memory):
     # find directories with .dat files that either have incomplete or no extractions
 
@@ -80,7 +80,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
     }
 
     client, cluster, workers, cache = initialize_dask(cluster_type=cluster_type,
-                                                      workers=workers,
+                                                      nworkers=nworkers,
                                                       threads=threads,
                                                       processes=processes,
                                                       memory=memory)
@@ -170,13 +170,13 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('--fill-gaps', default=True, type=bool, help='Fill dropped frames with nans')
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
 @click.option('--detrend-window', default=0, type=float, help="Length of detrend window (in seconds, 0 for no detrending)")
-@click.option('-w', '--workers', type=int, default=0, help="Number of workers")
+@click.option('-n', '--nworkers', type=int, default=0, help="Number of workers")
 @click.option('-t', '--threads', type=int, default=1, help="Number of threads per workers")
 @click.option('-p', '--processes', type=int, default=1, help="Number of processes to run on each worker")
 @click.option('--memory', type=str, default="4GB", help="RAM usage per workers")
 def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_timestamp_path,
               h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window,
-              workers, threads, processes, memory):
+              nworkers, threads, processes, memory):
     # find directories with .dat files that either have incomplete or no extractions
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
     # moseq2-model processes these files correctly
@@ -190,7 +190,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
     save_file = os.path.join(output_dir, output_file)
 
     client, cluster, workers, cache = initialize_dask(cluster_type=cluster_type,
-                                                      workers=workers,
+                                                      nworkers=nworkers,
                                                       threads=threads,
                                                       processes=processes,
                                                       memory=memory)
