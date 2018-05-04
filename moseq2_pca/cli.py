@@ -14,7 +14,6 @@ import dask.array as da
 import dask.array.linalg as lng
 import dask
 import time
-import warnings
 from dask.diagnostics import ProgressBar
 from chest import Chest
 
@@ -96,21 +95,18 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         client = Client(cluster)
 
         nworkers = 0
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
-            pbar = tqdm.tqdm(total=len(workers), desc="Intializating workers")
+        pbar = tqdm.tqdm(total=workers, desc="Intializating workers")
 
-            while nworkers < len(workers):
-                nworkers = len(client.scheduler_info()['workers'])
-                pbar.update(nworkers)
-                time.sleep(5)
+        while nworkers < workers:
+            tmp = len(client.scheduler_info()['workers'])
+            pbar.update(tmp - nworkers)
+            nworkers += tmp - nworkers
+            time.sleep(5)
 
     dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
     stacked_array = da.concatenate(arrays, axis=0).astype('float32')
     nfeatures = stacked_array.shape[1] * stacked_array.shape[2]
-
-    print("{:d} total frames".format(stacked_array.shape[0]))
 
     if gaussfilter_time > 0 or np.any(np.array(medfilter_time) > 0):
         stacked_array = stacked_array.map_overlap(
@@ -130,7 +126,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
     u, s, v = lng.svd_compressed(stacked_array-mean, rank, 0)
     total_var = stacked_array.var(ddof=1, axis=0).sum()
 
-    print('\nCalculation setup complete...')
+    print('Calculation setup complete...')
 
     if cluster_type == 'local':
         with ProgressBar():
