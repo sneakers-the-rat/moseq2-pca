@@ -198,7 +198,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
 
     print('Loading PCs from {}'.format(pca_file))
     with h5py.File(pca_file, 'r') as f:
-        pca_components = da.from_array(f[pca_path], chunks=f[pca_path].shape)
+        pca_components = f[pca_path].value
 
     # get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
     pca_yaml = '{}.yaml'.format(os.path.splitext(pca_file)[0])
@@ -304,7 +304,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
                 futures.append(future)
 
             keys = [future.key for key in futures]
-            
+
             for future, result in as_completed(futures, with_results=True):
 
                 print(keys.index(future.key))
