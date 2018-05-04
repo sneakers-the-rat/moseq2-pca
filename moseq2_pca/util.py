@@ -196,7 +196,7 @@ def recursively_load_dict_contents_from_group(h5file, path):
     return ans
 
 
-def initialize_dask(workers, processes, memory, threads, cluster='local'):
+def initialize_dask(workers, processes, memory, threads, cluster_type='local'):
 
     # only use distributed if we need it
 
@@ -205,11 +205,11 @@ def initialize_dask(workers, processes, memory, threads, cluster='local'):
     cache = None
     cluster = None
 
-    if cluster == 'local':
+    if cluster_type == 'local':
 
         cache = Chest()
 
-    elif cluster == 'slurm':
+    elif cluster_type == 'slurm':
 
         cluster = SLURMCluster(processes=processes, threads=threads, memory=memory)
         workers = cluster.start_workers(workers)

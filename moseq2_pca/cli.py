@@ -79,7 +79,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         'medfilter_space': medfilter_space
     }
 
-    client, cluster, workers, cache = initialize_dask(cluster=cluster_type,
+    client, cluster, workers, cache = initialize_dask(cluster_type=cluster_type,
                                                       workers=workers,
                                                       threads=threads,
                                                       processes=processes,
@@ -157,7 +157,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 
 @cli.command(name='apply-pca')
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
-@click.option('--cluster-type', type=click.Choice(['local','slurm']),
+@click.option('--cluster-type', type=click.Choice(['local', 'slurm']),
               default='local', help='Cluster type')
 @click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store results')
 @click.option('--output-file', default='pca_scores', type=str, help='Name of h5 file for storing pca results')
@@ -189,7 +189,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
 
     save_file = os.path.join(output_dir, output_file)
 
-    client, cluster, workers, cache = initialize_dask(cluster=cluster_type,
+    client, cluster, workers, cache = initialize_dask(cluster_type=cluster_type,
                                                       workers=workers,
                                                       threads=threads,
                                                       processes=processes,
