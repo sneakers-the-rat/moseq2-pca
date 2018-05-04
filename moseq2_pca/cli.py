@@ -12,8 +12,6 @@ import numpy as np
 import dask.array as da
 import dask.array.linalg as lng
 import dask
-import time
-import warnings
 from dask.diagnostics import ProgressBar
 
 
@@ -254,17 +252,17 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
             frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
 
             if cluster_type == 'local':
-                frames = dask.compute(frames, cache=cache)
+                cleaned_frames = dask.compute(frames, cache=cache)
             elif cluster_type == 'slurm':
                 futures = client.compute(frames)
-                frames = client.gather(futures)
+                cleaned_frames = client.gather(futures)
 
-            scores = frames.dot(pca_components.T)
+            scores = cleaned_frames.dot(pca_components.T)
 
             if h5_timestamp_path is not None:
                 timestamps = f[h5_timestamp_path].value / 1000.0
             else:
-                timestamps = np.arange(frames.shape[0]) / fps
+                timestamps = np.arange(cleaned_frames.shape[0]) / fps
 
             if h5_metadata_path is not None:
                 metadata_name = 'metadata/{}'.format(uuid)
