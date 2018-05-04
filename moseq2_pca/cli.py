@@ -300,9 +300,14 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
 
                 frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
                 scores = frames.dot(pca_components.T)
-                futures.append(client.compute(scores))
+                future = client.compute(scores)
+                futures.append(future)
 
+            keys = [future.key for key in futures]
+            
             for future, result in as_completed(futures, with_results=True):
+
+                print(keys.index(future.key))
                 print(future)
                 print(result.shape)
 
