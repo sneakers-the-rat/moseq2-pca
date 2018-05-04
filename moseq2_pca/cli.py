@@ -249,7 +249,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
 
             with h5py.File(h5, 'r') as f:
 
-                frames = clean_frames(f[h5_path].value, **clean_params)
+                frames = clean_frames(f[h5_path].value.astype('float32'), **clean_params)
 
                 if use_fft:
                     frames = np.fft.fftshift(np.abs(np.fft.fft2(frames)), axes=(1, 2))
