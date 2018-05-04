@@ -97,7 +97,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         nworkers = 0
         pbar = tqdm.tqdm(total=len(workers), desc="Intializating workers")
 
-        while nworkers < workers:
+        while nworkers < len(workers):
             nworkers = len(client.scheduler_info()['workers'])
             pbar.update(nworkers)
             time.sleep(5)
