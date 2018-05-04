@@ -138,7 +138,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         s, v, mean, total_var = client.gather(futures)
         cluster.stop_workers(workers)
 
-    print('Calculation complete...')
+    print('\nCalculation complete...')
 
     # correct the sign of the singular vectors
 
