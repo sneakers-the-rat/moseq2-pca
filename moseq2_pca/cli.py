@@ -310,7 +310,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
             keys = [tmp.key for tmp in futures]
 
             with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
-                for future, result in tqdm.tqdm(as_completed(futures, with_results=True)):
+                for future, result in tqdm.tqdm(as_completed(futures, with_results=True, total=len(futures))):
 
                     file_idx = keys.index(future.key)
 
