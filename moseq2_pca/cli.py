@@ -194,7 +194,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
     client, cluster, workers, cache = initialize_dask(cluster=cluster_type,
                                                       workers=workers,
                                                       threads=threads,
-                                                      processes=processes.
+                                                      processes=processes,
                                                       memory=memory)
 
     print('Loading PCs from {}'.format(pca_file))
