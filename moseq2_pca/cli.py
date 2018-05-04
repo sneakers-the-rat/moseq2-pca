@@ -1,7 +1,7 @@
 from moseq2_pca.util import recursive_find_h5s, command_with_config, clean_frames,\
     select_strel, insert_nans, read_yaml, initialize_dask
 from moseq2_pca.viz import display_components, scree_plot
-from dask.distributed import progress
+from dask.distributed import progress, as_completed
 import click
 import os
 import ruamel.yaml as yaml
@@ -12,6 +12,7 @@ import numpy as np
 import dask.array as da
 import dask.array.linalg as lng
 import dask
+import warnings
 from dask.diagnostics import ProgressBar
 
 
@@ -197,7 +198,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
 
     print('Loading PCs from {}'.format(pca_file))
     with h5py.File(pca_file, 'r') as f:
-        pca_components = f[pca_path].value
+        pca_components = da.from_array(f[pca_path].value)
 
     # get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
     pca_yaml = '{}.yaml'.format(os.path.splitext(pca_file)[0])
@@ -227,57 +228,84 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
     if use_fft:
         print('Using FFT...')
 
-    with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
-        for h5, yml in tqdm.tqdm(zip(h5s, yamls), total=len(h5s),
-                                 desc='Computing scores'):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
+        if cluster_type == 'local':
 
-            data = read_yaml(yml)
-            uuid = data['uuid']
+            with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
+                for h5, yml in tqdm.tqdm(zip(h5s, yamls), total=len(h5s),
+                                         desc='Computing scores'):
 
-            dset = h5py.File(h5, mode='r')['frames']
-            frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
+                    data = read_yaml(yml)
+                    uuid = data['uuid']
 
-            if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
-                frames = frames.map_overlap(
-                    clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
-            else:
-                frames = frames.map_blocks(clean_frames, dtype='float32', **clean_params)
+                    dset = h5py.File(h5, mode='r')['frames']
+                    frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
 
-            if use_fft:
-                print('Using FFT...')
-                frames = frames.map_blocks(
-                    lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
-                    dtype='float32')
+                    if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
+                        frames = frames.map_overlap(
+                            clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
+                    else:
+                        frames = frames.map_blocks(clean_frames, dtype='float32', **clean_params)
 
-            frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
+                    if use_fft:
+                        print('Using FFT...')
+                        frames = frames.map_blocks(
+                            lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
+                            dtype='float32')
 
-            if cluster_type == 'local':
-                cleaned_frames = dask.compute(frames, cache=cache)[0]
-            elif cluster_type == 'slurm':
-                futures = client.compute(frames)
-                cleaned_frames = client.gather(futures)
+                    frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
+                    scores = frames.dot(pca_components.T)
 
-            scores = cleaned_frames.dot(pca_components.T)
+                    scores = dask.compute(scores, cache=cache)[0]
 
-            with h5py.File(h5, mode='r') as f:
-                if h5_timestamp_path is not None:
-                    timestamps = f[h5_timestamp_path].value / 1000.0
+                    with h5py.File(h5, mode='r') as f:
+                        if h5_timestamp_path is not None:
+                            timestamps = f[h5_timestamp_path].value / 1000.0
+                        else:
+                            timestamps = np.arange(frames.shape[0]) / fps
+
+                        if h5_metadata_path is not None:
+                            metadata_name = 'metadata/{}'.format(uuid)
+                            f.copy(h5_metadata_path, f_scores, name=metadata_name)
+
+                    scores, score_idx, _ = insert_nans(data=scores, timestamps=timestamps,
+                                                       fps=int(1 / np.mean(np.diff(timestamps))))
+
+                    f_scores.create_dataset('scores/{}'.format(uuid), data=scores,
+                                            dtype='float32', compression='gzip')
+                    f_scores.create_dataset('scores_idx/{}'.format(uuid), data=score_idx,
+                                            dtype='float32', compression='gzip')
+
+        elif cluster_type == 'slurm':
+            futures = []
+            for h5, yml in zip(h5s, yamls):
+                data = read_yaml(yml)
+                uuid = data['uuid']
+
+                dset = h5py.File(h5, mode='r')['frames']
+                frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
+
+                if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
+                    frames = frames.map_overlap(
+                        clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
                 else:
-                    timestamps = np.arange(cleaned_frames.shape[0]) / fps
+                    frames = frames.map_blocks(clean_frames, dtype='float32', **clean_params)
 
-                if h5_metadata_path is not None:
-                    metadata_name = 'metadata/{}'.format(uuid)
-                    f.copy(h5_metadata_path, f_scores, name=metadata_name)
+                if use_fft:
+                    print('Using FFT...')
+                    frames = frames.map_blocks(
+                        lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
+                        dtype='float32')
 
-            scores, score_idx, _ = insert_nans(data=scores, timestamps=timestamps,
-                                               fps=int(1 / np.mean(np.diff(timestamps))))
+                frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
+                scores = frames.dot(pca_components.T)
+                futures.append(client.compute(scores))
 
-            f_scores.create_dataset('scores/{}'.format(uuid), data=scores,
-                                    dtype='float32', compression='gzip')
-            f_scores.create_dataset('scores_idx/{}'.format(uuid), data=score_idx,
-                                    dtype='float32', compression='gzip')
+            for future, result in as_completed(futures, with_results=True):
+                print(future)
+                print(result.shape)
 
-        if cluster_type == 'slurm':
             cluster.stop_workers(workers)
 
 
