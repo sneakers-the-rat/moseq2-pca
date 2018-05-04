@@ -303,7 +303,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
                 future = client.compute(scores)
                 futures.append(future)
 
-            keys = [future.key for key in futures]
+            keys = [future.key for future in futures]
 
             for future, result in as_completed(futures, with_results=True):
 
