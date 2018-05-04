@@ -311,7 +311,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
 
             for future, result in as_completed(futures, with_results=True):
 
-                print(uuid[keys.index(future.key)])
+                print(uuids[keys.index(future.key)])
                 print(keys.index(future.key))
                 print(future)
                 print(result.shape)
