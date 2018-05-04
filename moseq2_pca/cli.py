@@ -259,18 +259,19 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
 
             scores = cleaned_frames.dot(pca_components.T)
 
-            if h5_timestamp_path is not None:
-                timestamps = f[h5_timestamp_path].value / 1000.0
-            else:
-                timestamps = np.arange(cleaned_frames.shape[0]) / fps
+            with h5py.file(h5, mode='r') as f:
+                if h5_timestamp_path is not None:
+                    timestamps = f[h5_timestamp_path].value / 1000.0
+                else:
+                    timestamps = np.arange(cleaned_frames.shape[0]) / fps
 
-            if h5_metadata_path is not None:
-                metadata_name = 'metadata/{}'.format(uuid)
-                f.copy(h5_metadata_path, f_scores, name=metadata_name)
+                if h5_metadata_path is not None:
+                    metadata_name = 'metadata/{}'.format(uuid)
+                    f.copy(h5_metadata_path, f_scores, name=metadata_name)
 
             scores, score_idx, _ = insert_nans(data=scores, timestamps=timestamps,
                                                fps=int(1 / np.mean(np.diff(timestamps))))
-
+            
             f_scores.create_dataset('scores/{}'.format(uuid), data=scores,
                                     dtype='float32', compression='gzip')
             f_scores.create_dataset('scores_idx/{}'.format(uuid), data=score_idx,
