@@ -99,7 +99,8 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 
         while nworkers < len(workers):
             tmp = len(client.scheduler_info()['workers'])
-            pbar.update(tmp - nworkers)
+            if tmp - nworkers > 0:
+                pbar.update(tmp - nworkers)
             nworkers += tmp - nworkers
             time.sleep(5)
 
