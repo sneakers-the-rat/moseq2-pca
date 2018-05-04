@@ -321,7 +321,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
                             timestamps = np.arange(frames.shape[0]) / fps
 
                         if h5_metadata_path is not None:
-                            metadata_name = 'metadata/{}'.format(uuid)
+                            metadata_name = 'metadata/{}'.format(uuids[file_idx])
                             f.copy(h5_metadata_path, f_scores, name=metadata_name)
 
                     scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
