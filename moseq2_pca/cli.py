@@ -252,7 +252,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
             frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
 
             if cluster_type == 'local':
-                cleaned_frames = dask.compute(frames, cache=cache)
+                cleaned_frames, _ = dask.compute(frames, cache=cache)
             elif cluster_type == 'slurm':
                 futures = client.compute(frames)
                 cleaned_frames = client.gather(futures)
