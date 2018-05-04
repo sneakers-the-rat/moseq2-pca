@@ -107,6 +107,8 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
     stacked_array = da.concatenate(arrays, axis=0).astype('float32')
     nfeatures = stacked_array.shape[1] * stacked_array.shape[2]
 
+    print("{:d} total frames".format(stacked_array.shape[0]))
+
     if gaussfilter_time > 0 or np.any(np.array(medfilter_time) > 0):
         stacked_array = stacked_array.map_overlap(
             clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
