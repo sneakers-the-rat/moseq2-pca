@@ -14,7 +14,7 @@ import warnings
 import dask.array as da
 import dask.array.linalg as lng
 import dask
-
+import tqdm
 
 @click.group()
 def cli():
