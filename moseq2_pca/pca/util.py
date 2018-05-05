@@ -82,7 +82,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
 
     with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
         for future, result in tqdm.tqdm(as_completed(futures, with_results=True), total=len(futures),
-                                        descr="Computing scores"):
+                                        desc="Computing scores"):
 
             file_idx = keys.index(future.key)
 
