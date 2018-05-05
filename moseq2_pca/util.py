@@ -211,7 +211,7 @@ def initialize_dask(nworkers, processes, memory, threads, cluster_type='local', 
 
     elif cluster_type == 'local' and scheduler == 'distributed':
 
-        cluster = LocalCluster(n_workers=nworkers)
+        cluster = LocalCluster(n_workers=nworkers, processes=False)
         # client = Client(processes=False)
         client = Client(cluster)
 
