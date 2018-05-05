@@ -46,9 +46,9 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
                                     dtype='float32', compression='gzip')
 
 
-def apply_pca_slurm(pca_components, h5s, yamls, use_fft, clean_params,
-                    save_file, chunk_size, h5_metadata_path, h5_timestamp_path,
-                    h5_path, fps=30):
+def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
+                   save_file, chunk_size, h5_metadata_path, h5_timestamp_path,
+                   h5_path, fps=30):
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)

@@ -1,7 +1,7 @@
 from moseq2_pca.util import recursive_find_h5s, command_with_config, clean_frames,\
     select_strel, initialize_dask
 from moseq2_pca.viz import display_components, scree_plot
-from moseq2_pca.pca import apply_pca_slurm, apply_pca_local
+from moseq2_pca.pca import apply_pca_dask, apply_pca_local
 from dask.distributed import progress
 import dask.bag as db
 import click
@@ -158,7 +158,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 
 @cli.command(name='apply-pca', cls=command_with_config('config_file'))
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
-@click.option('--cluster-type', type=click.Choice(['local', 'slurm']),
+@click.option('--cluster-type', type=click.Choice(['local', 'slurm', 'nodask']),
               default='local', help='Cluster type')
 @click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store results')
 @click.option('--output-file', default='pca_scores', type=str, help='Name of h5 file for storing pca results')
@@ -231,17 +231,18 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
                         h5_timestamp_path=h5_timestamp_path, fps=fps)
 
     else:
-        client, cluster, workers, cache = initialize_dask(cluster_type=cluster_type,
-                                                          nworkers=nworkers,
-                                                          threads=threads,
-                                                          processes=processes,
-                                                          memory=memory,
-                                                          scheduler='distributed')
-        apply_pca_slurm(pca_components=pca_components, h5s=h5s, yamls=yamls,
-                        use_fft=use_fft, clean_params=clean_params,
-                        save_file=save_file, chunk_size=chunk_size,
-                        h5_metadata_path=h5_metadata_path, h5_path=h5_path,
-                        h5_timestamp_path=h5_timestamp_path, fps=fps)
+        client, cluster, workers, cache =\
+         initialize_dask(cluster_type=cluster_type,
+                         nworkers=nworkers,
+                         threads=threads,
+                         processes=processes,
+                         memory=memory,
+                         scheduler='distributed')
+        apply_pca_dask(pca_components=pca_components, h5s=h5s, yamls=yamls,
+                       use_fft=use_fft, clean_params=clean_params,
+                       save_file=save_file, chunk_size=chunk_size,
+                       h5_metadata_path=h5_metadata_path, h5_path=h5_path,
+                       h5_timestamp_path=h5_timestamp_path, fps=fps)
 
         if workers is not None:
             cluster.stop_workers(workers)
