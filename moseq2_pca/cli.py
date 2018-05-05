@@ -1,7 +1,7 @@
 from moseq2_pca.util import recursive_find_h5s, command_with_config, clean_frames,\
     select_strel, initialize_dask
 from moseq2_pca.viz import display_components, scree_plot
-from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local
+from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local, train_pca_dask
 from dask.distributed import progress
 from dask.diagnostics import ProgressBar
 import click
@@ -15,6 +15,7 @@ import dask.array as da
 import dask.array.linalg as lng
 import dask
 import tqdm
+
 
 @click.group()
 def cli():
@@ -40,15 +41,17 @@ def cli():
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
+@click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
 @click.option('-n', '--nworkers', type=int, default=50, help="Number of workers")
 @click.option('-t', '--threads', type=int, default=2, help="Number of threads per workers")
 @click.option('-p', '--processes', type=int, default=4, help="Number of processes to run on each worker")
 @click.option('-m', '--memory', type=str, default="4GB", help="RAM usage per workers")
+@click.option('-w', '--wall-time', type=str, default="01:00:00", help="Wall time for workers")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, tailfilter_iters,
               tailfilter_size, tailfilter_shape, use_fft, rank, output_file,
-              h5_path, chunk_size, visualize_results, config_file, nworkers, threads,
-              processes, memory):
+              h5_path, chunk_size, visualize_results, config_file, queue, nworkers,
+              threads, processes, memory, wall_time):
     # find directories with .dat files that either have incomplete or no extractions
 
     params = locals()
@@ -80,65 +83,20 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         'medfilter_space': medfilter_space
     }
 
-    client, cluster, workers, cache = initialize_dask(cluster_type=cluster_type,
-                                                      nworkers=nworkers,
-                                                      threads=threads,
-                                                      processes=processes,
-                                                      memory=memory)
+    client, cluster, workers, cache =\
+        initialize_dask(cluster_type=cluster_type,
+                        nworkers=nworkers,
+                        threads=threads,
+                        processes=processes,
+                        memory=memory,
+                        wall_time=wall_time,
+                        queue=queue)
 
-    dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
-    arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
-    stacked_array = da.concatenate(arrays, axis=0).astype('float32')
-    nfeatures = stacked_array.shape[1] * stacked_array.shape[2]
-
-    if gaussfilter_time > 0 or np.any(np.array(medfilter_time) > 0):
-        stacked_array = stacked_array.map_overlap(
-            clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
-    else:
-        stacked_array = stacked_array.map_blocks(clean_frames, dtype='float32', **clean_params)
-
-    if use_fft:
-        print('Using FFT...')
-        stacked_array = stacked_array.map_blocks(
-            lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
-            dtype='float32')
-
-    stacked_array = stacked_array.reshape(-1, nfeatures)
-    nsamples, nfeatures = stacked_array.shape
-    mean = stacked_array.mean(axis=0)
-    u, s, v = lng.svd_compressed(stacked_array-mean, rank, 0)
-    total_var = stacked_array.var(ddof=1, axis=0).sum()
-
-    print('Calculation setup complete...')
-
-    if cluster_type == 'local':
-        with ProgressBar():
-            s, v, mean, total_var = dask.compute(s, v, mean, total_var,
-                                                 cache=cache)
-    elif cluster_type == 'slurm':
-        futures = client.compute([s, v, mean, total_var])
-        progress(futures)
-        s, v, mean, total_var = client.gather(futures)
-        cluster.stop_workers(workers)
-
-    print('\nCalculation complete...')
-
-    # correct the sign of the singular vectors
-
-    tmp = np.argmax(np.abs(v), axis=1)
-    correction = np.sign(v[np.arange(v.shape[0]), tmp])
-    v *= correction[:, None]
-
-    explained_variance = s**2 / (nsamples-1)
-    explained_variance_ratio = explained_variance / total_var
-
-    output_dict = {
-        'components': v,
-        'singular_values': s,
-        'explained_variance': explained_variance,
-        'explained_variance_ratio': explained_variance_ratio,
-        'mean': mean
-    }
+    output_dict =\
+        train_pca_dask(h5s=h5s, h5_path=h5_path, chunk_size=chunk_size,
+                       clean_params=clean_params, use_fft=use_fft,
+                       rank=rank, cluster_type=cluster_type,
+                       client=client, cluster=cluster, workers=workers, cache=cache)
 
     if visualize_results:
         plt = display_components(output_dict['components'], headless=True)
@@ -171,14 +129,16 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('--fill-gaps', default=True, type=bool, help='Fill dropped frames with nans')
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
 @click.option('--detrend-window', default=0, type=float, help="Length of detrend window (in seconds, 0 for no detrending)")
+@click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
+@click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
 @click.option('-n', '--nworkers', type=int, default=20, help="Number of workers")
 @click.option('-t', '--threads', type=int, default=2, help="Number of threads per workers")
 @click.option('-p', '--processes', type=int, default=4, help="Number of processes to run on each worker")
 @click.option('-m', '--memory', type=str, default="4GB", help="RAM usage per workers")
-@click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
+@click.option('-w', '--wall-time', type=str, default="01:00:00", help="Wall time for workers")
 def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_timestamp_path,
               h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window,
-              nworkers, threads, processes, memory, config_file):
+              config_file, queue, nworkers, threads, processes, memory, wall_time):
     # find directories with .dat files that either have incomplete or no extractions
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
     # moseq2-model processes these files correctly
@@ -239,6 +199,8 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
                              threads=threads,
                              processes=processes,
                              memory=memory,
+                             wall_time=wall_time,
+                             queue=queue,
                              scheduler='distributed')
             apply_pca_dask(pca_components=pca_components, h5s=h5s, yamls=yamls,
                            use_fft=use_fft, clean_params=clean_params,
@@ -249,8 +211,6 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
 
             if workers is not None:
                 cluster.stop_workers(workers)
-
-    print('\n\n')
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 from dask_jobqueue import SLURMCluster
-from dask.distributed import Client, LocalCluster
+from dask.distributed import Client
 from chest import Chest
 from copy import deepcopy
 import ruamel.yaml as yaml
@@ -197,7 +197,8 @@ def recursively_load_dict_contents_from_group(h5file, path):
     return ans
 
 
-def initialize_dask(nworkers, processes, memory, threads, cluster_type='local', scheduler='dask'):
+def initialize_dask(nworkers, processes, memory, threads, wall_time, queue,
+                    cluster_type='local', scheduler='dask'):
 
     # only use distributed if we need it
 
@@ -216,7 +217,8 @@ def initialize_dask(nworkers, processes, memory, threads, cluster_type='local', 
 
     elif cluster_type == 'slurm':
 
-        cluster = SLURMCluster(processes=processes, threads=threads, memory=memory)
+        cluster = SLURMCluster(processes=processes, threads=threads,
+                               memory=memory, queue=queue, wall_time=wall_time)
         workers = cluster.start_workers(nworkers)
         client = Client(cluster)
 
