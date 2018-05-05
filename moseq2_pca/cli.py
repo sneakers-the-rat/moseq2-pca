@@ -260,7 +260,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
             futures.append(scores)
             uuids.append(uuid)
 
-        futures = client.compute(futures)
+        futures = client.compute(futures, workers=workers)
         keys = [tmp.key for tmp in futures]
 
         with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
