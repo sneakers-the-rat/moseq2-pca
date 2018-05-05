@@ -211,9 +211,9 @@ def initialize_dask(nworkers, processes, memory, threads, cluster_type='local', 
 
     elif cluster_type == 'local' and scheduler == 'distributed':
 
-        cluster = LocalCluster(n_workers=nworkers, processes=False)
+        cluster = LocalCluster(n_workers=nworkers)
         # client = Client(processes=False)
-        client = Client(cluster)
+        client = Client(cluster, processes=False)
         print(client)
         print(cluster)
     elif cluster_type == 'slurm':
