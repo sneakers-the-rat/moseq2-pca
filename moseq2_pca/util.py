@@ -225,7 +225,7 @@ def initialize_dask(nworkers, processes, memory, threads, cluster_type='local', 
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
-            pbar = tqdm.tqdm(total=len(workers)*processes, desc="Intializating workers")
+            pbar = tqdm.tqdm(total=len(workers)*processes, desc="Intializing workers")
 
             while nworkers < len(workers)*processes:
                 tmp = len(client.scheduler_info()['workers'])

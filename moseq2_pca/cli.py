@@ -241,7 +241,8 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
                        use_fft=use_fft, clean_params=clean_params,
                        save_file=save_file, chunk_size=chunk_size,
                        h5_metadata_path=h5_metadata_path, h5_path=h5_path,
-                       h5_timestamp_path=h5_timestamp_path, fps=fps)
+                       h5_timestamp_path=h5_timestamp_path, fps=fps,
+                       client=client)
 
         if workers is not None:
             cluster.stop_workers(workers)
