@@ -194,7 +194,8 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
                                                       nworkers=nworkers,
                                                       threads=threads,
                                                       processes=processes,
-                                                      memory=memory)
+                                                      memory=memory,
+                                                      scheduler='distributed')
 
     print('Loading PCs from {}'.format(pca_file))
     with h5py.File(pca_file, 'r') as f:
@@ -230,108 +231,61 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
-        if cluster_type == 'local':
 
-            with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
-                for h5, yml in tqdm.tqdm(zip(h5s, yamls), total=len(h5s),
-                                         desc='Computing scores'):
+        futures = []
+        uuids = []
 
-                    data = read_yaml(yml)
-                    uuid = data['uuid']
+        for h5, yml in zip(h5s, yamls):
+            data = read_yaml(yml)
+            uuid = data['uuid']
 
-                    dset = h5py.File(h5, mode='r')['frames']
-                    frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
+            dset = h5py.File(h5, mode='r')['frames']
+            frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
 
-                    if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
-                        frames = frames.map_overlap(
-                            clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
+            if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
+                frames = frames.map_overlap(
+                    clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
+            else:
+                frames = frames.map_blocks(clean_frames, dtype='float32', **clean_params)
+
+            if use_fft:
+                print('Using FFT...')
+                frames = frames.map_blocks(
+                    lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
+                    dtype='float32')
+
+            frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
+            scores = frames.dot(pca_components.T)
+            future = client.compute(scores)
+            futures.append(future)
+            uuids.append(uuid)
+
+        keys = [tmp.key for tmp in futures]
+
+        with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
+            for future, result in tqdm.tqdm(as_completed(futures, with_results=True), total=len(futures)):
+
+                file_idx = keys.index(future.key)
+
+                with h5py.File(h5s[file_idx], mode='r') as f:
+                    if h5_timestamp_path is not None:
+                        timestamps = f[h5_timestamp_path].value / 1000.0
                     else:
-                        frames = frames.map_blocks(clean_frames, dtype='float32', **clean_params)
+                        timestamps = np.arange(frames.shape[0]) / fps
 
-                    if use_fft:
-                        print('Using FFT...')
-                        frames = frames.map_blocks(
-                            lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
-                            dtype='float32')
+                    if h5_metadata_path is not None:
+                        metadata_name = 'metadata/{}'.format(uuids[file_idx])
+                        f.copy(h5_metadata_path, f_scores, name=metadata_name)
 
-                    frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
-                    scores = frames.dot(pca_components.T)
+                scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
+                                                   fps=int(1 / np.mean(np.diff(timestamps))))
 
-                    scores = dask.compute(scores, cache=cache)[0]
+                f_scores.create_dataset('scores/{}'.format(uuids[file_idx]), data=scores,
+                                        dtype='float32', compression='gzip')
+                f_scores.create_dataset('scores_idx/{}'.format(uuids[file_idx]), data=score_idx,
+                                        dtype='float32', compression='gzip')
 
-                    with h5py.File(h5, mode='r') as f:
-                        if h5_timestamp_path is not None:
-                            timestamps = f[h5_timestamp_path].value / 1000.0
-                        else:
-                            timestamps = np.arange(frames.shape[0]) / fps
-
-                        if h5_metadata_path is not None:
-                            metadata_name = 'metadata/{}'.format(uuid)
-                            f.copy(h5_metadata_path, f_scores, name=metadata_name)
-
-                    scores, score_idx, _ = insert_nans(data=scores, timestamps=timestamps,
-                                                       fps=int(1 / np.mean(np.diff(timestamps))))
-
-                    f_scores.create_dataset('scores/{}'.format(uuid), data=scores,
-                                            dtype='float32', compression='gzip')
-                    f_scores.create_dataset('scores_idx/{}'.format(uuid), data=score_idx,
-                                            dtype='float32', compression='gzip')
-
-        elif cluster_type == 'slurm':
-
-            futures = []
-            uuids = []
-
-            for h5, yml in zip(h5s, yamls):
-                data = read_yaml(yml)
-                uuid = data['uuid']
-
-                dset = h5py.File(h5, mode='r')['frames']
-                frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
-
-                if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
-                    frames = frames.map_overlap(
-                        clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
-                else:
-                    frames = frames.map_blocks(clean_frames, dtype='float32', **clean_params)
-
-                if use_fft:
-                    print('Using FFT...')
-                    frames = frames.map_blocks(
-                        lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
-                        dtype='float32')
-
-                frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
-                scores = frames.dot(pca_components.T)
-                future = client.compute(scores)
-                futures.append(future)
-                uuids.append(uuid)
-
-            keys = [tmp.key for tmp in futures]
-
-            with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
-                for future, result in tqdm.tqdm(as_completed(futures, with_results=True), total=len(futures)):
-
-                    file_idx = keys.index(future.key)
-
-                    with h5py.File(h5s[file_idx], mode='r') as f:
-                        if h5_timestamp_path is not None:
-                            timestamps = f[h5_timestamp_path].value / 1000.0
-                        else:
-                            timestamps = np.arange(frames.shape[0]) / fps
-
-                        if h5_metadata_path is not None:
-                            metadata_name = 'metadata/{}'.format(uuids[file_idx])
-                            f.copy(h5_metadata_path, f_scores, name=metadata_name)
-
-                    scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
-                                                       fps=int(1 / np.mean(np.diff(timestamps))))
-
-                    f_scores.create_dataset('scores/{}'.format(uuids[file_idx]), data=scores,
-                                            dtype='float32', compression='gzip')
-                    f_scores.create_dataset('scores_idx/{}'.format(uuids[file_idx]), data=score_idx,
-                                            dtype='float32', compression='gzip')
-
+        if cluster_type == 'slurm':
             cluster.stop_workers(workers)
 
 

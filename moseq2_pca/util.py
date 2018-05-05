@@ -196,7 +196,7 @@ def recursively_load_dict_contents_from_group(h5file, path):
     return ans
 
 
-def initialize_dask(nworkers, processes, memory, threads, cluster_type='local'):
+def initialize_dask(nworkers, processes, memory, threads, cluster_type='local', scheduler='dask'):
 
     # only use distributed if we need it
 
@@ -205,9 +205,13 @@ def initialize_dask(nworkers, processes, memory, threads, cluster_type='local'):
     cache = None
     cluster = None
 
-    if cluster_type == 'local':
+    if cluster_type == 'local' and scheduler == 'dask':
 
         cache = Chest()
+
+    elif cluster_type == 'local' and scheduler == 'distributed':
+
+        client = Client()
 
     elif cluster_type == 'slurm':
 
