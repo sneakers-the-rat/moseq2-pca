@@ -214,7 +214,8 @@ def initialize_dask(nworkers, processes, memory, threads, cluster_type='local', 
         cluster = LocalCluster(n_workers=nworkers, processes=False)
         # client = Client(processes=False)
         client = Client(cluster)
-
+        print(client)
+        print(cluster)
     elif cluster_type == 'slurm':
 
         cluster = SLURMCluster(processes=processes, threads=threads, memory=memory)
