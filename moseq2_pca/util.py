@@ -212,8 +212,7 @@ def initialize_dask(nworkers, processes, memory, threads, cluster_type='local', 
 
     elif cluster_type == 'local' and scheduler == 'distributed':
 
-        cluster = LocalCluster()
-        client = Client(cluster, processes=False)
+        client = Client(processes=False)
 
     elif cluster_type == 'slurm':
 
