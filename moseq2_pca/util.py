@@ -1,5 +1,5 @@
 from dask_jobqueue import SLURMCluster
-from dask.distributed import Client
+from dask.distributed import Client, LocalCluster
 from chest import Chest
 from copy import deepcopy
 import ruamel.yaml as yaml
@@ -211,7 +211,9 @@ def initialize_dask(nworkers, processes, memory, threads, cluster_type='local', 
 
     elif cluster_type == 'local' and scheduler == 'distributed':
 
-        client = Client(processes=False)
+        cluster = LocalCluster(n_workers=nworkers)
+        # client = Client(processes=False)
+        client = Client(cluster)
 
     elif cluster_type == 'slurm':
 
