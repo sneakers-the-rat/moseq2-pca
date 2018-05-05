@@ -256,10 +256,11 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
 
             frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
             scores = frames.dot(pca_components.T)
-            future = client.compute(scores)
-            futures.append(future)
+            # future = client.compute(scores)
+            futures.append(scores)
             uuids.append(uuid)
 
+        futures = client.compute(futures)
         keys = [tmp.key for tmp in futures]
 
         with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
