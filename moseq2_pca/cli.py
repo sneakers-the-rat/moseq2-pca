@@ -1,9 +1,8 @@
 from moseq2_pca.util import recursive_find_h5s, command_with_config, clean_frames,\
     select_strel, initialize_dask
 from moseq2_pca.viz import display_components, scree_plot
-from moseq2_pca.pca import apply_pca_dask, apply_pca_local
+from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local
 from dask.distributed import progress
-import dask.bag as db
 import click
 import os
 import ruamel.yaml as yaml
