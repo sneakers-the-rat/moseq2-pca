@@ -234,4 +234,6 @@ def initialize_dask(nworkers, processes, memory, threads, cluster_type='local', 
                 nworkers += tmp - nworkers
                 time.sleep(5)
 
+            pbar.close()
+            
     return client, cluster, workers, cache
