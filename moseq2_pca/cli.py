@@ -43,7 +43,7 @@ def cli():
 @click.option('-n', '--nworkers', type=int, default=50, help="Number of workers")
 @click.option('-t', '--threads', type=int, default=2, help="Number of threads per workers")
 @click.option('-p', '--processes', type=int, default=4, help="Number of processes to run on each worker")
-@click.option('--memory', type=str, default="4GB", help="RAM usage per workers")
+@click.option('-m', '--memory', type=str, default="4GB", help="RAM usage per workers")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, tailfilter_iters,
               tailfilter_size, tailfilter_shape, use_fft, rank, output_file,
@@ -174,7 +174,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('-n', '--nworkers', type=int, default=20, help="Number of workers")
 @click.option('-t', '--threads', type=int, default=2, help="Number of threads per workers")
 @click.option('-p', '--processes', type=int, default=4, help="Number of processes to run on each worker")
-@click.option('--memory', type=str, default="4GB", help="RAM usage per workers")
+@click.option('-m', '--memory', type=str, default="4GB", help="RAM usage per workers")
 def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_timestamp_path,
               h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window,
               nworkers, threads, processes, memory):
