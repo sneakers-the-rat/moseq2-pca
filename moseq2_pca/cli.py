@@ -3,16 +3,17 @@ from moseq2_pca.util import recursive_find_h5s, command_with_config, clean_frame
 from moseq2_pca.viz import display_components, scree_plot
 from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local
 from dask.distributed import progress
+from dask.diagnostics import ProgressBar
 import click
 import os
 import ruamel.yaml as yaml
 import datetime
 import h5py
 import numpy as np
+import warnings
 import dask.array as da
 import dask.array.linalg as lng
 import dask
-from dask.diagnostics import ProgressBar
 
 
 @click.group()
@@ -222,30 +223,32 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
     if use_fft:
         print('Using FFT...')
 
-    if cluster_type == 'nodask':
-        apply_pca_local(pca_components=pca_components, h5s=h5s, yamls=yamls,
-                        use_fft=use_fft, clean_params=clean_params,
-                        save_file=save_file, chunk_size=chunk_size,
-                        h5_metadata_path=h5_metadata_path, h5_path=h5_path,
-                        h5_timestamp_path=h5_timestamp_path, fps=fps)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
+        if cluster_type == 'nodask':
+            apply_pca_local(pca_components=pca_components, h5s=h5s, yamls=yamls,
+                            use_fft=use_fft, clean_params=clean_params,
+                            save_file=save_file, chunk_size=chunk_size,
+                            h5_metadata_path=h5_metadata_path, h5_path=h5_path,
+                            h5_timestamp_path=h5_timestamp_path, fps=fps)
 
-    else:
-        client, cluster, workers, cache =\
-         initialize_dask(cluster_type=cluster_type,
-                         nworkers=nworkers,
-                         threads=threads,
-                         processes=processes,
-                         memory=memory,
-                         scheduler='distributed')
-        apply_pca_dask(pca_components=pca_components, h5s=h5s, yamls=yamls,
-                       use_fft=use_fft, clean_params=clean_params,
-                       save_file=save_file, chunk_size=chunk_size,
-                       h5_metadata_path=h5_metadata_path, h5_path=h5_path,
-                       h5_timestamp_path=h5_timestamp_path, fps=fps,
-                       client=client)
+        else:
+            client, cluster, workers, cache =\
+             initialize_dask(cluster_type=cluster_type,
+                             nworkers=nworkers,
+                             threads=threads,
+                             processes=processes,
+                             memory=memory,
+                             scheduler='distributed')
+            apply_pca_dask(pca_components=pca_components, h5s=h5s, yamls=yamls,
+                           use_fft=use_fft, clean_params=clean_params,
+                           save_file=save_file, chunk_size=chunk_size,
+                           h5_metadata_path=h5_metadata_path, h5_path=h5_path,
+                           h5_timestamp_path=h5_timestamp_path, fps=fps,
+                           client=client)
 
-        if workers is not None:
-            cluster.stop_workers(workers)
+            if workers is not None:
+                cluster.stop_workers(workers)
 
     print('\n\n')
 
