@@ -13,6 +13,7 @@ import time
 import warnings
 import tqdm
 
+
 # from https://stackoverflow.com/questions/46358797/
 # python-click-supply-arguments-and-options-from-a-configuration-file
 def command_with_config(config_file_param_name):
@@ -211,13 +212,9 @@ def initialize_dask(nworkers, processes, memory, threads, cluster_type='local', 
 
     elif cluster_type == 'local' and scheduler == 'distributed':
 
-        cluster = LocalCluster(n_workers=nworkers, threads_per_worker=1)
-        workers = cluster.workers
-        # client = Client(processes=False)
+        cluster = LocalCluster(n_workers=nworkers)
         client = Client(cluster, processes=True)
-        print(client)
-        print(cluster)
-        print(workers)
+
     elif cluster_type == 'slurm':
 
         cluster = SLURMCluster(processes=processes, threads=threads, memory=memory)

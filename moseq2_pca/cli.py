@@ -1,18 +1,18 @@
 from moseq2_pca.util import recursive_find_h5s, command_with_config, clean_frames,\
-    select_strel, insert_nans, read_yaml, initialize_dask
+    select_strel, initialize_dask
 from moseq2_pca.viz import display_components, scree_plot
-from dask.distributed import progress, as_completed
+from moseq2_pca.pca import apply_pca_slurm, apply_pca_local
+from dask.distributed import progress
+import dask.bag as db
 import click
 import os
 import ruamel.yaml as yaml
 import datetime
 import h5py
-import tqdm
 import numpy as np
 import dask.array as da
 import dask.array.linalg as lng
 import dask
-import warnings
 from dask.diagnostics import ProgressBar
 
 
@@ -156,7 +156,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
             f.create_dataset(k, data=v, compression='gzip', dtype='float32')
 
 
-@cli.command(name='apply-pca')
+@cli.command(name='apply-pca', cls=command_with_config('config_file'))
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
 @click.option('--cluster-type', type=click.Choice(['local', 'slurm']),
               default='local', help='Cluster type')
@@ -175,9 +175,10 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('-t', '--threads', type=int, default=2, help="Number of threads per workers")
 @click.option('-p', '--processes', type=int, default=4, help="Number of processes to run on each worker")
 @click.option('-m', '--memory', type=str, default="4GB", help="RAM usage per workers")
+@click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
 def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_timestamp_path,
               h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window,
-              nworkers, threads, processes, memory):
+              nworkers, threads, processes, memory, config_file):
     # find directories with .dat files that either have incomplete or no extractions
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
     # moseq2-model processes these files correctly
@@ -189,13 +190,6 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
         os.makedirs(output_dir)
 
     save_file = os.path.join(output_dir, output_file)
-
-    client, cluster, workers, cache = initialize_dask(cluster_type=cluster_type,
-                                                      nworkers=nworkers,
-                                                      threads=threads,
-                                                      processes=processes,
-                                                      memory=memory,
-                                                      scheduler='distributed')
 
     print('Loading PCs from {}'.format(pca_file))
     with h5py.File(pca_file, 'r') as f:
@@ -229,65 +223,30 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
     if use_fft:
         print('Using FFT...')
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
+    if cluster_type == 'nodask':
+        apply_pca_local(pca_components=pca_components, h5s=h5s, yamls=yamls,
+                        use_fft=use_fft, clean_params=clean_params,
+                        save_file=save_file, chunk_size=chunk_size,
+                        h5_metadata_path=h5_metadata_path, h5_path=h5_path,
+                        h5_timestamp_path=h5_timestamp_path, fps=fps)
 
-        futures = []
-        uuids = []
+    else:
+        client, cluster, workers, cache = initialize_dask(cluster_type=cluster_type,
+                                                          nworkers=nworkers,
+                                                          threads=threads,
+                                                          processes=processes,
+                                                          memory=memory,
+                                                          scheduler='distributed')
+        apply_pca_slurm(pca_components=pca_components, h5s=h5s, yamls=yamls,
+                        use_fft=use_fft, clean_params=clean_params,
+                        save_file=save_file, chunk_size=chunk_size,
+                        h5_metadata_path=h5_metadata_path, h5_path=h5_path,
+                        h5_timestamp_path=h5_timestamp_path, fps=fps)
 
-        for h5, yml in zip(h5s, yamls):
-            data = read_yaml(yml)
-            uuid = data['uuid']
-
-            dset = h5py.File(h5, mode='r')['frames']
-            frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
-
-            if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
-                frames = frames.map_overlap(
-                    clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
-            else:
-                frames = frames.map_blocks(clean_frames, dtype='float32', **clean_params)
-
-            if use_fft:
-                print('Using FFT...')
-                frames = frames.map_blocks(
-                    lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
-                    dtype='float32')
-
-            frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
-            scores = frames.dot(pca_components.T)
-            # future = client.compute(scores)
-            futures.append(scores)
-            uuids.append(uuid)
-
-        futures = client.compute(futures)
-        keys = [tmp.key for tmp in futures]
-
-        with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
-            for future, result in tqdm.tqdm(as_completed(futures, with_results=True), total=len(futures)):
-
-                file_idx = keys.index(future.key)
-
-                with h5py.File(h5s[file_idx], mode='r') as f:
-                    if h5_timestamp_path is not None:
-                        timestamps = f[h5_timestamp_path].value / 1000.0
-                    else:
-                        timestamps = np.arange(frames.shape[0]) / fps
-
-                    if h5_metadata_path is not None:
-                        metadata_name = 'metadata/{}'.format(uuids[file_idx])
-                        f.copy(h5_metadata_path, f_scores, name=metadata_name)
-
-                scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
-                                                   fps=int(1 / np.mean(np.diff(timestamps))))
-
-                f_scores.create_dataset('scores/{}'.format(uuids[file_idx]), data=scores,
-                                        dtype='float32', compression='gzip')
-                f_scores.create_dataset('scores_idx/{}'.format(uuids[file_idx]), data=score_idx,
-                                        dtype='float32', compression='gzip')
-
-        if cluster_type == 'slurm':
+        if workers is not None:
             cluster.stop_workers(workers)
+
+    print('\n\n')
 
 
 if __name__ == '__main__':
