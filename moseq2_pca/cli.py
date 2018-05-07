@@ -188,9 +188,9 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
             pca_config = yaml.load(f.read(), Loader=yaml.RoundTripLoader)
-            if 'use_fft' in pca_config.keys():
+            if 'use_fft' in pca_config.keys() and pca_config['use_fft']:
                 print('Will use FFT...')
-                use_fft = pca_config['use_fft']
+                use_fft = True
             else:
                 use_fft = False
 
@@ -210,9 +210,9 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
                 'mask_threshold': pca_config['mask_threshold']
             }
 
-            if 'missing_data' in pca_config.keys():
+            if 'missing_data' in pca_config.keys() and pca_config['missing_data']:
                 print('Detected missing data...')
-                missing_data = pca_config['missing_data']
+                missing_data = True
             else:
                 missing_data = False
 
