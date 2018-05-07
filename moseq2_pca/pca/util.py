@@ -20,7 +20,8 @@ def mask_data(original_data, mask, new_data):
 
 def train_pca_dask(dask_array, clean_params, use_fft, rank,
                    cluster_type, client, cluster, workers,
-                   cache, mask=None, iters=5, recon_pcs=2, min_height=10, max_height=100):
+                   cache, mask=None, iters=10, recon_pcs=3,
+                   min_height=10, max_height=100):
 
     missing_data = False
     _, r, c = dask_array.shape
