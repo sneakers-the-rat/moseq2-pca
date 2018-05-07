@@ -113,7 +113,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
             with h5py.File(h5, 'r') as f:
 
-                frames = clean_frames(f[h5_path].value.astype('float32'), **clean_params)
+                frames = f[h5_path].value.astype('float32')
 
                 if missing_data:
                     mask = f[h5_mask_path].value
@@ -121,6 +121,8 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
                                           frames > mask_params['mask_height_threshold'])
                     frames[mask] = 0
                     mask = mask.reshape(-1, frames.shape[1] * frames.shape[2])
+
+                frames = clean_frames(frames, **clean_params)
 
                 if use_fft:
                     frames = np.fft.fftshift(np.abs(np.fft.fft2(frames)), axes=(1, 2))
