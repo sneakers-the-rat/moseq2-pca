@@ -1,3 +1,7 @@
+from dask_jobqueue import SLURMCluster
+from dask.distributed import Client
+from chest import Chest
+from copy import deepcopy
 import ruamel.yaml as yaml
 import os
 import cv2
@@ -5,7 +9,9 @@ import h5py
 import numpy as np
 import click
 import scipy.signal
-from copy import deepcopy
+import time
+import warnings
+import tqdm
 
 
 # from https://stackoverflow.com/questions/46358797/
@@ -119,7 +125,7 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
 
     if gaussfilter_time is not None and gaussfilter_time > 0:
         kernel = gaussian_kernel1d(sig=gaussfilter_time)
-        for idx, i in np.ndenumerate(clean_frames[0]):
+        for idx, i in np.ndenumerate(cleaned_frames[0]):
             cleaned_frames[:, idx[0], idx[1]] = \
                 np.convolve(cleaned_frames[:, idx[0], idx[1]], kernel, mode='same')
 
@@ -189,3 +195,46 @@ def recursively_load_dict_contents_from_group(h5file, path):
         elif isinstance(item, h5py._hl.group.Group):
             ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
     return ans
+
+
+def initialize_dask(nworkers, processes, memory, threads, wall_time, queue,
+                    cluster_type='local', scheduler='dask'):
+
+    # only use distributed if we need it
+
+    client = None
+    workers = None
+    cache = None
+    cluster = None
+
+    if cluster_type == 'local' and scheduler == 'dask':
+
+        cache = Chest()
+
+    elif cluster_type == 'local' and scheduler == 'distributed':
+
+        client = Client(processes=False)
+
+    elif cluster_type == 'slurm':
+
+        cluster = SLURMCluster(processes=processes, threads=threads,
+                               memory=memory, queue=queue, wall_time=wall_time)
+        workers = cluster.start_workers(nworkers)
+        client = Client(cluster)
+
+        nworkers = 0
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
+            pbar = tqdm.tqdm(total=len(workers)*processes, desc="Intializing workers")
+
+            while nworkers < len(workers)*processes:
+                tmp = len(client.scheduler_info()['workers'])
+                if tmp - nworkers > 0:
+                    pbar.update(tmp - nworkers)
+                nworkers += tmp - nworkers
+                time.sleep(5)
+
+            pbar.close()
+
+    return client, cluster, workers, cache

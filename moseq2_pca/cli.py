@@ -1,22 +1,15 @@
-from moseq2_pca.util import recursive_find_h5s, command_with_config, clean_frames,\
-    select_strel, insert_nans, read_yaml
+from moseq2_pca.util import recursive_find_h5s, command_with_config,\
+    select_strel, initialize_dask
 from moseq2_pca.viz import display_components, scree_plot
-from dask_jobqueue import SLURMCluster
-from dask.distributed import Client, progress
+from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local, train_pca_dask
 import click
 import os
 import ruamel.yaml as yaml
 import datetime
 import h5py
-import tqdm
-import numpy as np
-import dask.array as da
-import dask.array.linalg as lng
-import dask
-import time
 import warnings
-from dask.diagnostics import ProgressBar
-from chest import Chest
+import dask.array as da
+import tqdm
 
 
 @click.group()
@@ -26,13 +19,19 @@ def cli():
 
 @cli.command(name='train-pca', cls=command_with_config('config_file'))
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
-@click.option('--cluster-type', type=click.Choice(['local','slurm']),
+@click.option('--cluster-type', type=click.Choice(['local', 'slurm']),
               default='local', help='Cluster type')
 @click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store results')
 @click.option('--gaussfilter-space', default=(1.5, 1), type=(float, float), help="Spatial filter for data (Gaussian)")
 @click.option('--gaussfilter-time', default=0, type=float, help="Temporal filter for data (Gaussian)")
 @click.option('--medfilter-space', default=[0], type=int, help="Median spatial filter", multiple=True)
 @click.option('--medfilter-time', default=[0], type=int, help="Median temporal filter", multiple=True)
+@click.option('--missing-data', is_flag=True, type=bool, help="Use missing data PCA")
+@click.option('--missing-data-iters', default=10, type=int, help="Missing data PCA iterations")
+@click.option('--mask-threshold', default=-16, type=float, help="Threshold for mask (missing data only)")
+@click.option('--mask-height-threshold', default=5, type=float, help="Threshold for mask based on floor height")
+@click.option('--min-height', default=10, type=int, help='Min mouse height from floor (mm)')
+@click.option('--max-height', default=100, type=int, help='Max mouse height from floor (mm)')
 @click.option('--tailfilter-iters', default=1, type=int, help="Number of tail filter iterations")
 @click.option('--tailfilter-size', default=(9, 9), type=(int, int), help='Tail filter size')
 @click.option('--tailfilter-shape', default='ellipse', type=str, help='Tail filter shape')
@@ -40,19 +39,26 @@ def cli():
 @click.option('--rank', default=50, type=int, help="Rank for compressed SVD (generally>>nPCS)")
 @click.option('--output-file', default='pca', type=str, help='Name of h5 file for storing pca results')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
+@click.option('--h5-mask-path', default='/frames_mask', type=str, help="Path to log-likelihood mask in h5 files")
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
-@click.option('-w', '--workers', type=int, default=0, help="Number of workers")
-@click.option('-t', '--threads', type=int, default=1, help="Number of threads per workers")
-@click.option('-p', '--processes', type=int, default=1, help="Number of processes to run on each worker")
-@click.option('--memory', type=str, default="4GB", help="RAM usage per workers")
+@click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
+@click.option('-n', '--nworkers', type=int, default=50, help="Number of workers")
+@click.option('-t', '--threads', type=int, default=2, help="Number of threads per workers")
+@click.option('-p', '--processes', type=int, default=4, help="Number of processes to run on each worker")
+@click.option('-m', '--memory', type=str, default="4GB", help="RAM usage per workers")
+@click.option('-w', '--wall-time', type=str, default="01:00:00", help="Wall time for workers")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
-              gaussfilter_time, medfilter_space, medfilter_time, tailfilter_iters,
-              tailfilter_size, tailfilter_shape, use_fft, rank, output_file,
-              h5_path, chunk_size, visualize_results, config_file, workers, threads,
-              processes, memory):
+              gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold,
+              mask_height_threshold, min_height, max_height, tailfilter_iters, tailfilter_size,
+              tailfilter_shape, use_fft, rank, output_file, h5_path, h5_mask_path, chunk_size,
+              visualize_results, config_file, queue, nworkers, threads, processes, memory, wall_time):
+
     # find directories with .dat files that either have incomplete or no extractions
+
+    if missing_data and use_fft:
+        raise NotImplementedError("FFT and missing data not implemented yet")
 
     params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
@@ -83,85 +89,39 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         'medfilter_space': medfilter_space
     }
 
-    if cluster_type == 'local':
-
-        # use a cache of running locally
-        cache = Chest()
-
-    elif cluster_type == 'slurm':
-
-        # register the cluster with dask and start workers
-        cluster = SLURMCluster(processes=processes, threads=threads, memory=memory)
-
-        workers = cluster.start_workers(workers)
-        client = Client(cluster)
-
-        nworkers = 0
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
-            pbar = tqdm.tqdm(total=len(workers)*processes, desc="Intializating workers")
-
-            while nworkers < len(workers)*processes:
-                tmp = len(client.scheduler_info()['workers'])
-                if tmp - nworkers > 0:
-                    pbar.update(tmp - nworkers)
-                nworkers += tmp - nworkers
-                time.sleep(5)
+    client, cluster, workers, cache =\
+        initialize_dask(cluster_type=cluster_type,
+                        nworkers=nworkers,
+                        threads=threads,
+                        processes=processes,
+                        memory=memory,
+                        wall_time=wall_time,
+                        queue=queue)
 
     dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
     stacked_array = da.concatenate(arrays, axis=0).astype('float32')
-    nfeatures = stacked_array.shape[1] * stacked_array.shape[2]
+    stacked_array[stacked_array < min_height] = 0
+    stacked_array[stacked_array > max_height] = 0
 
-    if gaussfilter_time > 0 or np.any(np.array(medfilter_time) > 0):
-        stacked_array = stacked_array.map_overlap(
-            clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
+    print('Processing {:d} total frames'.format(stacked_array.shape[0]))
+
+    if missing_data:
+        mask_dsets = [h5py.File(h5, mode='r')[h5_mask_path] for h5 in h5s]
+        mask_arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in mask_dsets]
+        stacked_array_mask = da.concatenate(mask_arrays, axis=0).astype('float32')
+        stacked_array_mask = da.logical_and(stacked_array_mask < mask_threshold,
+                                            stacked_array > mask_height_threshold)
+        # stacked_array_mask = dask.compute(stacked_array_mask)
     else:
-        stacked_array = stacked_array.map_blocks(clean_frames, dtype='float32', **clean_params)
+        stacked_array_mask = None
 
-    if use_fft:
-        print('Using FFT...')
-        stacked_array = stacked_array.map_blocks(
-            lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
-            dtype='float32')
-
-    stacked_array = stacked_array.reshape(-1, nfeatures)
-    nsamples, nfeatures = stacked_array.shape
-    mean = stacked_array.mean(axis=0)
-    u, s, v = lng.svd_compressed(stacked_array-mean, rank, 0)
-    total_var = stacked_array.var(ddof=1, axis=0).sum()
-
-    print('Calculation setup complete...')
-
-    if cluster_type == 'local':
-        with ProgressBar():
-            s, v, mean, total_var = dask.compute(s, v, mean, total_var,
-                                                 cache=cache)
-    elif cluster_type == 'slurm':
-        futures = client.compute([s, v, mean, total_var])
-        progress(futures)
-        s, v, mean, total_var = client.gather(futures)
-        cluster.stop_workers(workers)
-
-    print('\nCalculation complete...')
-
-    # correct the sign of the singular vectors
-
-    tmp = np.argmax(np.abs(v), axis=1)
-    correction = np.sign(v[np.arange(v.shape[0]), tmp])
-    v *= correction[:, None]
-
-    explained_variance = s**2 / (nsamples-1)
-    explained_variance_ratio = explained_variance / total_var
-
-    output_dict = {
-        'components': v,
-        'singular_values': s,
-        'explained_variance': explained_variance,
-        'explained_variance_ratio': explained_variance_ratio,
-        'mean': mean
-    }
+    output_dict =\
+        train_pca_dask(dask_array=stacked_array, mask=stacked_array_mask,
+                       clean_params=clean_params, use_fft=use_fft,
+                       rank=rank, cluster_type=cluster_type, min_height=min_height,
+                       max_height=max_height, client=client, cluster=cluster,
+                       iters=missing_data_iters, workers=workers, cache=cache)
 
     if visualize_results:
         plt = display_components(output_dict['components'], headless=True)
@@ -179,13 +139,14 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
             f.create_dataset(k, data=v, compression='gzip', dtype='float32')
 
 
-@cli.command(name='apply-pca')
+@cli.command(name='apply-pca', cls=command_with_config('config_file'))
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
-@click.option('--cluster-type', type=click.Choice(['local']),
+@click.option('--cluster-type', type=click.Choice(['local', 'slurm', 'nodask']),
               default='local', help='Cluster type')
 @click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store results')
 @click.option('--output-file', default='pca_scores', type=str, help='Name of h5 file for storing pca results')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
+@click.option('--h5-mask-path', default='/frames_mask', type=str, help="Path to log-likelihood mask in h5 files")
 @click.option('--h5-timestamp-path', default='/metadata/timestamps', type=str, help='Path to timestamps in h5 files')
 @click.option('--h5-metadata-path', default='/metadata/extraction', type=str, help='Path to metadata in h5 files')
 @click.option('--pca-path', default='/components', type=str, help='Path to pca components')
@@ -194,8 +155,16 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('--fill-gaps', default=True, type=bool, help='Fill dropped frames with nans')
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
 @click.option('--detrend-window', default=0, type=float, help="Length of detrend window (in seconds, 0 for no detrending)")
-def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_timestamp_path,
-              h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window):
+@click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
+@click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
+@click.option('-n', '--nworkers', type=int, default=20, help="Number of workers")
+@click.option('-t', '--threads', type=int, default=2, help="Number of threads per workers")
+@click.option('-p', '--processes', type=int, default=4, help="Number of processes to run on each worker")
+@click.option('-m', '--memory', type=str, default="4GB", help="RAM usage per workers")
+@click.option('-w', '--wall-time', type=str, default="01:00:00", help="Wall time for workers")
+def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask_path, h5_timestamp_path,
+              h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window,
+              config_file, queue, nworkers, threads, processes, memory, wall_time):
     # find directories with .dat files that either have incomplete or no extractions
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
     # moseq2-model processes these files correctly
@@ -215,11 +184,13 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
     # get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
     pca_yaml = '{}.yaml'.format(os.path.splitext(pca_file)[0])
 
+    # todo detect missing data and mask parameters, then 0 out, fill in, compute scores...
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
             pca_config = yaml.load(f.read(), Loader=yaml.RoundTripLoader)
-            if 'use_fft' in pca_config.keys():
-                use_fft = pca_config['use_fft']
+            if 'use_fft' in pca_config.keys() and pca_config['use_fft']:
+                print('Will use FFT...')
+                use_fft = True
             else:
                 use_fft = False
 
@@ -234,46 +205,54 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
                 'medfilter_space': pca_config['medfilter_space']
             }
 
+            mask_params = {
+                'mask_height_threshold': pca_config['mask_height_threshold'],
+                'mask_threshold': pca_config['mask_threshold']
+            }
+
+            if 'missing_data' in pca_config.keys() and pca_config['missing_data']:
+                print('Detected missing data...')
+                missing_data = True
+            else:
+                missing_data = False
+
     else:
         IOError('Could not find {}'.format(pca_yaml))
 
     if use_fft:
         print('Using FFT...')
 
-    with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
-        for h5, yml in tqdm.tqdm(zip(h5s, yamls), total=len(h5s),
-                                 desc='Computing scores'):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
+        if cluster_type == 'nodask':
+            apply_pca_local(pca_components=pca_components, h5s=h5s, yamls=yamls,
+                            use_fft=use_fft, clean_params=clean_params,
+                            save_file=save_file, chunk_size=chunk_size,
+                            h5_metadata_path=h5_metadata_path, h5_path=h5_path,
+                            h5_mask_path=h5_mask_path, mask_params=mask_params,
+                            h5_timestamp_path=h5_timestamp_path, fps=fps,
+                            missing_data=missing_data)
 
-            data = read_yaml(yml)
-            uuid = data['uuid']
+        else:
+            client, cluster, workers, cache =\
+             initialize_dask(cluster_type=cluster_type,
+                             nworkers=nworkers,
+                             threads=threads,
+                             processes=processes,
+                             memory=memory,
+                             wall_time=wall_time,
+                             queue=queue,
+                             scheduler='distributed')
+            apply_pca_dask(pca_components=pca_components, h5s=h5s, yamls=yamls,
+                           use_fft=use_fft, clean_params=clean_params,
+                           save_file=save_file, chunk_size=chunk_size,
+                           h5_metadata_path=h5_metadata_path, h5_path=h5_path,
+                           h5_timestamp_path=h5_timestamp_path, fps=fps,
+                           client=client, missing_data=missing_data,
+                           h5_mask_path=h5_mask_path, mask_params=mask_params)
 
-            with h5py.File(h5, 'r') as f:
-
-                frames = clean_frames(f[h5_path].value.astype('float32'), **clean_params)
-
-                if use_fft:
-                    frames = np.fft.fftshift(np.abs(np.fft.fft2(frames)), axes=(1, 2))
-
-                frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
-
-                if h5_timestamp_path is not None:
-                    timestamps = f[h5_timestamp_path].value / 1000.0
-                else:
-                    timestamps = np.arange(frames.shape[0]) / fps
-
-                if h5_metadata_path is not None:
-                    metadata_name = 'metadata/{}'.format(uuid)
-                    f.copy(h5_metadata_path, f_scores, name=metadata_name)
-
-            scores = frames.dot(pca_components.T)
-            scores, score_idx, _ = insert_nans(data=scores, timestamps=timestamps,
-                                               fps=int(1 / np.mean(np.diff(timestamps))))
-
-            f_scores.create_dataset('scores/{}'.format(uuid), data=scores,
-                                    dtype='float32', compression='gzip')
-            f_scores.create_dataset('scores_idx/{}'.format(uuid), data=score_idx,
-                                    dtype='float32', compression='gzip')
-
+            if workers is not None:
+                cluster.stop_workers(workers)
 
 
 if __name__ == '__main__':
