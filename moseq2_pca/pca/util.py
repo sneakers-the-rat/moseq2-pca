@@ -59,7 +59,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
             u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
             recon = u[:, :recon_pcs].dot(s[:recon_pcs][None, :])
             recon = recon.dot(v[:recon_pcs, :]) + mean
-            dask_array = da.map_blocks(mask_data, dask_array, mask, recon, dtype=mask_data.dtype)
+            dask_array = da.map_blocks(mask_data, dask_array, mask, recon, dtype=dask_array.dtype)
             # dask_array[~mask] = recon[~mask]
             mean = dask.array.mean(axis=0)
 
