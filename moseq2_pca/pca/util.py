@@ -10,6 +10,14 @@ import dask.array as da
 import tqdm
 
 
+def mask_data(original_data, mask, new_data):
+
+    output = original_data
+    output[mask] = new_data[mask]
+
+    return output
+
+
 def train_pca_dask(dask_array, clean_params, use_fft, rank,
                    cluster_type, client, cluster, workers,
                    cache, mask=None, iters=10, recon_pcs=10):
@@ -41,13 +49,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     dask_array = dask_array.reshape(-1, nfeatures)
     nsamples, nfeatures = dask_array.shape
     mean = dask_array.mean(axis=0)
-    dask_array = dask_array.reshape(nsamples, r, c)
-    tmp = da.random.random(dask_array.shape, dask_array.chunks)
-    val_list = tmp.vindex[da.where(~mask)]
-    print(val_list.shape)
-    print(val_list.dtype)
-    print(val_list.chunks)
-    dask_array[~mask] = tmp[~mask]
 
     # todo compute reconstruction error
 
@@ -58,12 +59,8 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
             u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
             recon = u[:, :recon_pcs].dot(s[:recon_pcs][None, :])
             recon = recon.dot(v[:recon_pcs, :]) + mean
-
-            print(recon.shape)
-            print(dask_array.shape)
-            print(mask.shape)
-
-            dask_array[~mask] = recon[~mask]
+            dask_array = da.map_blocks(mask_data, dask_array, mask, recon, dtype=mask_data.dtype)
+            # dask_array[~mask] = recon[~mask]
             mean = dask.array.mean(axis=0)
 
     total_var = dask_array.var(ddof=1, axis=0).sum()
