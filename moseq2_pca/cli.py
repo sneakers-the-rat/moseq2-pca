@@ -1,19 +1,14 @@
-from moseq2_pca.util import recursive_find_h5s, command_with_config, clean_frames,\
+from moseq2_pca.util import recursive_find_h5s, command_with_config,\
     select_strel, initialize_dask
 from moseq2_pca.viz import display_components, scree_plot
 from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local, train_pca_dask
-from dask.distributed import progress
-from dask.diagnostics import ProgressBar
 import click
 import os
 import ruamel.yaml as yaml
 import datetime
 import h5py
-import numpy as np
 import warnings
 import dask.array as da
-import dask.array.linalg as lng
-import dask
 import tqdm
 
 
@@ -24,13 +19,16 @@ def cli():
 
 @cli.command(name='train-pca', cls=command_with_config('config_file'))
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
-@click.option('--cluster-type', type=click.Choice(['local','slurm']),
+@click.option('--cluster-type', type=click.Choice(['local', 'slurm']),
               default='local', help='Cluster type')
 @click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store results')
 @click.option('--gaussfilter-space', default=(1.5, 1), type=(float, float), help="Spatial filter for data (Gaussian)")
 @click.option('--gaussfilter-time', default=0, type=float, help="Temporal filter for data (Gaussian)")
 @click.option('--medfilter-space', default=[0], type=int, help="Median spatial filter", multiple=True)
 @click.option('--medfilter-time', default=[0], type=int, help="Median temporal filter", multiple=True)
+@click.option('--missing-data', is_flag=True, type=bool, help="Use missing data PCA")
+@click.option('--mask-threshold', default=-16, type=float, help="Threshold for mask (missing data only)")
+@click.option('--mask-height-threshold', default=5, type=float, help="Threshold for mask based on floor height")
 @click.option('--tailfilter-iters', default=1, type=int, help="Number of tail filter iterations")
 @click.option('--tailfilter-size', default=(9, 9), type=(int, int), help='Tail filter size')
 @click.option('--tailfilter-shape', default='ellipse', type=str, help='Tail filter shape')
@@ -38,6 +36,7 @@ def cli():
 @click.option('--rank', default=50, type=int, help="Rank for compressed SVD (generally>>nPCS)")
 @click.option('--output-file', default='pca', type=str, help='Name of h5 file for storing pca results')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
+@click.option('--h5-mask-path', default='/frames_ll', type=str, help="Path to log-likelihood mask in h5 files")
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
@@ -48,10 +47,11 @@ def cli():
 @click.option('-m', '--memory', type=str, default="4GB", help="RAM usage per workers")
 @click.option('-w', '--wall-time', type=str, default="01:00:00", help="Wall time for workers")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
-              gaussfilter_time, medfilter_space, medfilter_time, tailfilter_iters,
-              tailfilter_size, tailfilter_shape, use_fft, rank, output_file,
-              h5_path, chunk_size, visualize_results, config_file, queue, nworkers,
-              threads, processes, memory, wall_time):
+              gaussfilter_time, medfilter_space, medfilter_time, missing_data, mask_threshold,
+              mask_height_threshold, tailfilter_iters, tailfilter_size, tailfilter_shape, use_fft,
+              rank, output_file, h5_path, h5_mask_path, chunk_size, visualize_results,
+              config_file, queue, nworkers, threads, processes, memory, wall_time):
+
     # find directories with .dat files that either have incomplete or no extractions
 
     params = locals()
@@ -92,8 +92,21 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
                         wall_time=wall_time,
                         queue=queue)
 
+    dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
+    arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
+    stacked_array = da.concatenate(arrays, axis=0).astype('float32')
+
+    if missing_data:
+        mask_dsets = [h5py.File(h5, mode='r')[h5_mask_path] for h5 in h5s]
+        mask_arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
+        stacked_array_mask = da.concatenate(mask_arrays, axis=0)
+        stacked_array_mask = da.logical_and(stacked_array_mask > mask_threshold,
+                                            stacked_array > mask_height_threshold)
+    else:
+        stacked_array_mask = None
+
     output_dict =\
-        train_pca_dask(h5s=h5s, h5_path=h5_path, chunk_size=chunk_size,
+        train_pca_dask(dask_array=stacked_array, dask_mask=stacked_array_mask,
                        clean_params=clean_params, use_fft=use_fft,
                        rank=rank, cluster_type=cluster_type,
                        client=client, cluster=cluster, workers=workers, cache=cache)

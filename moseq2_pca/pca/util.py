@@ -10,34 +10,50 @@ import dask.array as da
 import tqdm
 
 
-def train_pca_dask(h5s, h5_path, chunk_size, clean_params, use_fft, rank,
-                   cluster_type, client, cluster, workers, cache):
+def train_pca_dask(dask_array, clean_params, use_fft, rank,
+                   cluster_type, client, cluster, workers,
+                   cache, mask=None, iters=10, recon_pcs=10):
 
-    dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
-    arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
-    stacked_array = da.concatenate(arrays, axis=0).astype('float32')
-    nfeatures = stacked_array.shape[1] * stacked_array.shape[2]
+    missing_data = False
+    nfeatures = dask_array.shape[1] * dask_array.shape[2]
+
+    if mask is not None:
+        missing_data = True
+        dask_array[~mask] = 0
+        mask = mask.reshape(-1, nfeatures)
 
     if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
-        stacked_array = stacked_array.map_overlap(
+        dask_array = dask_array.map_overlap(
             clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
     else:
-        stacked_array = stacked_array.map_blocks(clean_frames, dtype='float32', **clean_params)
+        dask_array = dask_array.map_blocks(clean_frames, dtype='float32', **clean_params)
 
     if use_fft:
         print('Using FFT...')
-        stacked_array = stacked_array.map_blocks(
+        dask_array = dask_array.map_blocks(
             lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
             dtype='float32')
 
     # todo, abstract this into another function, add support for missing data
     # (should be simple, just need a mask array, then repeat calculation to convergence)
 
-    stacked_array = stacked_array.reshape(-1, nfeatures)
-    nsamples, nfeatures = stacked_array.shape
-    mean = stacked_array.mean(axis=0)
-    u, s, v = lng.svd_compressed(stacked_array-mean, rank, 0)
-    total_var = stacked_array.var(ddof=1, axis=0).sum()
+    dask_array = dask_array.reshape(-1, nfeatures)
+    nsamples, nfeatures = dask_array.shape
+    mean = dask_array.mean(axis=0)
+
+    # todo compute reconstruction error
+
+    if not missing_data:
+        u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
+    else:
+        for iter in range(iters):
+            u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
+            recon = (u[:, :recon_pcs].dot(s[:recon_pcs, :recon_pcs]))
+            recon = recon.dot(v[:recon_pcs, :]) + mean
+            dask_array[~mask] = recon[~mask]
+            mean = dask.array.mean(axis=0)
+
+    total_var = dask_array.var(ddof=1, axis=0).sum()
 
     if cluster_type == 'local':
         with ProgressBar():
