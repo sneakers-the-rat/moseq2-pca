@@ -174,6 +174,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
             mask = da.logical_and(mask < mask_params['mask_threshold'],
                                   frames > mask_params['mask_height_threshold'])
             frames[mask] = 0
+            mask = mask.reshape(-1, frames.shape[1] * frames.shape[2])
 
         if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
             frames = frames.map_overlap(
