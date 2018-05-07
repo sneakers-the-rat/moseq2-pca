@@ -12,7 +12,8 @@ import tqdm
 
 def mask_data(original_data, mask, new_data):
 
-    output = original_data
+    # need to make a copy otherwise distributed scheduler barfs
+    output = original_data.copy()
     output[mask] = new_data[mask]
 
     return output
