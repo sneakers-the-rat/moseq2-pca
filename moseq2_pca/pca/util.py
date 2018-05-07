@@ -43,9 +43,10 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     mean = dask_array.mean(axis=0)
     dask_array = dask_array.reshape(nsamples, r, c)
     tmp = da.random.random(dask_array.shape, dask_array.chunks)
-    print(mask.dtype)
-    print(mask.chunks)
-    val_list = tmp[~mask].ravel()
+    val_list = tmp.vindex(da.where(~mask))
+    print(val_list.shape)
+    print(val_list.dtype)
+    print(val_list.chunks)
     dask_array[~mask] = tmp[~mask]
 
     # todo compute reconstruction error
