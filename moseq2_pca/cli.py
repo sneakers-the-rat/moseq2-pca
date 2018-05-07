@@ -28,6 +28,7 @@ def cli():
 @click.option('--medfilter-space', default=[0], type=int, help="Median spatial filter", multiple=True)
 @click.option('--medfilter-time', default=[0], type=int, help="Median temporal filter", multiple=True)
 @click.option('--missing-data', is_flag=True, type=bool, help="Use missing data PCA")
+@click.option('--missing-data-iters', default=10, type=int, help="Missing data PCA iterations")
 @click.option('--mask-threshold', default=-16, type=float, help="Threshold for mask (missing data only)")
 @click.option('--mask-height-threshold', default=5, type=float, help="Threshold for mask based on floor height")
 @click.option('--min-height', default=10, type=int, help='Min mouse height from floor (mm)')
@@ -50,7 +51,7 @@ def cli():
 @click.option('-m', '--memory', type=str, default="4GB", help="RAM usage per workers")
 @click.option('-w', '--wall-time', type=str, default="01:00:00", help="Wall time for workers")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
-              gaussfilter_time, medfilter_space, medfilter_time, missing_data, mask_threshold,
+              gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold,
               mask_height_threshold, min_height, max_height, tailfilter_iters, tailfilter_size,
               tailfilter_shape, use_fft, rank, output_file, h5_path, h5_mask_path, chunk_size,
               visualize_results, config_file, queue, nworkers, threads, processes, memory, wall_time):
@@ -114,8 +115,9 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
     output_dict =\
         train_pca_dask(dask_array=stacked_array, mask=stacked_array_mask,
                        clean_params=clean_params, use_fft=use_fft,
-                       rank=rank, cluster_type=cluster_type, min_height=min_height, max_height=max_height,
-                       client=client, cluster=cluster, workers=workers, cache=cache)
+                       rank=rank, cluster_type=cluster_type, min_height=min_height,
+                       max_height=max_height, client=client, cluster=cluster,
+                       iters=missing_data_iters, workers=workers, cache=cache)
 
     if visualize_results:
         plt = display_components(output_dict['components'], headless=True)
