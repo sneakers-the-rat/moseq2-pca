@@ -141,7 +141,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
             # if we have missing data, simply fill in, repeat the score calculation,
             # then move on
             if missing_data:
-                recon = scores.dot(pca_components.T).dot(pca_components)
+                recon = scores.dot(pca_components)
                 frames[mask] = recon[mask]
                 scores = frames.dot(pca_components.T)
 
@@ -190,7 +190,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
         scores = frames.dot(pca_components.T)
 
         if missing_data:
-            recon = scores.dot(pca_components.T).dot(pca_components)
+            recon = scores.dot(pca_components)
             frames = da.map_blocks(mask_data, frames, mask, recon, dtype=frames.dtype)
             scores = frames.dot(pca_components.T)
 
