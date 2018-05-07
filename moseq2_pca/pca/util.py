@@ -116,7 +116,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
                 frames = clean_frames(f[h5_path].value.astype('float32'), **clean_params)
 
                 if missing_data:
-                    mask = f[h5_mask_path].singular_value
+                    mask = f[h5_mask_path].value
                     mask = np.logical_and(mask < mask_params['mask_threshold'],
                                           frames > mask_params['mask_height_threshold'])
                     frames[mask] = 0
