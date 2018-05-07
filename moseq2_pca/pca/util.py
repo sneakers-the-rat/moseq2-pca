@@ -61,7 +61,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
             recon = recon.dot(v[:recon_pcs, :]) + mean
             dask_array = da.map_blocks(mask_data, dask_array, mask, recon, dtype=dask_array.dtype)
             # dask_array[~mask] = recon[~mask]
-            mean = dask.array.mean(axis=0)
+            mean = dask_array.mean(axis=0)
 
     total_var = dask_array.var(ddof=1, axis=0).sum()
 
