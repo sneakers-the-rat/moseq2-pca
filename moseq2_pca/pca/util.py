@@ -42,7 +42,8 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     nsamples, nfeatures = dask_array.shape
     mean = dask_array.mean(axis=0)
     dask_array = dask_array.reshape(nsamples, r, c)
-    dask_array[~mask] = 1
+    tmp = da.random.random(dask_array.shape, dask_array.chunks)
+    dask_array[~mask] = tmp[~mask]
 
     # todo compute reconstruction error
 
