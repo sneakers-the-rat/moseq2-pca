@@ -45,6 +45,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     for i in idx:
         print(i)
         print(tmp[i])
+        print(tmp[i].compute())
         dask_array[i] = tmp[i]
 
     nsamples, nfeatures = dask_array.shape
