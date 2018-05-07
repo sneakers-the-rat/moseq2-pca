@@ -125,7 +125,7 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
 
     if gaussfilter_time is not None and gaussfilter_time > 0:
         kernel = gaussian_kernel1d(sig=gaussfilter_time)
-        for idx, i in np.ndenumerate(clean_frames[0]):
+        for idx, i in np.ndenumerate(cleaned_frames[0]):
             cleaned_frames[:, idx[0], idx[1]] = \
                 np.convolve(cleaned_frames[:, idx[0], idx[1]], kernel, mode='same')
 
