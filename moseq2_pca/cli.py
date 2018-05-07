@@ -57,6 +57,9 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 
     # find directories with .dat files that either have incomplete or no extractions
 
+    if missing_data and use_fft:
+        raise NotImplementedError("FFT and missing data not implemented yet")
+
     params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
     timestamp = '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
@@ -143,6 +146,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store results')
 @click.option('--output-file', default='pca_scores', type=str, help='Name of h5 file for storing pca results')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
+@click.option('--h5-mask-path', default='/frames_mask', type=str, help="Path to log-likelihood mask in h5 files")
 @click.option('--h5-timestamp-path', default='/metadata/timestamps', type=str, help='Path to timestamps in h5 files')
 @click.option('--h5-metadata-path', default='/metadata/extraction', type=str, help='Path to metadata in h5 files')
 @click.option('--pca-path', default='/components', type=str, help='Path to pca components')
@@ -158,7 +162,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('-p', '--processes', type=int, default=4, help="Number of processes to run on each worker")
 @click.option('-m', '--memory', type=str, default="4GB", help="RAM usage per workers")
 @click.option('-w', '--wall-time', type=str, default="01:00:00", help="Wall time for workers")
-def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_timestamp_path,
+def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask_path, h5_timestamp_path,
               h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window,
               config_file, queue, nworkers, threads, processes, memory, wall_time):
     # find directories with .dat files that either have incomplete or no extractions
@@ -180,10 +184,12 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
     # get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
     pca_yaml = '{}.yaml'.format(os.path.splitext(pca_file)[0])
 
+    # todo detect missing data and mask parameters, then 0 out, fill in, compute scores...
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
             pca_config = yaml.load(f.read(), Loader=yaml.RoundTripLoader)
             if 'use_fft' in pca_config.keys():
+                print('Will use FFT...')
                 use_fft = pca_config['use_fft']
             else:
                 use_fft = False
@@ -199,6 +205,17 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
                 'medfilter_space': pca_config['medfilter_space']
             }
 
+            mask_params = {
+                'mask_height_threshold': pca_config['mask_height_threshold'],
+                'mask_threshold': pca_config['mask_threshold']
+            }
+
+            if 'missing_data' in pca_config.keys():
+                print('Detected missing data...')
+                missing_data = pca_config['missing_data']
+            else:
+                missing_data = False
+
     else:
         IOError('Could not find {}'.format(pca_yaml))
 
@@ -212,7 +229,9 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
                             use_fft=use_fft, clean_params=clean_params,
                             save_file=save_file, chunk_size=chunk_size,
                             h5_metadata_path=h5_metadata_path, h5_path=h5_path,
-                            h5_timestamp_path=h5_timestamp_path, fps=fps)
+                            h5_mask_path=h5_mask_path, mask_params=mask_params,
+                            h5_timestamp_path=h5_timestamp_path, fps=fps,
+                            missing_data=missing_data)
 
         else:
             client, cluster, workers, cache =\
@@ -229,7 +248,8 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_time
                            save_file=save_file, chunk_size=chunk_size,
                            h5_metadata_path=h5_metadata_path, h5_path=h5_path,
                            h5_timestamp_path=h5_timestamp_path, fps=fps,
-                           client=client)
+                           client=client, missing_data=missing_data,
+                           h5_mask_path=h5_mask_path, mask_params=mask_params)
 
             if workers is not None:
                 cluster.stop_workers(workers)
