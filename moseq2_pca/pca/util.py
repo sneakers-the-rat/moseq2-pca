@@ -41,7 +41,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     tmp = da.random.random(dask_array.shape, chunks=dask_array.chunks)
     print(mask.chunks)
     print(dask_array.chunks)
-    dask_array[~mask] = tmp[~mask]
+    dask_array[da.where(~mask)] = tmp[da.where(~mask)]
 
     nsamples, nfeatures = dask_array.shape
     mean = dask_array.mean(axis=0)
