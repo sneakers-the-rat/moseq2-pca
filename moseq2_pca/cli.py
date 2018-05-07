@@ -106,7 +106,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         stacked_array_mask = None
 
     output_dict =\
-        train_pca_dask(dask_array=stacked_array, dask_mask=stacked_array_mask,
+        train_pca_dask(dask_array=stacked_array, mask=stacked_array_mask,
                        clean_params=clean_params, use_fft=use_fft,
                        rank=rank, cluster_type=cluster_type,
                        client=client, cluster=cluster, workers=workers, cache=cache)
