@@ -38,7 +38,8 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     # (should be simple, just need a mask array, then repeat calculation to convergence)
 
     dask_array = dask_array.reshape(-1, nfeatures)
-    dask_array[~mask] = recon[~mask]
+    tmp = da.random.random(dask_array.shape, chunks=dask_array.chunks)
+    dask_array[~mask] = tmp[~mask]
 
     nsamples, nfeatures = dask_array.shape
     mean = dask_array.mean(axis=0)
