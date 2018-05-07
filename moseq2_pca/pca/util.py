@@ -43,7 +43,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     mean = dask_array.mean(axis=0)
     dask_array = dask_array.reshape(nsamples, r, c)
     tmp = da.random.random(dask_array.shape, dask_array.chunks)
-    val_list = tmp[~mask]
+    val_list = tmp[~mask].ravel()
     print(val_list.shape)
     print(val_list.chunks)
     dask_array[~mask] = tmp[~mask]
