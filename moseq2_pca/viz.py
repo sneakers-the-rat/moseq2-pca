@@ -33,7 +33,7 @@ def scree_plot(explained_variance_ratio, headless=False):
 
     idx = np.where(csum > 90)
 
-    if len(idx)[0] > 0:
+    if len(idx[0]) > 0:
         idx = np.min(idx)
         plt.plot([idx, idx], [0, csum[idx]], 'k-')
         plt.plot([0, idx], [csum[idx], csum[idx]], 'k-')
