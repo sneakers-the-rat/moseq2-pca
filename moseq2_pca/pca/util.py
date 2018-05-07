@@ -67,7 +67,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
         dask_array[mask] = np.nan
 
-    total_var = dask_array.nanvar(ddof=1, axis=0).sum()
+    total_var = da.nanvar(dask_array, ddof=1, axis=0).sum()
 
     if cluster_type == 'local':
         with ProgressBar():
