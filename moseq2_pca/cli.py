@@ -39,7 +39,7 @@ def cli():
 @click.option('--rank', default=50, type=int, help="Rank for compressed SVD (generally>>nPCS)")
 @click.option('--output-file', default='pca', type=str, help='Name of h5 file for storing pca results')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
-@click.option('--h5-mask-path', default='/frames_ll', type=str, help="Path to log-likelihood mask in h5 files")
+@click.option('--h5-mask-path', default='/frames_mask', type=str, help="Path to log-likelihood mask in h5 files")
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
