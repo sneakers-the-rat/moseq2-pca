@@ -65,7 +65,9 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
             dask_array = da.map_blocks(mask_data, dask_array, mask, recon, dtype=dask_array.dtype)
             mean = dask_array.mean(axis=0)
 
-    total_var = dask_array.var(ddof=1, axis=0).sum()
+        dask_array[mask] = np.nan
+
+    total_var = dask_array.nanvar(ddof=1, axis=0).sum()
 
     if cluster_type == 'local':
         with ProgressBar():

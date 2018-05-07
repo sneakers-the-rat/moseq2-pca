@@ -101,6 +101,8 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
     stacked_array[stacked_array < min_height] = 0
     stacked_array[stacked_array > max_height] = 0
 
+    print('Processing {:d} total frames'.format(stacked_array.shape[0]))
+
     if missing_data:
         mask_dsets = [h5py.File(h5, mode='r')[h5_mask_path] for h5 in h5s]
         mask_arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in mask_dsets]
