@@ -24,15 +24,20 @@ def display_components(components, cmap='gray', headless=False):
 def scree_plot(explained_variance_ratio, headless=False):
 
     csum = np.cumsum(explained_variance_ratio)*1e2
-    idx = np.min(np.where(csum > 90))
 
     if headless:
         plt.switch_backend('agg')
 
     sns.set_style('ticks')
     plt.plot(np.cumsum(explained_variance_ratio)*1e2)
-    plt.plot([idx, idx], [0, csum[idx]], 'k-')
-    plt.plot([0, idx], [csum[idx], csum[idx]], 'k-')
+
+    idx = np.where(csum > 90)
+
+    if len(idx) > 0:
+        idx = np.min(idx)
+        plt.plot([idx, idx], [0, csum[idx]], 'k-')
+        plt.plot([0, idx], [csum[idx], csum[idx]], 'k-')
+        
     plt.ylim((0, 100))
     plt.xlim((0, len(explained_variance_ratio)))
     plt.title('{:0.2f}% in {} pcs'.format(csum[idx], idx))
