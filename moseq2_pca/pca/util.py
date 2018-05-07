@@ -28,7 +28,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     if mask is not None:
         missing_data = True
-        dask_array[~mask] = 0
+        dask_array[mask] = 0
         mask = mask.reshape(-1, nfeatures)
 
     if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
