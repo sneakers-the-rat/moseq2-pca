@@ -51,6 +51,8 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
             recon = (u[:, :recon_pcs].dot(s[:recon_pcs][None, :]))
             recon = recon.dot(v[:recon_pcs, :]) + mean
             print(recon.shape)
+            print(dask_array.shape)
+            print(mask.shape)
             dask_array[~mask] = recon[~mask]
             mean = dask.array.mean(axis=0)
 
