@@ -20,7 +20,7 @@ def mask_data(original_data, mask, new_data):
 
 def train_pca_dask(dask_array, clean_params, use_fft, rank,
                    cluster_type, client, cluster, workers,
-                   cache, mask=None, iters=5, recon_pcs=2):
+                   cache, mask=None, iters=5, recon_pcs=2, min_height=10, max_height=100):
 
     missing_data = False
     _, r, c = dask_array.shape
@@ -58,6 +58,8 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         for iter in range(iters):
             u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
             recon = u[:, :recon_pcs].dot(da.diag(s[:recon_pcs]).dot(v[:recon_pcs, :])) + mean
+            recon[recon < min_height] = 0
+            recon[recon > max_height] = 0
             dask_array = da.map_blocks(mask_data, dask_array, mask, recon, dtype=dask_array.dtype)
             mean = dask_array.mean(axis=0)
 

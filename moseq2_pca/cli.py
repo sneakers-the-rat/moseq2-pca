@@ -30,6 +30,8 @@ def cli():
 @click.option('--missing-data', is_flag=True, type=bool, help="Use missing data PCA")
 @click.option('--mask-threshold', default=-16, type=float, help="Threshold for mask (missing data only)")
 @click.option('--mask-height-threshold', default=5, type=float, help="Threshold for mask based on floor height")
+@click.option('--min-height', default=10, type=int, help='Min mouse height from floor (mm)')
+@click.option('--max-height', default=100, type=int, help='Max mouse height from floor (mm)'
 @click.option('--tailfilter-iters', default=1, type=int, help="Number of tail filter iterations")
 @click.option('--tailfilter-size', default=(9, 9), type=(int, int), help='Tail filter size')
 @click.option('--tailfilter-shape', default='ellipse', type=str, help='Tail filter shape')
@@ -49,9 +51,9 @@ def cli():
 @click.option('-w', '--wall-time', type=str, default="01:00:00", help="Wall time for workers")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, missing_data, mask_threshold,
-              mask_height_threshold, tailfilter_iters, tailfilter_size, tailfilter_shape, use_fft,
-              rank, output_file, h5_path, h5_mask_path, chunk_size, visualize_results,
-              config_file, queue, nworkers, threads, processes, memory, wall_time):
+              mask_height_threshold, min_height, max_height, tailfilter_iters, tailfilter_size,
+              tailfilter_shape, use_fft, rank, output_file, h5_path, h5_mask_path, chunk_size,
+              visualize_results, config_file, queue, nworkers, threads, processes, memory, wall_time):
 
     # find directories with .dat files that either have incomplete or no extractions
 
@@ -96,13 +98,15 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
     dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
     stacked_array = da.concatenate(arrays, axis=0).astype('float32')
+    stacked_array[stacked_array < min_height] = 0
+    stacked_array[stacked_array > max_height] = 0
 
     if missing_data:
         mask_dsets = [h5py.File(h5, mode='r')[h5_mask_path] for h5 in h5s]
         mask_arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
         stacked_array_mask = da.concatenate(mask_arrays, axis=0).astype('float32')
         stacked_array_mask = ~da.logical_and(stacked_array_mask > mask_threshold,
-                                            stacked_array > mask_height_threshold)
+                                             stacked_array > mask_height_threshold)
         # stacked_array_mask = dask.compute(stacked_array_mask)
     else:
         stacked_array_mask = None
@@ -110,7 +114,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
     output_dict =\
         train_pca_dask(dask_array=stacked_array, mask=stacked_array_mask,
                        clean_params=clean_params, use_fft=use_fft,
-                       rank=rank, cluster_type=cluster_type,
+                       rank=rank, cluster_type=cluster_type, min_height=min_height, max_height=max_height,
                        client=client, cluster=cluster, workers=workers, cache=cache)
 
     if visualize_results:
