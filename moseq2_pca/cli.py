@@ -103,7 +103,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         stacked_array_mask = da.concatenate(mask_arrays, axis=0)
         stacked_array_mask = da.logical_and(stacked_array_mask > mask_threshold,
                                             stacked_array > mask_height_threshold)
-        stacked_array_mask = dask.compute(stacked_array_mask)[0]
+        # stacked_array_mask = dask.compute(stacked_array_mask)
     else:
         stacked_array_mask = None
 

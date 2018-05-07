@@ -15,12 +15,13 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
                    cache, mask=None, iters=10, recon_pcs=10):
 
     missing_data = False
-    nfeatures = dask_array.shape[1] * dask_array.shape[2]
+    _, r, c = dask_array.shape
+    nfeatures = r * c
 
     if mask is not None:
         missing_data = True
         dask_array[~mask] = 0
-        mask = mask.reshape(-1, nfeatures)
+        # mask = mask.reshape(-1, nfeatures)
 
     if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
         dask_array = dask_array.map_overlap(
@@ -40,6 +41,8 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     dask_array = dask_array.reshape(-1, nfeatures)
     nsamples, nfeatures = dask_array.shape
     mean = dask_array.mean(axis=0)
+    dask_array = dask_array.reshape(nsamples, r, c)
+    dask_array[~mask] = 1
 
     # todo compute reconstruction error
 
