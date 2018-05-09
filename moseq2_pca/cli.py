@@ -49,11 +49,12 @@ def cli():
 @click.option('-p', '--processes', type=int, default=4, help="Number of processes to run on each worker")
 @click.option('-m', '--memory', type=str, default="4GB", help="RAM usage per workers")
 @click.option('-w', '--wall-time', type=str, default="01:00:00", help="Wall time for workers")
+@click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold,
               mask_height_threshold, min_height, max_height, tailfilter_iters, tailfilter_size,
               tailfilter_shape, use_fft, rank, output_file, h5_path, h5_mask_path, chunk_size,
-              visualize_results, config_file, queue, nworkers, threads, processes, memory, wall_time):
+              visualize_results, config_file, queue, nworkers, threads, processes, memory, wall_time, timeout):
 
     # find directories with .dat files that either have incomplete or no extractions
 
@@ -96,7 +97,8 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
                         processes=processes,
                         memory=memory,
                         wall_time=wall_time,
-                        queue=queue)
+                        queue=queue,
+                        timeout=timeout)
 
     dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
@@ -162,9 +164,10 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('-p', '--processes', type=int, default=4, help="Number of processes to run on each worker")
 @click.option('-m', '--memory', type=str, default="4GB", help="RAM usage per workers")
 @click.option('-w', '--wall-time', type=str, default="01:00:00", help="Wall time for workers")
+@click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
 def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask_path, h5_timestamp_path,
               h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window,
-              config_file, queue, nworkers, threads, processes, memory, wall_time):
+              config_file, queue, nworkers, threads, processes, memory, wall_time, timeout):
     # find directories with .dat files that either have incomplete or no extractions
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
     # moseq2-model processes these files correctly
@@ -242,7 +245,8 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
                              memory=memory,
                              wall_time=wall_time,
                              queue=queue,
-                             scheduler='distributed')
+                             scheduler='distributed',
+                             timeout=timeout)
             apply_pca_dask(pca_components=pca_components, h5s=h5s, yamls=yamls,
                            use_fft=use_fft, clean_params=clean_params,
                            save_file=save_file, chunk_size=chunk_size,

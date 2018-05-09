@@ -198,7 +198,7 @@ def recursively_load_dict_contents_from_group(h5file, path):
 
 
 def initialize_dask(nworkers, processes, memory, threads, wall_time, queue,
-                    cluster_type='local', scheduler='dask'):
+                    cluster_type='local', scheduler='dask', timeout=10):
 
     # only use distributed if we need it
 
@@ -224,16 +224,21 @@ def initialize_dask(nworkers, processes, memory, threads, wall_time, queue,
 
         nworkers = 0
 
+        start_time = time.time()
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
             pbar = tqdm.tqdm(total=len(workers)*processes, desc="Intializing workers")
 
-            while nworkers < len(workers)*processes:
+            elapsed_time = (time.time() - start_time) / 60.0
+
+            while nworkers < len(workers)*processes and elapsed_time < timeout:
                 tmp = len(client.scheduler_info()['workers'])
                 if tmp - nworkers > 0:
                     pbar.update(tmp - nworkers)
                 nworkers += tmp - nworkers
                 time.sleep(5)
+                elapsed_time = (time.time() - start_time) / 60.0
 
             pbar.close()
 
