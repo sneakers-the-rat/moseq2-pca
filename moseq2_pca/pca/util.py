@@ -1,12 +1,12 @@
-from moseq2_pca.util import clean_frames, insert_nans, read_yaml
+from moseq2_pca.util import clean_frames, insert_nans, read_yaml, get_changepoints, get_rps
 from dask.distributed import as_completed
 from dask.diagnostics import ProgressBar
 from dask.distributed import progress
 import dask.array.linalg as lng
+import dask.array as da
 import dask
 import numpy as np
 import h5py
-import dask.array as da
 import tqdm
 
 
@@ -226,3 +226,69 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                                     dtype='float32', compression='gzip')
             f_scores.create_dataset('scores_idx/{}'.format(uuids[file_idx]), data=score_idx,
                                     dtype='float32', compression='gzip')
+
+
+def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
+                          save_file, chunk_size, h5_path, h5_timestamp_path, h5_mask_path,
+                          mask_params, missing_data, client, fps=30, pca_scores=None):
+
+    futures = []
+    uuids = []
+    nrps = changepoint_params.pop('rps')
+
+    for h5, yml in tqdm.tqdm(zip(h5s, yamls), desc='Setting up calculation', total=len(h5s)):
+        data = read_yaml(yml)
+        uuid = data['uuid']
+
+        with h5py.File(h5, 'r') as f:
+
+            dset = h5py.File(h5, mode='r')[h5_path]
+            frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
+
+            if h5_timestamp_path is not None:
+                timestamps = f[h5_timestamp_path].value / 1000.0
+            else:
+                timestamps = np.arange(frames.shape[0]) / fps
+
+        if missing_data and pca_scores is None:
+            raise RuntimeError("Need to compute PC scores to impute missing data")
+        elif missing_data:
+            mask_dset = h5py.File(h5, mode='r')[h5_mask_path]
+            mask = da.from_array(mask_dset, chunks=frames.chunks)
+            mask = da.logical_and(mask < mask_params['mask_threshold'],
+                                  frames > mask_params['mask_height_threshold'])
+            frames[mask] = 0
+            mask = mask.reshape(-1, frames.shape[1] * frames.shape[2])
+
+            with h5py.File(pca_scores, 'r') as f:
+                scores = f['scores/{}'.format(uuid)]
+                scores_idx = f['scores_idx/{}'.format(uuid)].value
+                scores = scores[~np.isnan(scores_idx), :]
+
+            scores = da.from_array(scores, chunks=(frames.chunks[0], scores.shape[1]))
+
+        frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
+
+        if missing_data:
+            recon = scores.dot(pca_components)
+            frames = da.map_blocks(mask_data, frames, mask, recon, dtype=frames.dtype)
+
+        rps = get_rps(frames, rps=nrps, normalize=True)
+        cps = get_changepoints(rps, timestamps=timestamps, **changepoint_params)
+        futures.append(cps)
+        uuids.append(uuid)
+
+    futures = client.compute(futures)
+    keys = [tmp.key for tmp in futures]
+
+    with h5py.File('{}.h5'.format(save_file), 'w') as f_cps:
+
+        f_cps.create_dataset('metadata/fps', data=fps, dtype='float32')
+
+        for future, result in tqdm.tqdm(as_completed(futures, with_results=True), total=len(futures),
+                                        desc="Collecting results"):
+            file_idx = keys.index(future.key)
+            f_cps.create_dataset('cps_score/{}'.format(uuids[file_idx]), data=result[1],
+                                 dtype='float32', compression='gzip')
+            f_cps.create_dataset('cps/{}'.format(uuids[file_idx]), data=result[0] / fps,
+                                 dtype='float32', compression='gzip')
