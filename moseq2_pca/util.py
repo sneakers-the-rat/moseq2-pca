@@ -197,7 +197,7 @@ def recursively_load_dict_contents_from_group(h5file, path):
     return ans
 
 
-def initialize_dask(nworkers, processes, memory, threads, wall_time, queue,
+def initialize_dask(nworkers=50, processes=4, memory='4GB', threads=2, wall_time='01:00:00', queue='debug',
                     cluster_type='local', scheduler='dask', timeout=10):
 
     # only use distributed if we need it
