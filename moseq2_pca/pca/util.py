@@ -273,8 +273,11 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
             recon = scores.dot(pca_components)
             frames = da.map_blocks(mask_data, frames, mask, recon, dtype=frames.dtype)
 
-        rps = get_rps(frames, rps=nrps, normalize=True)
-        cps = get_changepoints(rps, timestamps=timestamps, **changepoint_params)
+        rps = dask.delayed(lambda x: get_rps(x, rps=nrps, normalize=True), pure=False)(frames)
+        # rps = client.submit(get_rps, frames, rps=nrps, normalize=True)
+        # cps = client.submit(get_changepoints, rps, timestamps=timestamps, **changepoint_params)
+        cps = dask.delayed(lambda x: get_changepoints(x, timestamps=timestamps, **changepoint_params), pure=True)(rps)
+        # cps = get_changepoints(rps, timestamps=timestamps, **changepoint_params)
         futures.append(cps)
         uuids.append(uuid)
 

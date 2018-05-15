@@ -339,14 +339,14 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
             if 'missing_data' in pca_config.keys() and pca_config['missing_data']:
                 print('Detected missing data...')
                 missing_data = True
+                mask_params = {
+                    'mask_height_threshold': pca_config['mask_height_threshold'],
+                    'mask_threshold': pca_config['mask_threshold']
+                }
             else:
                 missing_data = False
                 pca_file_scores = None
-
-            mask_params = {
-                'mask_height_threshold': pca_config['mask_height_threshold'],
-                'mask_threshold': pca_config['mask_threshold']
-            }
+                mask_params = None
 
             if missing_data and not os.path.exists(pca_file_scores):
                 raise RuntimeError("Need PCA scores to impute missing data, run apply pca first")
