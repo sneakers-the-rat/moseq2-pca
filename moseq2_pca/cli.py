@@ -151,7 +151,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
                        iters=missing_data_iters, workers=workers, cache=cache)
 
     if visualize_results:
-        plt = display_components(output_dict['components'], headless=True)
+        plt, _ = display_components(output_dict['components'], headless=True)
         plt.savefig('{}_components.png'.format(save_file))
         plt.savefig('{}_components.pdf'.format(save_file))
         plt.close()
