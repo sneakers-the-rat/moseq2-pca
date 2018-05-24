@@ -28,6 +28,12 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     _, r, c = dask_array.shape
     nfeatures = r * c
 
+    if cluster_type == 'slurm':
+        dask_array = client.persist(dask_array)
+        
+        if mask is not None:
+            mask = client.persist(mask)
+
     if mask is not None:
         missing_data = True
         dask_array[mask] = 0
@@ -51,7 +57,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     dask_array = dask_array.reshape(-1, nfeatures)
     nsamples, nfeatures = dask_array.shape
     mean = dask_array.mean(axis=0)
-
+    
     # todo compute reconstruction error
 
     if not missing_data:

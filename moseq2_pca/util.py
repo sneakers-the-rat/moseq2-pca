@@ -100,7 +100,7 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
                  medfilter_time=None, gaussfilter_time=None, detrend_time=None,
                  tailfilter=None, tail_threshold=5):
 
-    cleaned_frames = frames
+    cleaned_frames = frames.copy()
 
     if tailfilter is not None:
         for i in range(frames.shape[0]):
@@ -222,10 +222,10 @@ def initialize_dask(nworkers=50, processes=4, memory='4GB', threads=2, wall_time
     workers = None
     cache = None
     cluster = None
-
+    
     if cluster_type == 'local' and scheduler == 'dask':
 
-        cache = Chest()
+        cache = Chest(path='/home/jmarkow/my-chest')
 
     elif cluster_type == 'local' and scheduler == 'distributed':
 
