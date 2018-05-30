@@ -28,6 +28,12 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     _, r, c = dask_array.shape
     nfeatures = r * c
 
+    if cluster_type == 'slurm':
+        dask_array = client.persist(dask_array)
+
+        if mask is not None:
+            mask = client.persist(mask)
+
     if mask is not None:
         missing_data = True
         dask_array[mask] = 0
@@ -51,6 +57,9 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     dask_array = dask_array.reshape(-1, nfeatures)
     nsamples, nfeatures = dask_array.shape
     mean = dask_array.mean(axis=0)
+
+    if cluster_type == 'slurm':
+        mean = client.persist(mean)
 
     # todo compute reconstruction error
 
@@ -129,12 +138,12 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
                 frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
 
-                if h5_timestamp_path is not None:
+                if h5_timestamp_path is not None and h5_timestamp_path in f.keys():
                     timestamps = f[h5_timestamp_path].value / 1000.0
                 else:
                     timestamps = np.arange(frames.shape[0]) / fps
 
-                if h5_metadata_path is not None:
+                if h5_metadata_path is not None and 'metadata' in f.keys():
                     metadata_name = 'metadata/{}'.format(uuid)
                     f.copy(h5_metadata_path, f_scores, name=metadata_name)
 
@@ -210,12 +219,12 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
             file_idx = keys.index(future.key)
 
             with h5py.File(h5s[file_idx], mode='r') as f:
-                if h5_timestamp_path is not None:
+                if h5_timestamp_path is not None and h5_timestamp_path in f.keys():
                     timestamps = f[h5_timestamp_path].value / 1000.0
                 else:
                     timestamps = np.arange(frames.shape[0]) / fps
 
-                if h5_metadata_path is not None:
+                if h5_metadata_path is not None and 'metadata' in f.keys():
                     metadata_name = 'metadata/{}'.format(uuids[file_idx])
                     f.copy(h5_metadata_path, f_scores, name=metadata_name)
 
@@ -245,7 +254,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
             dset = h5py.File(h5, mode='r')[h5_path]
             frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
 
-            if h5_timestamp_path is not None:
+            if h5_timestamp_path is not None and h5_timestamp_path in f.keys():
                 timestamps = f[h5_timestamp_path].value / 1000.0
             else:
                 timestamps = np.arange(frames.shape[0]) / fps

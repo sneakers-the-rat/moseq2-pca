@@ -12,6 +12,7 @@ import scipy.signal
 import time
 import warnings
 import tqdm
+import pathlib
 
 
 # from https://stackoverflow.com/questions/46358797/
@@ -57,7 +58,7 @@ def recursive_find_h5s(root_dir=os.getcwd(),
     for root, dirs, files in os.walk(root_dir):
         for file in files:
             yaml_file = yaml_string.format(os.path.splitext(file)[0])
-            if file.endswith(ext) and os.path.exists(os.path.join(root, yaml_file)):
+            if file.endswith(ext):
                 with h5py.File(os.path.join(root, file), 'r') as f:
                     if 'frames' not in f.keys():
                         continue
@@ -100,7 +101,7 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
                  medfilter_time=None, gaussfilter_time=None, detrend_time=None,
                  tailfilter=None, tail_threshold=5):
 
-    cleaned_frames = frames
+    cleaned_frames = frames.copy()
 
     if tailfilter is not None:
         for i in range(frames.shape[0]):
@@ -184,12 +185,15 @@ def insert_nans(timestamps, data, fps=30):
 
 def read_yaml(yaml_file):
 
-    with open(yaml_file, 'r') as f:
-        dat = f.read()
-        try:
-            return_dict = yaml.load(dat, Loader=yaml.RoundTripLoader)
-        except yaml.constructor.ConstructorError:
-            return_dict = yaml.load(dat, Loader=yaml.Loader)
+    try:
+        with open(yaml_file, 'r') as f:
+            dat = f.read()
+            try:
+                return_dict = yaml.load(dat, Loader=yaml.RoundTripLoader)
+            except yaml.constructor.ConstructorError:
+                return_dict = yaml.load(dat, Loader=yaml.Loader)
+    except IOError:
+        return_dict = {}
 
     return return_dict
 
@@ -213,8 +217,10 @@ def recursively_load_dict_contents_from_group(h5file, path):
     return ans
 
 
-def initialize_dask(nworkers=50, processes=4, memory='4GB', threads=2, wall_time='01:00:00', queue='debug',
-                    cluster_type='local', scheduler='dask', timeout=10):
+def initialize_dask(nworkers=50, processes=4, memory='4GB', threads=2,
+                    wall_time='01:00:00', queue='debug',
+                    cluster_type='local', scheduler='dask', timeout=10,
+                    cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca')):
 
     # only use distributed if we need it
 
@@ -225,7 +231,10 @@ def initialize_dask(nworkers=50, processes=4, memory='4GB', threads=2, wall_time
 
     if cluster_type == 'local' and scheduler == 'dask':
 
-        cache = Chest()
+        if not os.path.exists(cache_path):
+            os.makedirs(cache_path)
+
+        cache = Chest(path=cache_path)
 
     elif cluster_type == 'local' and scheduler == 'distributed':
 

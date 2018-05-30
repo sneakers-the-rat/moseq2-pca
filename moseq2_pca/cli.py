@@ -11,6 +11,7 @@ import h5py
 import warnings
 import dask.array as da
 import tqdm
+import dask
 
 orig_init = click.core.Option.__init__
 
@@ -124,6 +125,8 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         'medfilter_time': medfilter_time,
         'medfilter_space': medfilter_space
     }
+
+    # dask.set_options(temporary_directory='/home/jmarkow/dask-tmp')
 
     client, cluster, workers, cache =\
         initialize_dask(cluster_type=cluster_type,
