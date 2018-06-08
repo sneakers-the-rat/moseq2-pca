@@ -34,7 +34,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     original_chunks = dask_array.chunks
 
-    if original_chunks[0] > 1000:
+    if original_chunks[0][0] > 1000:
         dask_array.rechunk(500, -1, -1)
 
     if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
