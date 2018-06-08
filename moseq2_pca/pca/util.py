@@ -32,12 +32,19 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         dask_array[mask] = 0
         mask = mask.reshape(-1, nfeatures)
 
+    original_chunks = dask_array.chunks
+
+    if original_chunks > 1000:
+        dask_array.rechunk(500, -1, -1)
+
     if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
         dask_array = dask_array.map_overlap(
             clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
     else:
         dask_array = dask_array.map_blocks(clean_frames, dtype='float32', **clean_params)
         # dask_array = clean_frames(dask_array, **clean_params)
+
+    dask_array.rechunk(original_chunks)
 
     if use_fft:
         print('Using FFT...')
@@ -48,8 +55,10 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     # todo, abstract this into another function, add support for missing data
     # (should be simple, just need a mask array, then repeat calculation to convergence)
 
-    dask_array = dask_array.reshape(-1, nfeatures).astype('float')
+    dask_array = dask_array.reshape(-1, nfeatures).astype('float32')
     nsamples, nfeatures = dask_array.shape
+
+    print('Cleaning frames...')
 
     if cluster_type == 'slurm':
         dask_array = client.persist(dask_array)
@@ -65,6 +74,8 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         mean = client.persist(mean)
 
     # todo compute reconstruction error
+
+    print('Computing SVD...')
 
     if not missing_data:
         u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
