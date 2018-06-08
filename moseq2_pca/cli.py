@@ -76,7 +76,7 @@ def add_groups(index_file, pca_file):
 @click.option('--output-file', default='pca', type=str, help='Name of h5 file for storing pca results')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
 @click.option('--h5-mask-path', default='/frames_mask', type=str, help="Path to log-likelihood mask in h5 files")
-@click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
+@click.option('--chunk-size', default=0, type=int, help='Number of frames per chunk')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
@@ -138,9 +138,16 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
                         queue=queue,
                         timeout=timeout)
 
+    if chunk_size == 0:
+        chunk_size = h5py.File(h5s[0], mode='r')[h5_path].chunks
+    else:
+        chunk_size = (chunk_size,
+                      h5py.File(h5s[0], mode='r')[h5_path].shape[0],
+                      h5py.File(h5s[0], mode='r')[h5_path].shape[1])
+
     dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
-    arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
-    stacked_array = da.concatenate(arrays, axis=0).astype('float32')
+    arrays = [da.from_array(dset, chunks=chunk_size) for dset in dsets]
+    stacked_array = da.concatenate(arrays, axis=0).astype('float')
     stacked_array[stacked_array < min_height] = 0
     stacked_array[stacked_array > max_height] = 0
 
@@ -148,8 +155,8 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 
     if missing_data:
         mask_dsets = [h5py.File(h5, mode='r')[h5_mask_path] for h5 in h5s]
-        mask_arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in mask_dsets]
-        stacked_array_mask = da.concatenate(mask_arrays, axis=0).astype('float32')
+        mask_arrays = [da.from_array(dset, chunks=chunk_size) for dset in mask_dsets]
+        stacked_array_mask = da.concatenate(mask_arrays, axis=0).astype('float')
         stacked_array_mask = da.logical_and(stacked_array_mask < mask_threshold,
                                             stacked_array > mask_height_threshold)
         print('Loaded mask...')

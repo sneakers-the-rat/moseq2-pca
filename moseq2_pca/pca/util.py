@@ -55,6 +55,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         dask_array = client.persist(dask_array)
         if mask is not None:
             mask = client.persist(mask)
+
         progress(dask_array)
         wait(dask_array)
 

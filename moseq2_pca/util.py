@@ -101,44 +101,41 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
                  medfilter_time=None, gaussfilter_time=None, detrend_time=None,
                  tailfilter=None, tail_threshold=5):
 
-    # cleaned_frames = frames.copy()
-    cleaned_frames = frames
-
     if tailfilter is not None:
         for i in range(frames.shape[0]):
-            mask = cv2.morphologyEx(cleaned_frames[i], cv2.MORPH_OPEN, tailfilter) > tail_threshold
-            cleaned_frames[i] = cleaned_frames[i] * mask.astype(cleaned_frames.dtype)
+            mask = cv2.morphologyEx(frames[i], cv2.MORPH_OPEN, tailfilter) > tail_threshold
+            frames[i] = frames[i] * mask.astype(frames.dtype)
 
     if medfilter_space is not None and np.all(np.array(medfilter_space) > 0):
         for i in range(frames.shape[0]):
             for medfilt in medfilter_space:
-                cleaned_frames[i] = cv2.medianBlur(cleaned_frames[i], medfilt)
+                frames[i] = cv2.medianBlur(frames[i], medfilt)
 
     if gaussfilter_space is not None and np.all(np.array(gaussfilter_space) > 0):
         for i in range(frames.shape[0]):
-            cleaned_frames[i] = cv2.GaussianBlur(cleaned_frames[i], (21, 21),
-                                                 gaussfilter_space[0], gaussfilter_space[1])
+            frames[i] = cv2.GaussianBlur(frames[i], (21, 21),
+                                         gaussfilter_space[0], gaussfilter_space[1])
 
     if medfilter_time is not None and np.all(np.array(medfilter_time) > 0):
-        for idx, i in np.ndenumerate(cleaned_frames[0]):
+        for idx, i in np.ndenumerate(frames[0]):
             for medfilt in medfilter_time:
-                cleaned_frames[:, idx[0], idx[1]] = \
-                    scipy.signal.medfilt(cleaned_frames[:, idx[0], idx[1]], medfilt)
+                frames[:, idx[0], idx[1]] = \
+                    scipy.signal.medfilt(frames[:, idx[0], idx[1]], medfilt)
 
     if gaussfilter_time is not None and gaussfilter_time > 0:
         kernel = gaussian_kernel1d(sig=gaussfilter_time)
-        for idx, i in np.ndenumerate(cleaned_frames[0]):
-            cleaned_frames[:, idx[0], idx[1]] = \
-                np.convolve(cleaned_frames[:, idx[0], idx[1]], kernel, mode='same')
+        for idx, i in np.ndenumerate(frames[0]):
+            frames[:, idx[0], idx[1]] = \
+                np.convolve(frames[:, idx[0], idx[1]], kernel, mode='same')
 
     if detrend_time is not None and detrend_time > 0:
         kernel = gaussian_kernel1d(sig=detrend_time)
-        for idx, i in np.ndenumerate(cleaned_frames[0]):
-            cleaned_frames[:, idx[0], idx[1]] = \
-                cleaned_frames[:, idx[0], idx[1]] -\
-                gauss_smooth(cleaned_frames[:, idx[0], idx[1]], kernel=kernel)
+        for idx, i in np.ndenumerate(frames[0]):
+            frames[:, idx[0], idx[1]] = \
+                frames[:, idx[0], idx[1]] -\
+                gauss_smooth(frames[:, idx[0], idx[1]], kernel=kernel)
 
-    return cleaned_frames
+    return frames
 
 
 def select_strel(string='e', size=(10, 10)):
