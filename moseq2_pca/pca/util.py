@@ -46,8 +46,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
                                            chunks=(100, -1, -1), **clean_params)
         # dask_array = clean_frames(dask_array, **clean_params)
 
-    dask_array.rechunk(original_chunks)
-
     if use_fft:
         print('Using FFT...')
         dask_array = dask_array.map_blocks(
