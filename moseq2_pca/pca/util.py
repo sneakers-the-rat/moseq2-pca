@@ -24,8 +24,15 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
                    min_height=10, max_height=100):
 
     missing_data = False
+    rechunked = False
     _, r, c = dask_array.shape
     nfeatures = r * c
+
+    original_chunks = dask_array.chunks[0][0]
+
+    if original_chunks > 100:
+        dask_array.rechunk(100, -1, -1)
+        rechunked = True
 
     if mask is not None:
         missing_data = True
@@ -45,6 +52,9 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         dask_array = dask_array.map_blocks(
             lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
             dtype='float32')
+
+    if rechunked:
+        dask_array.rechunk(original_chunks, -1, -1)
 
     # todo, abstract this into another function, add support for missing data
     # (should be simple, just need a mask array, then repeat calculation to convergence)
@@ -68,6 +78,8 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         mean = client.persist(mean)
 
     # todo compute reconstruction error
+
+
 
     print('\nComputing SVD...')
 
