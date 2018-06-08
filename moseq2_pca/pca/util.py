@@ -1,7 +1,6 @@
 from moseq2_pca.util import clean_frames, insert_nans, read_yaml, get_changepoints, get_rps
-from dask.distributed import as_completed
+from dask.distributed import as_completed, wait, progress
 from dask.diagnostics import ProgressBar
-from dask.distributed import progress
 import dask.array.linalg as lng
 import dask.array as da
 import dask
@@ -28,12 +27,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     _, r, c = dask_array.shape
     nfeatures = r * c
 
-    if cluster_type == 'slurm':
-        dask_array = client.persist(dask_array)
-
-        if mask is not None:
-            mask = client.persist(mask)
-
     if mask is not None:
         missing_data = True
         dask_array[mask] = 0
@@ -44,6 +37,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
             clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
     else:
         dask_array = dask_array.map_blocks(clean_frames, dtype='float32', **clean_params)
+        # dask_array = clean_frames(dask_array, **clean_params)
 
     if use_fft:
         print('Using FFT...')
@@ -56,6 +50,15 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     dask_array = dask_array.reshape(-1, nfeatures)
     nsamples, nfeatures = dask_array.shape
+
+    if cluster_type == 'slurm':
+        dask_array = client.persist(dask_array)
+        if mask is not None:
+            mask = client.persist(mask)
+        progress(dask_array)
+        wait(dask_array)
+
+
     mean = dask_array.mean(axis=0)
 
     if cluster_type == 'slurm':

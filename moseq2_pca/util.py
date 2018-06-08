@@ -101,7 +101,8 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
                  medfilter_time=None, gaussfilter_time=None, detrend_time=None,
                  tailfilter=None, tail_threshold=5):
 
-    cleaned_frames = frames.copy()
+    # cleaned_frames = frames.copy()
+    cleaned_frames = frames
 
     if tailfilter is not None:
         for i in range(frames.shape[0]):
