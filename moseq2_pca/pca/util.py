@@ -79,8 +79,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     # todo compute reconstruction error
 
-
-
     print('\nComputing SVD...')
 
     if not missing_data:
