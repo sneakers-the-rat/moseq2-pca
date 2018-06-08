@@ -62,9 +62,8 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     dask_array = dask_array.reshape(-1, nfeatures).astype('float32')
     nsamples, nfeatures = dask_array.shape
 
-    print('Cleaning frames...')
-
     if cluster_type == 'slurm':
+        print('Cleaning frames...')
         dask_array = client.persist(dask_array)
         if mask is not None:
             mask = client.persist(mask)
@@ -79,7 +78,8 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     # todo compute reconstruction error
 
-    print('\nComputing SVD...')
+    if cluster_type == 'slurm':
+        print('\nComputing SVD...')
 
     if not missing_data:
         u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
