@@ -1,7 +1,6 @@
 from moseq2_pca.util import clean_frames, insert_nans, read_yaml, get_changepoints, get_rps
-from dask.distributed import as_completed
+from dask.distributed import as_completed, wait, progress
 from dask.diagnostics import ProgressBar
-from dask.distributed import progress
 import dask.array.linalg as lng
 import dask.array as da
 import dask
@@ -25,14 +24,15 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
                    min_height=10, max_height=100):
 
     missing_data = False
+    rechunked = False
     _, r, c = dask_array.shape
     nfeatures = r * c
 
-    if cluster_type == 'slurm':
-        dask_array = client.persist(dask_array)
+    original_chunks = dask_array.chunks[0][0]
 
-        if mask is not None:
-            mask = client.persist(mask)
+    if original_chunks > 100:
+        dask_array.rechunk(100, -1, -1)
+        rechunked = True
 
     if mask is not None:
         missing_data = True
@@ -41,9 +41,11 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
         dask_array = dask_array.map_overlap(
-            clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
+            clean_frames, depth=(20, 0, 0), boundary='reflect',
+            dtype='float32', **clean_params)
     else:
         dask_array = dask_array.map_blocks(clean_frames, dtype='float32', **clean_params)
+        # dask_array = clean_frames(dask_array, **clean_params)
 
     if use_fft:
         print('Using FFT...')
@@ -51,17 +53,33 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
             lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
             dtype='float32')
 
+    if rechunked:
+        dask_array.rechunk(original_chunks, -1, -1)
+
     # todo, abstract this into another function, add support for missing data
     # (should be simple, just need a mask array, then repeat calculation to convergence)
 
-    dask_array = dask_array.reshape(-1, nfeatures)
+    dask_array = dask_array.reshape(-1, nfeatures).astype('float32')
     nsamples, nfeatures = dask_array.shape
+
+    if cluster_type == 'slurm':
+        print('Cleaning frames...')
+        dask_array = client.persist(dask_array)
+        if mask is not None:
+            mask = client.persist(mask)
+
+        progress(dask_array)
+        wait(dask_array)
+
     mean = dask_array.mean(axis=0)
 
     if cluster_type == 'slurm':
         mean = client.persist(mean)
 
     # todo compute reconstruction error
+
+    if cluster_type == 'slurm':
+        print('\nComputing SVD...')
 
     if not missing_data:
         u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)

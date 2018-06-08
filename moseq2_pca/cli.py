@@ -140,7 +140,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 
     dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
-    stacked_array = da.concatenate(arrays, axis=0).astype('float32')
+    stacked_array = da.concatenate(arrays, axis=0)
     stacked_array[stacked_array < min_height] = 0
     stacked_array[stacked_array > max_height] = 0
 
@@ -152,6 +152,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         stacked_array_mask = da.concatenate(mask_arrays, axis=0).astype('float32')
         stacked_array_mask = da.logical_and(stacked_array_mask < mask_threshold,
                                             stacked_array > mask_height_threshold)
+        print('Loaded mask...')
         # stacked_array_mask = dask.compute(stacked_array_mask)
     else:
         stacked_array_mask = None
