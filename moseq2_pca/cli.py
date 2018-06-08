@@ -29,6 +29,28 @@ def cli():
     pass
 
 
+@cli.command('clip-scores')
+@click.argument('pca_file', type=click.Path(exists=True, resolve_path=True))
+@click.argument('clip_samples', type=int)
+@click.option('--from-end', type=bool, is_flag=True)
+def clip_scores(pca_file, clip_samples, from_end):
+
+    with h5py.File(pca_file, 'r') as f:
+        store_dir = os.path.dirname(pca_file)
+        base_filename = os.path.splitext(os.path.basename(pca_file))[0]
+        new_filename = os.path.join(store_dir, '{}_clip.h5'.format(base_filename))
+
+        with h5py.File(new_filename, 'w') as f2:
+            f.copy('/metadata', f2)
+            for key in tqdm.tqdm(f['/scores'].keys(), desc='Copying data'):
+                if from_end:
+                    f2['/scores/{}'.format(key)] = f['/scores/{}'.format(key)][:-clip_samples]
+                    f2['/scores_idx/{}'.format(key)] = f['/scores_idx/{}'.format(key)][:-clip_samples]
+                else:
+                    f2['/scores/{}'.format(key)] = f['/scores/{}'.format(key)][clip_samples:]
+                    f2['/scores_idx/{}'.format(key)] = f['/scores_idx/{}'.format(key)][clip_samples:]
+
+
 @cli.command(name='add-groups')
 @click.argument('index_file', type=click.Path(exists=True, resolve_path=True))
 @click.argument('pca_file', type=click.Path(exists=True, resolve_path=True))
