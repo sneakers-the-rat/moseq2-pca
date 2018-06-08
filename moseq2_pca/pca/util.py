@@ -32,18 +32,12 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         dask_array[mask] = 0
         mask = mask.reshape(-1, nfeatures)
 
-    # original_chunks = dask_array.chunks
-    #
-    # if original_chunks[0][0] > 1000:
-    #     dask_array.rechunk(500, -1, -1)
-
     if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
         dask_array = dask_array.map_overlap(
             clean_frames, depth=(20, 0, 0), boundary='reflect',
-            dtype='float32', chunks=(100, -1, -1), **clean_params)
+            dtype='float32', **clean_params)
     else:
-        dask_array = dask_array.map_blocks(clean_frames, dtype='float32',
-                                           chunks=(100, -1, -1), **clean_params)
+        dask_array = dask_array.map_blocks(clean_frames, dtype='float32', **clean_params)
         # dask_array = clean_frames(dask_array, **clean_params)
 
     if use_fft:
