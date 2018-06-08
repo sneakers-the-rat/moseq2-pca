@@ -48,7 +48,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     # todo, abstract this into another function, add support for missing data
     # (should be simple, just need a mask array, then repeat calculation to convergence)
 
-    dask_array = dask_array.reshape(-1, nfeatures)
+    dask_array = dask_array.reshape(-1, nfeatures).astype('float')
     nsamples, nfeatures = dask_array.shape
 
     if cluster_type == 'slurm':
@@ -58,7 +58,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
         progress(dask_array)
         wait(dask_array)
-
 
     mean = dask_array.mean(axis=0)
 
