@@ -104,9 +104,9 @@ def add_groups(index_file, pca_file):
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
 @click.option('-n', '--nworkers', type=int, default=50, help="Number of workers")
 @click.option('-t', '--threads', type=int, default=2, help="Number of threads per workers")
-@click.option('-p', '--processes', type=int, default=4, help="Number of processes to run on each worker")
-@click.option('-m', '--memory', type=str, default="4GB", help="RAM usage per workers")
-@click.option('-w', '--wall-time', type=str, default="01:00:00", help="Wall time for workers")
+@click.option('-p', '--processes', type=int, default=1, help="Number of processes to run on each worker")
+@click.option('-m', '--memory', type=str, default="5GB", help="RAM usage per workers")
+@click.option('-w', '--wall-time', type=str, default="06:00:00", help="Wall time for workers")
 @click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold,
