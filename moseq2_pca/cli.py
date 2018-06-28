@@ -101,6 +101,7 @@ def add_groups(index_file, pca_file):
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
+@click.option('--dask-cache-path', '-d', type=click.Path(), help='Path to spill data to disk for dask local scheduler')
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
 @click.option('-n', '--nworkers', type=int, default=50, help="Number of workers")
 @click.option('-t', '--threads', type=int, default=2, help="Number of threads per workers")
@@ -112,7 +113,8 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold,
               mask_height_threshold, min_height, max_height, tailfilter_iters, tailfilter_size,
               tailfilter_shape, use_fft, rank, output_file, h5_path, h5_mask_path, chunk_size,
-              visualize_results, config_file, queue, nworkers, threads, processes, memory, wall_time, timeout):
+              visualize_results, config_file, dask_cache_path, queue, nworkers, threads, processes,
+              memory, wall_time, timeout):
 
     # find directories with .dat files that either have incomplete or no extractions
 
@@ -158,7 +160,8 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
                         memory=memory,
                         wall_time=wall_time,
                         queue=queue,
-                        timeout=timeout)
+                        timeout=timeout,
+                        cache_path=dask_cache_path)
 
     dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=(chunk_size, -1, -1)) for dset in dsets]
