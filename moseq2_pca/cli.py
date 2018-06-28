@@ -12,6 +12,7 @@ import warnings
 import dask.array as da
 import tqdm
 import dask
+import pathlib
 
 orig_init = click.core.Option.__init__
 
@@ -101,7 +102,7 @@ def add_groups(index_file, pca_file):
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
-@click.option('--dask-cache-path', '-d', type=click.Path(), help='Path to spill data to disk for dask local scheduler')
+@click.option('--dask-cache-path', '-d', default=os.path.join(pathlib.Path.home(), 'moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
 @click.option('-n', '--nworkers', type=int, default=50, help="Number of workers")
 @click.option('-t', '--threads', type=int, default=2, help="Number of threads per workers")
