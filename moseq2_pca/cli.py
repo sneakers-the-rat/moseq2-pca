@@ -91,7 +91,6 @@ def add_groups(index_file, pca_file):
 @click.option('--mask-height-threshold', default=5, type=float, help="Threshold for mask based on floor height")
 @click.option('--min-height', default=10, type=int, help='Min mouse height from floor (mm)')
 @click.option('--max-height', default=100, type=int, help='Max mouse height from floor (mm)')
-@click.option('--tailfilter-iters', default=1, type=int, help="Number of tail filter iterations")
 @click.option('--tailfilter-size', default=(9, 9), type=(int, int), help='Tail filter size')
 @click.option('--tailfilter-shape', default='ellipse', type=str, help='Tail filter shape')
 @click.option('--use-fft', type=bool, is_flag=True, help='Use 2D fft')
@@ -112,7 +111,7 @@ def add_groups(index_file, pca_file):
 @click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold,
-              mask_height_threshold, min_height, max_height, tailfilter_iters, tailfilter_size,
+              mask_height_threshold, min_height, max_height, tailfilter_size,
               tailfilter_shape, use_fft, rank, output_file, h5_path, h5_mask_path, chunk_size,
               visualize_results, config_file, dask_cache_path, queue, nworkers, threads, processes,
               memory, wall_time, timeout):
