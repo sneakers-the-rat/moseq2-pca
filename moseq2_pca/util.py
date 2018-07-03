@@ -243,7 +243,8 @@ def initialize_dask(nworkers=50, processes=4, memory='4GB', threads=2,
     elif cluster_type == 'slurm':
 
         cluster = SLURMCluster(processes=processes, threads=threads,
-                               memory=memory, queue=queue, wall_time=wall_time)
+                               memory=memory, queue=queue, wall_time=wall_time,
+                               local_directory=cache_path)
         workers = cluster.start_workers(nworkers)
         client = Client(cluster)
 
