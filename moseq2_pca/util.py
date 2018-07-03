@@ -141,13 +141,12 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
 def select_strel(string='e', size=(10, 10)):
     if string is None or 'none' in string or np.all(np.array(size) == 0):
         strel = None
-    if string[0].lower() == 'e':
+    elif string[0].lower() == 'e':
         strel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, size)
     elif string[0].lower() == 'r':
         strel = cv2.getStructuringElement(cv2.MORPH_RECT, size)
     else:
         strel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, size)
-
     return strel
 
 
