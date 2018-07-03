@@ -223,6 +223,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
 @click.option('--detrend-window', default=0, type=float, help="Length of detrend window (in seconds, 0 for no detrending)")
 @click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
+@click.option('--dask-cache-path', '-d', default=os.path.join(pathlib.Path.home(), 'moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
 @click.option('-n', '--nworkers', type=int, default=20, help="Number of workers")
 @click.option('-t', '--threads', type=int, default=2, help="Number of threads per workers")
@@ -232,7 +233,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
 def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask_path, h5_timestamp_path,
               h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window,
-              config_file, queue, nworkers, threads, processes, memory, wall_time, timeout):
+              config_file, dask_cache_path, queue, nworkers, threads, processes, memory, wall_time, timeout):
     # find directories with .dat files that either have incomplete or no extractions
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
     # moseq2-model processes these files correctly
@@ -311,7 +312,8 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
                              wall_time=wall_time,
                              queue=queue,
                              scheduler='distributed',
-                             timeout=timeout)
+                             timeout=timeout,
+                             cache_path=dask_cache_path)
             apply_pca_dask(pca_components=pca_components, h5s=h5s, yamls=yamls,
                            use_fft=use_fft, clean_params=clean_params,
                            save_file=save_file, chunk_size=chunk_size,
@@ -343,6 +345,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
 @click.option('--h5-timestamp-path', default='/metadata/timestamps', type=str, help='Path to timestamps in h5 files')
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--config-file', '-c', type=click.Path(), help="Path to configuration file")
+@click.option('--dask-cache-path', '-d', default=os.path.join(pathlib.Path.home(), 'moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
 @click.option('-n', '--nworkers', type=int, default=20, help="Number of workers")
@@ -353,8 +356,8 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
 @click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
 def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_file_components,
                          pca_file_scores, pca_path, neighbors, threshold, klags, sigma, dims, fps, h5_path,
-                         h5_mask_path, h5_timestamp_path, chunk_size, config_file, visualize_results, queue,
-                         nworkers, threads, processes, memory, wall_time, timeout):
+                         h5_mask_path, h5_timestamp_path, chunk_size, config_file, dask_cache_path,
+                         visualize_results, queue, nworkers, threads, processes, memory, wall_time, timeout):
 
     params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
@@ -408,7 +411,8 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
                         wall_time=wall_time,
                         queue=queue,
                         scheduler='distributed',
-                        timeout=timeout)
+                        timeout=timeout,
+                        cache_path=dask_cache_path)
 
     get_changepoints_dask(pca_components=pca_components, pca_scores=pca_file_scores,
                           h5s=h5s, yamls=yamls, changepoint_params=changepoint_params,
