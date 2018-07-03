@@ -1,4 +1,4 @@
-import skimage.util.montage
+import skimage.util
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -8,7 +8,7 @@ def display_components(components, cmap='gray', headless=False):
 
     im_size = int(np.sqrt(components.shape[1]))
     plotv = components.reshape((-1, im_size, im_size))
-    plotv = skimage.util.montage.montage2d(plotv)
+    plotv = skimage.util.montage(plotv)
 
     if headless:
         plt.switch_backend('agg')
