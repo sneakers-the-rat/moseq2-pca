@@ -136,7 +136,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
     if os.path.exists('{}.h5'.format(save_file)):
         raise IOError('{}.h5 already exists, delete before recomputing'.format(save_file))
 
-    config_store = os.path.join(output_dir, '{}.yaml'.format(save_file))
+    config_store = '{}.yaml'.format(save_file)
     with open(config_store, 'w') as f:
         yaml.dump(params, f, Dumper=yaml.RoundTripDumper)
 
