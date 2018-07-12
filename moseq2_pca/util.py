@@ -65,8 +65,8 @@ def recursive_find_h5s(root_dir=os.getcwd(),
                     h5s.append(os.path.join(root, file))
                     yamls.append(os.path.join(root, yaml_file))
                     dicts.append(read_yaml(os.path.join(root, yaml_file)))
-            except OSerror:
-                print('Error loading {}'.format(os.path.join(root, file))
+            except OSError:
+                print('Error loading {}'.format(os.path.join(root, file)))
 
     return h5s, dicts, yamls
 
