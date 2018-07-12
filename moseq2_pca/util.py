@@ -102,41 +102,42 @@ def gaussian_kernel1d(n=None, sig=3):
 def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
                  medfilter_time=None, gaussfilter_time=None, detrend_time=None,
                  tailfilter=None, tail_threshold=5):
-    out = np.zeros_like(frames)
+
+    out = np.copy(frames)
+
     if tailfilter is not None:
         for i in range(frames.shape[0]):
-            mask = cv2.morphologyEx(
-                frames[i], cv2.MORPH_OPEN, tailfilter) > tail_threshold
-            out[i] = frames[i] * mask.astype(frames.dtype)
+            mask = cv2.morphologyEx(out[i], cv2.MORPH_OPEN, tailfilter) > tail_threshold
+            out[i] = out[i] * mask.astype(frames.dtype)
 
     if medfilter_space is not None and np.all(np.array(medfilter_space) > 0):
         for i in range(frames.shape[0]):
             for medfilt in medfilter_space:
-                out[i] = cv2.medianBlur(frames[i], medfilt)
+                out[i] = cv2.medianBlur(out[i], medfilt)
 
     if gaussfilter_space is not None and np.all(np.array(gaussfilter_space) > 0):
         for i in range(frames.shape[0]):
-            out[i] = cv2.GaussianBlur(frames[i], (21, 21),
+            out[i] = cv2.GaussianBlur(out[i], (21, 21),
                                       gaussfilter_space[0], gaussfilter_space[1])
 
     if medfilter_time is not None and np.all(np.array(medfilter_time) > 0):
         for idx, i in np.ndenumerate(frames[0]):
             for medfilt in medfilter_time:
                 out[:, idx[0], idx[1]] = \
-                    scipy.signal.medfilt(frames[:, idx[0], idx[1]], medfilt)
+                    scipy.signal.medfilt(out[:, idx[0], idx[1]], medfilt)
 
     if gaussfilter_time is not None and gaussfilter_time > 0:
         kernel = gaussian_kernel1d(sig=gaussfilter_time)
         for idx, i in np.ndenumerate(frames[0]):
             out[:, idx[0], idx[1]] = \
-                np.convolve(frames[:, idx[0], idx[1]], kernel, mode='same')
+                np.convolve(out[:, idx[0], idx[1]], kernel, mode='same')
 
     if detrend_time is not None and detrend_time > 0:
         kernel = gaussian_kernel1d(sig=detrend_time)
         for idx, i in np.ndenumerate(frames[0]):
             out[:, idx[0], idx[1]] = \
                 frames[:, idx[0], idx[1]] -\
-                gauss_smooth(frames[:, idx[0], idx[1]], kernel=kernel)
+                gauss_smooth(out[:, idx[0], idx[1]], kernel=kernel)
 
     return out
 
