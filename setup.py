@@ -10,7 +10,7 @@ setup(
                       'tqdm', 'numpy', 'joblib==0.11',
                       'opencv-python', 'click', 'ruamel.yaml',
                       'dask[complete]', 'chest', 'seaborn', 'dask_jobqueue>=0.3.0',
-                      'scikit-image>=0.13'],
+                      'scikit-image>=0.14'],
     python_requires='>=3.6',
     entry_points={'console_scripts': ['moseq2-pca = moseq2_pca.cli:cli']}
 )

@@ -57,13 +57,16 @@ def recursive_find_h5s(root_dir=os.getcwd(),
     for root, dirs, files in os.walk(root_dir):
         for file in files:
             yaml_file = yaml_string.format(os.path.splitext(file)[0])
-            if file.endswith(ext):
-                with h5py.File(os.path.join(root, file), 'r') as f:
-                    if 'frames' not in f.keys():
-                        continue
-                h5s.append(os.path.join(root, file))
-                yamls.append(os.path.join(root, yaml_file))
-                dicts.append(read_yaml(os.path.join(root, yaml_file)))
+            try:
+                if file.endswith(ext):
+                    with h5py.File(os.path.join(root, file), 'r') as f:
+                        if 'frames' not in f.keys():
+                            continue
+                    h5s.append(os.path.join(root, file))
+                    yamls.append(os.path.join(root, yaml_file))
+                    dicts.append(read_yaml(os.path.join(root, yaml_file)))
+            except OSerror:
+                print('Error loading {}'.format(os.path.join(root, file))
 
     return h5s, dicts, yamls
 
