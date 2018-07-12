@@ -8,7 +8,7 @@ setup(
     platforms=['mac', 'unix'],
     install_requires=['h5py', 'matplotlib', 'scipy>=0.19',
                       'tqdm', 'numpy', 'joblib==0.11',
-                      'opencv-python', 'click', 'ruamel.yaml',
+                      'opencv-python', 'click', 'ruamel.yaml<=0.15.0',
                       'dask[complete]', 'chest', 'seaborn', 'dask_jobqueue>=0.3.0',
                       'scikit-image>=0.14'],
     python_requires='>=3.6',
