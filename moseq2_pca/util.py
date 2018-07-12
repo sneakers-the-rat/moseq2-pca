@@ -136,8 +136,7 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
         kernel = gaussian_kernel1d(sig=detrend_time)
         for idx, i in np.ndenumerate(frames[0]):
             out[:, idx[0], idx[1]] = \
-                frames[:, idx[0], idx[1]] -\
-                gauss_smooth(out[:, idx[0], idx[1]], kernel=kernel)
+                out[:, idx[0], idx[1]] - gauss_smooth(out[:, idx[0], idx[1]], kernel=kernel)
 
     return out
 
