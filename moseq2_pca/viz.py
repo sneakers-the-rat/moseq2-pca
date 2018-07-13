@@ -31,7 +31,7 @@ def scree_plot(explained_variance_ratio, headless=False):
     sns.set_style('ticks')
     plt.plot(np.cumsum(explained_variance_ratio)*1e2)
 
-    idx = np.where(csum > 90)
+    idx = np.where(csum >= 90)
     plt.ylim((0, 100))
     plt.xlim((0, len(explained_variance_ratio)))
 
@@ -39,7 +39,7 @@ def scree_plot(explained_variance_ratio, headless=False):
         idx = np.min(idx)
         plt.plot([idx, idx], [0, csum[idx]], 'k-')
         plt.plot([0, idx], [csum[idx], csum[idx]], 'k-')
-        plt.title('{:0.2f}% in {} pcs'.format(csum[idx], idx))
+        plt.title('{:0.2f}% in {} pcs'.format(csum[idx], idx + 1))
 
     plt.ylabel('Variance explained (percent)')
     plt.xlabel('nPCs')
