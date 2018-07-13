@@ -209,7 +209,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
 @click.option('--cluster-type', type=click.Choice(['local', 'slurm', 'nodask']),
               default='local', help='Cluster type')
-@click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store results')
+@click.option('--output-dir', '-o', default=None, type=click.Path(), help='Directory to store results')
 @click.option('--output-file', default='pca_scores', type=str, help='Name of h5 file for storing pca results')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
 @click.option('--h5-mask-path', default='/frames_mask', type=str, help="Path to log-likelihood mask in h5 files")
@@ -239,6 +239,9 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
 
     params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
+
+    if output_dir is None:
+        output_dir = os.path.dirname(pca_file)
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
