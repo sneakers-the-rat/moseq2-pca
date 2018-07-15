@@ -260,8 +260,10 @@ def initialize_dask(nworkers=50, processes=4, memory='4GB', cores=2,
         client_info = client.scheduler_info()
 
         if 'services' in client_info.keys() and 'bokeh' in client_info['services'].keys():
-            print('Web UI served on port {} (if port forwarding use internal IP not localhost)'
-                  .format(client_info['services']['bokeh']))
+            ip = client_info['address'].split('://')[1].split(':')[0]
+            port = client_info['services']['bokeh']
+            print('Web UI served at {}:{} (if port forwarding use internal IP not localhost)'
+                  .format(ip, port))
 
         nworkers = 0
 
