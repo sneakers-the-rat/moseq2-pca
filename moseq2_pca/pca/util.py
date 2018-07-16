@@ -1,4 +1,4 @@
-from moseq2_pca.util import clean_frames, insert_nans, read_yaml, get_changepoints, get_rps
+from moseq2_pca.util import clean_frames, insert_nans, read_yaml, get_changepoints, get_rps, shutdown_dask
 from dask.distributed import as_completed, wait, progress
 from dask.diagnostics import ProgressBar
 import dask.array.linalg as lng
@@ -103,7 +103,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         futures = client.compute([s, v, mean, total_var])
         progress(futures)
         s, v, mean, total_var = client.gather(futures)
-        cluster.stop_workers(workers)
+        #cluster.stop_workers(workers)
 
     print('\nCalculation complete...')
 
@@ -186,7 +186,8 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
 def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                    save_file, chunk_size, h5_metadata_path, h5_timestamp_path,
-                   h5_path, h5_mask_path, mask_params, missing_data, client, fps=30):
+                   h5_path, h5_mask_path, mask_params, missing_data, cluster,
+                   client, fps=30):
 
     futures = []
     uuids = []

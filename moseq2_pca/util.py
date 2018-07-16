@@ -2,6 +2,7 @@ from dask_jobqueue import SLURMCluster
 from dask.distributed import Client
 from chest import Chest
 from copy import deepcopy
+from tornado import gen
 import ruamel.yaml as yaml
 import os
 import cv2
@@ -287,6 +288,14 @@ def initialize_dask(nworkers=50, processes=4, memory='4GB', cores=2,
             pbar.close()
 
     return client, cluster, workers, cache
+
+
+# graceful shutdown...
+# https://github.com/dask/distributed/issues/1703#issuecomment-361291492
+@gen.coroutine
+def close_everything(scheduler):
+    yield scheduler.retire_workers(workers=scheduler.workers, close_workers=True)
+    yield scheduler.close()
 
 
 def get_rps(frames, rps=600, normalize=True):

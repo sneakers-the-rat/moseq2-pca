@@ -1,5 +1,6 @@
 from moseq2_pca.util import recursive_find_h5s, command_with_config,\
-    select_strel, initialize_dask, recursively_load_dict_contents_from_group
+    select_strel, initialize_dask, recursively_load_dict_contents_from_group,\
+    shutdown_dask
 from moseq2_pca.viz import display_components, scree_plot, changepoint_dist
 from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local,\
     train_pca_dask, get_changepoints_dask
@@ -190,6 +191,9 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
                        iters=missing_data_iters, workers=workers, cache=cache,
                        recon_pcs=recon_pcs)
 
+    if workers is not None:
+        shutdown_dask(cluster.scheduler)
+
     if visualize_results:
         plt, _ = display_components(output_dict['components'], headless=True)
         plt.savefig('{}_components.png'.format(save_file))
@@ -326,7 +330,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
                            h5_mask_path=h5_mask_path, mask_params=mask_params)
 
             if workers is not None:
-                cluster.stop_workers(workers)
+                shutdown_dask(cluster.scheduler)
 
 
 @cli.command('compute-changepoints', cls=command_with_config('config_file'))
@@ -428,7 +432,7 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
                           h5_mask_path=h5_mask_path, mask_params=mask_params)
 
     if workers is not None:
-        cluster.stop_workers(workers)
+        shutdown_dask(cluster.scheduler)
 
     if visualize_results:
         import numpy as np
