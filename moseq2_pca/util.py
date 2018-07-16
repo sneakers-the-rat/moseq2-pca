@@ -77,7 +77,7 @@ def gauss_smooth(signal, win_length=None, sig=1.5, kernel=None):
     if kernel is None:
         kernel = gaussian_kernel1d(n=win_length, sig=sig)
 
-    result = scipy.signal.fftconvolve(signal, kernel, mode='same')
+    result = scipy.signal.convolve(signal, kernel, mode='same')
 
 #    win_length = len(kernel)
 
