@@ -1,4 +1,4 @@
-from moseq2_pca.util import clean_frames, insert_nans, read_yaml, get_changepoints, get_rps
+from moseq2_pca.util import clean_frames, insert_nans, read_yaml, get_changepoints, get_rps, shutdown_dask
 from dask.distributed import as_completed, wait, progress
 from dask.diagnostics import ProgressBar
 import dask.array.linalg as lng
@@ -19,8 +19,8 @@ def mask_data(original_data, mask, new_data):
 
 
 def train_pca_dask(dask_array, clean_params, use_fft, rank,
-                   cluster_type, client, cluster, workers,
-                   cache, mask=None, iters=10, recon_pcs=3,
+                   cluster_type, client, workers,
+                   cache, mask=None, iters=10, recon_pcs=10,
                    min_height=10, max_height=100):
 
     missing_data = False
@@ -103,7 +103,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         futures = client.compute([s, v, mean, total_var])
         progress(futures)
         s, v, mean, total_var = client.gather(futures)
-        cluster.stop_workers(workers)
+        #cluster.stop_workers(workers)
 
     print('\nCalculation complete...')
 
@@ -186,7 +186,8 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
 def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                    save_file, chunk_size, h5_metadata_path, h5_timestamp_path,
-                   h5_path, h5_mask_path, mask_params, missing_data, client, fps=30):
+                   h5_path, h5_mask_path, mask_params, missing_data,
+                   client, fps=30):
 
     futures = []
     uuids = []
@@ -316,7 +317,9 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
         for future, result in tqdm.tqdm(as_completed(futures, with_results=True), total=len(futures),
                                         desc="Collecting results"):
             file_idx = keys.index(future.key)
-            f_cps.create_dataset('cps_score/{}'.format(uuids[file_idx]), data=result[1],
-                                 dtype='float32', compression='gzip')
-            f_cps.create_dataset('cps/{}'.format(uuids[file_idx]), data=result[0] / fps,
-                                 dtype='float32', compression='gzip')
+
+            if result[0] is not None and result[1] is not None:
+                f_cps.create_dataset('cps_score/{}'.format(uuids[file_idx]), data=result[1],
+                                     dtype='float32', compression='gzip')
+                f_cps.create_dataset('cps/{}'.format(uuids[file_idx]), data=result[0] / fps,
+                                     dtype='float32', compression='gzip')
