@@ -352,7 +352,7 @@ def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, bas
             cps = scipy.signal.argrelextrema(
                 normed_df, np.greater, order=peak_neighbors)[0]
             cps = cps[np.argwhere(normed_df[cps] > peak_height)]
-    catch:
+    except ValueError:
         cps = None
         normed_df = None
 
