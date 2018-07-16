@@ -19,7 +19,7 @@ def mask_data(original_data, mask, new_data):
 
 
 def train_pca_dask(dask_array, clean_params, use_fft, rank,
-                   cluster_type, client, cluster, workers,
+                   cluster_type, client, workers,
                    cache, mask=None, iters=10, recon_pcs=10,
                    min_height=10, max_height=100):
 
@@ -186,7 +186,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
 def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                    save_file, chunk_size, h5_metadata_path, h5_timestamp_path,
-                   h5_path, h5_mask_path, mask_params, missing_data, cluster,
+                   h5_path, h5_mask_path, mask_params, missing_data,
                    client, fps=30):
 
     futures = []
