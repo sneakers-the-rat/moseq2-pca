@@ -293,7 +293,7 @@ def initialize_dask(nworkers=50, processes=4, memory='4GB', cores=2,
 # graceful shutdown...
 # https://github.com/dask/distributed/issues/1703#issuecomment-361291492
 @gen.coroutine
-def close_everything(scheduler):
+def shutdown_dask(scheduler):
     yield scheduler.retire_workers(workers=scheduler.workers, close_workers=True)
     yield scheduler.close()
 
