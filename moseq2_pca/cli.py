@@ -187,7 +187,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         train_pca_dask(dask_array=stacked_array, mask=stacked_array_mask,
                        clean_params=clean_params, use_fft=use_fft,
                        rank=rank, cluster_type=cluster_type, min_height=min_height,
-                       max_height=max_height, client=client, cluster=cluster,
+                       max_height=max_height, client=client, 
                        iters=missing_data_iters, workers=workers, cache=cache,
                        recon_pcs=recon_pcs)
 
