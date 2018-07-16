@@ -320,37 +320,40 @@ def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, bas
 
     if type(peak_neighbors) is not int:
         peak_neighbors = int(peak_neighbors)
+    try:
+        with np.errstate(all='ignore'):
 
-    with np.errstate(all='ignore'):
+            normed_df = deepcopy(scores)
+            nanidx = np.isnan(normed_df)
+            normed_df[nanidx] = 0
 
-        normed_df = deepcopy(scores)
-        nanidx = np.isnan(normed_df)
-        normed_df[nanidx] = 0
+            if sigma is not None and sigma > 0:
+                for i in range(scores.shape[0]):
+                    normed_df[i, :] = gauss_smooth(normed_df[i, :], sigma)
 
-        if sigma is not None and sigma > 0:
-            for i in range(scores.shape[0]):
-                normed_df[i, :] = gauss_smooth(normed_df[i, :], sigma)
+            normed_df[:, k // 2:-k // 2] = (normed_df[:, k:] - normed_df[:, :-k])**2
 
-        normed_df[:, k // 2:-k // 2] = (normed_df[:, k:] - normed_df[:, :-k])**2
+            normed_df[nanidx] = np.nan
+            normed_df[:, :int(6 * sigma)] = np.nan
+            normed_df[:, -int(6 * sigma):] = np.nan
 
-        normed_df[nanidx] = np.nan
-        normed_df[:, :int(6 * sigma)] = np.nan
-        normed_df[:, -int(6 * sigma):] = np.nan
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                normed_df = np.nanmean(normed_df, axis=0)
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=RuntimeWarning)
-            normed_df = np.nanmean(normed_df, axis=0)
+            if baseline:
+                normed_df -= np.nanmin(normed_df)
 
-        if baseline:
-            normed_df -= np.nanmin(normed_df)
+            if timestamps is not None:
+                normed_df, _, _ = insert_nans(
+                    timestamps, normed_df, fps=int(1 / np.mean(np.diff(timestamps))))
 
-        if timestamps is not None:
-            normed_df, _, _ = insert_nans(
-                timestamps, normed_df, fps=int(1 / np.mean(np.diff(timestamps))))
-
-        normed_df = np.squeeze(normed_df)
-        cps = scipy.signal.argrelextrema(
-            normed_df, np.greater, order=peak_neighbors)[0]
-        cps = cps[np.argwhere(normed_df[cps] > peak_height)]
+            normed_df = np.squeeze(normed_df)
+            cps = scipy.signal.argrelextrema(
+                normed_df, np.greater, order=peak_neighbors)[0]
+            cps = cps[np.argwhere(normed_df[cps] > peak_height)]
+    catch:
+        cps = None
+        normed_df = None
 
     return cps, normed_df

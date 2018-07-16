@@ -317,7 +317,9 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
         for future, result in tqdm.tqdm(as_completed(futures, with_results=True), total=len(futures),
                                         desc="Collecting results"):
             file_idx = keys.index(future.key)
-            f_cps.create_dataset('cps_score/{}'.format(uuids[file_idx]), data=result[1],
-                                 dtype='float32', compression='gzip')
-            f_cps.create_dataset('cps/{}'.format(uuids[file_idx]), data=result[0] / fps,
-                                 dtype='float32', compression='gzip')
+
+            if result[0] is not None and result[1] is not None:
+                f_cps.create_dataset('cps_score/{}'.format(uuids[file_idx]), data=result[1],
+                                     dtype='float32', compression='gzip')
+                f_cps.create_dataset('cps/{}'.format(uuids[file_idx]), data=result[0] / fps,
+                                     dtype='float32', compression='gzip')
