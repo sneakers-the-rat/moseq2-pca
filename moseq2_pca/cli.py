@@ -94,6 +94,7 @@ def add_groups(index_file, pca_file):
 @click.option('--tailfilter-size', default=(9, 9), type=(int, int), help='Tail filter size')
 @click.option('--tailfilter-shape', default='ellipse', type=str, help='Tail filter shape')
 @click.option('--use-fft', type=bool, is_flag=True, help='Use 2D fft')
+@click.option('--recon-pcs', type=int, default=10, help='Number of PCs to use for missing data reconstruction')
 @click.option('--rank', default=50, type=int, help="Rank for compressed SVD (generally>>nPCS)")
 @click.option('--output-file', default='pca', type=str, help='Name of h5 file for storing pca results')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
@@ -110,9 +111,8 @@ def add_groups(index_file, pca_file):
 @click.option('-w', '--wall-time', type=str, default="06:00:00", help="Wall time for workers")
 @click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
-              gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold,
-              mask_height_threshold, min_height, max_height, tailfilter_size,
-              tailfilter_shape, use_fft, rank, output_file, h5_path, h5_mask_path, chunk_size,
+              gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold, mask_height_threshold, min_height, max_height, tailfilter_size,
+              tailfilter_shape, use_fft, recon_pcs, rank, output_file, h5_path, h5_mask_path, chunk_size,
               visualize_results, config_file, dask_cache_path, queue, nworkers, cores, processes,
               memory, wall_time, timeout):
 
@@ -187,7 +187,8 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
                        clean_params=clean_params, use_fft=use_fft,
                        rank=rank, cluster_type=cluster_type, min_height=min_height,
                        max_height=max_height, client=client, cluster=cluster,
-                       iters=missing_data_iters, workers=workers, cache=cache)
+                       iters=missing_data_iters, workers=workers, cache=cache,
+                       recon_pcs=recon_pcs)
 
     if visualize_results:
         plt, _ = display_components(output_dict['components'], headless=True)
