@@ -61,7 +61,7 @@ def changepoint_dist(cps, headless=False):
     ax.set_xlim((0, 2))
     ax.set_xticks(np.linspace(0, 2, 11))
 
-    s = "Mean, Median, Mode (s) = %s" % str((mean(cps), median(cps), mode(cps)[0][0][0]))
+    s = "Mean, median, mode (s) = {0}, {1}, {2}".format(str(np.mean(cps)), str(np.median(cps)), str(mode(cps)[0][0][0]))
     plt.text(1.5, 1.5, s)
     plt.ylabel('P(block duration)')
     plt.xlabel('Block duration (s)')
