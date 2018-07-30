@@ -1,6 +1,6 @@
-from moseq2_pca.util import clean_frames, insert_nans, read_yaml, get_changepoints, get_rps, shutdown_dask
+from moseq2_pca.util import clean_frames, insert_nans, read_yaml, get_changepoints, get_rps, get_rps_dask
 from dask.distributed import as_completed, wait, progress
-from dask.diagnostics import ProgressBar
+from scipy.stats import zscore
 import dask.array.linalg as lng
 import dask.array as da
 import dask
@@ -68,9 +68,8 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         if mask is not None:
             mask = client.persist(mask)
 
-        progress(dask_array)
-        wait(dask_array)
-
+    progress(dask_array)
+    wait(dask_array)
     mean = dask_array.mean(axis=0)
 
     if cluster_type == 'slurm':
@@ -78,8 +77,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     # todo compute reconstruction error
 
-    if cluster_type == 'slurm':
-        print('\nComputing SVD...')
+    print('\nComputing SVD...')
 
     if not missing_data:
         u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
@@ -95,15 +93,17 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     total_var = dask_array.var(ddof=1, axis=0).sum()
 
-    if cluster_type == 'local':
-        with ProgressBar():
-            s, v, mean, total_var = dask.compute(s, v, mean, total_var,
-                                                 cache=cache)
-    elif cluster_type == 'slurm':
-        futures = client.compute([s, v, mean, total_var])
-        progress(futures)
-        s, v, mean, total_var = client.gather(futures)
-        #cluster.stop_workers(workers)
+    # if cluster_type == 'local':
+    #     with ProgressBar():
+    #         s, v, mean, total_var = dask.compute(s, v, mean, total_var,
+    #                                              cache=cache)
+    # elif cluster_type == 'slurm':
+
+    futures = client.compute([s, v, mean, total_var])
+    progress(futures)
+    s, v, mean, total_var = client.gather(futures)
+
+    # cluster.stop_workers(workers)
 
     print('\nCalculation complete...')
 
@@ -229,32 +229,44 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
         futures.append(scores)
         uuids.append(uuid)
 
-    futures = client.compute(futures)
-    keys = [tmp.key for tmp in futures]
+    # pin the batch size to the number of workers (assume each worker has enough RAM for one session)
+    batch_size = len(client.scheduler_info()['workers'])
 
     with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
-        for future, result in tqdm.tqdm(as_completed(futures, with_results=True), total=len(futures),
-                                        desc="Computing scores"):
 
-            file_idx = keys.index(future.key)
+        batch_count = 0
+        total_batches = len(range(0, len(futures), batch_size))
 
-            with h5py.File(h5s[file_idx], mode='r') as f:
-                if h5_timestamp_path is not None and h5_timestamp_path in f.keys():
-                    timestamps = f[h5_timestamp_path].value / 1000.0
-                else:
-                    timestamps = np.arange(frames.shape[0]) / fps
+        for i in range(0, len(futures), batch_size):
 
-                if h5_metadata_path is not None and 'metadata' in f.keys():
-                    metadata_name = 'metadata/{}'.format(uuids[file_idx])
-                    f.copy(h5_metadata_path, f_scores, name=metadata_name)
+            futures_batch = client.compute(futures[i:i+batch_size])
+            uuids_batch = uuids[i:i+batch_size]
+            h5s_batch = h5s[i:i+batch_size]
+            keys = [tmp.key for tmp in futures_batch]
+            batch_count += 1
 
-            scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
-                                               fps=int(1 / np.mean(np.diff(timestamps))))
+            for future, result in tqdm.tqdm(as_completed(futures_batch, with_results=True), total=len(futures_batch),
+                                            desc="Computing scores (batch {}/{})".format(batch_count, total_batches)):
 
-            f_scores.create_dataset('scores/{}'.format(uuids[file_idx]), data=scores,
-                                    dtype='float32', compression='gzip')
-            f_scores.create_dataset('scores_idx/{}'.format(uuids[file_idx]), data=score_idx,
-                                    dtype='float32', compression='gzip')
+                file_idx = keys.index(future.key)
+
+                with h5py.File(h5s_batch[file_idx], mode='r') as f:
+                    if h5_timestamp_path is not None and h5_timestamp_path in f.keys():
+                        timestamps = f[h5_timestamp_path].value / 1000.0
+                    else:
+                        timestamps = np.arange(frames.shape[0]) / fps
+
+                    if h5_metadata_path is not None and 'metadata' in f.keys():
+                        metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
+                        f.copy(h5_metadata_path, f_scores, name=metadata_name)
+
+                scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
+                                                   fps=int(1 / np.mean(np.diff(timestamps))))
+
+                f_scores.create_dataset('scores/{}'.format(uuids_batch[file_idx]), data=scores,
+                                        dtype='float32', compression='gzip')
+                f_scores.create_dataset('scores_idx/{}'.format(uuids_batch[file_idx]), data=score_idx,
+                                        dtype='float32', compression='gzip')
 
 
 def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
@@ -303,23 +315,42 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
             frames = da.map_blocks(mask_data, frames, mask, recon, dtype=frames.dtype)
 
         rps = dask.delayed(lambda x: get_rps(x, rps=nrps, normalize=True), pure=False)(frames)
+
+        # alternative to using delayed here...
+        # rps = frames.dot(da.random.normal(0, 1,
+        #                                   size=(frames.shape[1], 600),
+        #                                   chunks=(chunk_size, -1)))
+        # rps = zscore(zscore(rps).T)
+        # rps = client.scatter(rps)
+
         cps = dask.delayed(lambda x: get_changepoints(x, timestamps=timestamps, **changepoint_params), pure=True)(rps)
+
         futures.append(cps)
         uuids.append(uuid)
 
-    futures = client.compute(futures)
-    keys = [tmp.key for tmp in futures]
+    # pin the batch size to the number of workers (assume each worker has enough RAM for one session)
+    batch_size = len(client.scheduler_info()['workers'])
 
     with h5py.File('{}.h5'.format(save_file), 'w') as f_cps:
-
         f_cps.create_dataset('metadata/fps', data=fps, dtype='float32')
 
-        for future, result in tqdm.tqdm(as_completed(futures, with_results=True), total=len(futures),
-                                        desc="Collecting results"):
-            file_idx = keys.index(future.key)
+        batch_count = 0
+        total_batches = len(range(0, len(futures), batch_size))
 
-            if result[0] is not None and result[1] is not None:
-                f_cps.create_dataset('cps_score/{}'.format(uuids[file_idx]), data=result[1],
-                                     dtype='float32', compression='gzip')
-                f_cps.create_dataset('cps/{}'.format(uuids[file_idx]), data=result[0] / fps,
-                                     dtype='float32', compression='gzip')
+        for i in range(0, len(futures), batch_size):
+
+            futures_batch = client.compute(futures[i:i+batch_size])
+            uuids_batch = uuids[i:i+batch_size]
+            keys = [tmp.key for tmp in futures_batch]
+            batch_count += 1
+
+            for future, result in tqdm.tqdm(as_completed(futures_batch, with_results=True), total=len(futures_batch),
+                                            desc="Collecting results (batch {}/{})".format(batch_count, total_batches)):
+
+                file_idx = keys.index(future.key)
+
+                if result[0] is not None and result[1] is not None:
+                    f_cps.create_dataset('cps_score/{}'.format(uuids_batch[file_idx]), data=result[1],
+                                         dtype='float32', compression='gzip')
+                    f_cps.create_dataset('cps/{}'.format(uuids_batch[file_idx]), data=result[0] / fps,
+                                         dtype='float32', compression='gzip')

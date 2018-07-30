@@ -1,5 +1,6 @@
 from dask_jobqueue import SLURMCluster
-from dask.distributed import Client
+from dask.distributed import Client, LocalCluster
+import dask.array as da
 from chest import Chest
 from copy import deepcopy
 from tornado import gen
@@ -226,7 +227,7 @@ def recursively_load_dict_contents_from_group(h5file, path):
 
 def initialize_dask(nworkers=50, processes=4, memory='4GB', cores=2,
                     wall_time='01:00:00', queue='debug',
-                    cluster_type='local', scheduler='dask', timeout=10,
+                    cluster_type='local', scheduler='distributed', timeout=10,
                     cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca')):
 
     # only use distributed if we need it
@@ -245,7 +246,8 @@ def initialize_dask(nworkers=50, processes=4, memory='4GB', cores=2,
 
     elif cluster_type == 'local' and scheduler == 'distributed':
 
-        client = Client(processes=False)
+        cluster = LocalCluster(n_workers=nworkers)
+        client = Client(cluster)
 
     elif cluster_type == 'slurm':
 
@@ -258,16 +260,18 @@ def initialize_dask(nworkers=50, processes=4, memory='4GB', cores=2,
 
         workers = cluster.start_workers(nworkers)
         client = Client(cluster)
-        client_info = client.scheduler_info()
 
+    if client is not None:
+        client_info = client.scheduler_info()
         if 'services' in client_info.keys() and 'bokeh' in client_info['services'].keys():
             ip = client_info['address'].split('://')[1].split(':')[0]
             port = client_info['services']['bokeh']
             print('Web UI served at {}:{} (if port forwarding use internal IP not localhost)'
                   .format(ip, port))
 
-        nworkers = 0
+    if workers is not None:
 
+        nworkers = 0
         start_time = time.time()
 
         with warnings.catch_warnings():
@@ -305,12 +309,25 @@ def get_rps(frames, rps=600, normalize=True):
     elif frames.ndim == 2:
         use_frames = frames
 
-    rproj = use_frames.dot(np.random.randn(use_frames.shape[1], rps))
+    rproj = use_frames.dot(np.random.randn(use_frames.shape[1], rps).astype('float32'))
 
     if normalize:
         rproj = scipy.stats.zscore(scipy.stats.zscore(rproj).T)
 
     return rproj
+
+
+def get_rps_dask(frames, client=None, rps=600, chunk_size=5000, normalize=True):
+
+    rps = frames.dot(da.random.normal(0, 1,
+                                      size=(frames.shape[1], 600),
+                                      chunks=(chunk_size, -1)))
+    rps = scipy.stats.zscore(scipy.stats.zscore(rps).T)
+
+    if client is not None:
+        rps = client.scatter(rps)
+
+    return rps
 
 
 def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, baseline=True, timestamps=None):
@@ -339,16 +356,16 @@ def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, bas
         warnings.simplefilter("ignore", category=RuntimeWarning)
         normed_df = np.nanmean(normed_df, axis=0)
 
-    if baseline:
-        normed_df -= np.nanmin(normed_df)
+        if baseline:
+            normed_df -= np.nanmin(normed_df)
 
-    if timestamps is not None:
-        normed_df, _, _ = insert_nans(
-            timestamps, normed_df, fps=int(1 / np.mean(np.diff(timestamps))))
+        if timestamps is not None:
+            normed_df, _, _ = insert_nans(
+                timestamps, normed_df, fps=int(1 / np.mean(np.diff(timestamps))))
 
-    normed_df = np.squeeze(normed_df)
-    cps = scipy.signal.argrelextrema(
-        normed_df, np.greater, order=peak_neighbors)[0]
-    cps = cps[np.argwhere(normed_df[cps] > peak_height)]
+        normed_df = np.squeeze(normed_df)
+        cps = scipy.signal.argrelextrema(
+            normed_df, np.greater, order=peak_neighbors)[0]
+        cps = cps[np.argwhere(normed_df[cps] > peak_height)]
 
     return cps, normed_df
