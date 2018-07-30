@@ -330,7 +330,9 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
                            h5_mask_path=h5_mask_path, mask_params=mask_params)
 
             if workers is not None:
+                client.close()
                 shutdown_dask(cluster.scheduler)
+                cluster.close()
 
 
 @cli.command('compute-changepoints', cls=command_with_config('config_file'))
@@ -432,7 +434,9 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
                           h5_mask_path=h5_mask_path, mask_params=mask_params)
 
     if workers is not None:
+        client.close()
         shutdown_dask(cluster.scheduler)
+        cluster.close()
 
     if visualize_results:
         import numpy as np
