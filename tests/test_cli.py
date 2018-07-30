@@ -42,6 +42,7 @@ def test_train_pca(temp_dir):
     result = runner.invoke(train_pca,
                            ['-i', temp_dir, '-o',
                             os.path.join(temp_dir, '_pca'),
+                            '-n', 1,
                             '--visualize-results', True],
                            catch_exceptions=True)
 
@@ -50,6 +51,7 @@ def test_train_pca(temp_dir):
     result = runner.invoke(train_pca,
                            ['-i', temp_dir, '-o',
                             os.path.join(temp_dir, '_pca2'),
+                            '-n', 1,
                             '--missing-data'],
                            catch_exceptions=True)
 
@@ -89,6 +91,7 @@ def test_apply_pca(temp_dir):
     _ = runner.invoke(train_pca,
                       ['-i', temp_dir, '-o',
                        os.path.join(temp_dir, '_pca'),
+                       '-n', 1,
                        '--visualize-results', True],
                       catch_exceptions=True)
 
@@ -114,6 +117,7 @@ def test_apply_pca(temp_dir):
     _ = runner.invoke(train_pca,
                       ['-i', temp_dir, '-o',
                        os.path.join(temp_dir, '_pca2'),
+                       '-n', 1,
                        '--missing-data'],
                       catch_exceptions=True)
 
@@ -170,6 +174,7 @@ def test_compute_changepoints(temp_dir):
     _ = runner.invoke(train_pca,
                       ['-i', temp_dir, '-o',
                        os.path.join(temp_dir, '_pca'),
+                       '-n', 1,
                        '--visualize-results', True],
                       catch_exceptions=True)
 
@@ -195,6 +200,7 @@ def test_compute_changepoints(temp_dir):
     _ = runner.invoke(train_pca,
                       ['-i', temp_dir, '-o',
                        os.path.join(temp_dir, '_pca2'),
+                       '-n', 1,
                        '--missing-data'],
                       catch_exceptions=True)
 
