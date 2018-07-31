@@ -1,3 +1,4 @@
+import warnings
 import skimage.util
 import numpy as np
 import matplotlib.pyplot as plt
@@ -50,21 +51,24 @@ def scree_plot(explained_variance_ratio, headless=False):
 
 
 def changepoint_dist(cps, headless=False):
+    if cps.size > 0:
 
-    if headless:
-        plt.switch_backend('agg')
+        if headless:
+            plt.switch_backend('agg')
 
-    fig, ax = plt.subplots(1, 1, figsize=(5, 5))
-    sns.set_style('ticks')
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+        sns.set_style('ticks')
 
-    ax = sns.distplot(cps, kde_kws={'gridsize': 600}, bins=np.linspace(0, 10, 100))
-    ax.set_xlim((0, 2))
-    ax.set_xticks(np.linspace(0, 2, 11))
+        ax = sns.distplot(cps, kde_kws={'gridsize': 600}, bins=np.linspace(0, 10, 100))
+        ax.set_xlim((0, 2))
+        ax.set_xticks(np.linspace(0, 2, 11))
 
-    s = "Mean, median, mode (s) = {0}, {1}, {2}".format(str(np.mean(cps)), str(np.median(cps)), str(mode(cps)[0][0][0]))
-    plt.text(.5, 2, s, fontsize=6)
-    plt.ylabel('P(block duration)')
-    plt.xlabel('Block duration (s)')
-    sns.despine()
+        s = "Mean, median, mode (s) = {0}, {1}, {2}".format(str(np.mean(cps)), str(np.median(cps)), str(mode(cps)[0][0][0]))
+        plt.text(.5, 2, s, fontsize=6)
+        plt.ylabel('P(block duration)')
+        plt.xlabel('Block duration (s)')
+        sns.despine()
 
-    return plt, ax
+        return plt, ax
+    else:
+        warnings.warn('No changepoints detected - check if mouse is present or moving')
