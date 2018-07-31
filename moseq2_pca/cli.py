@@ -444,7 +444,7 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
             fig, _ = out
             fig.savefig('{}_dist.png'.format(save_file))
             fig.savefig('{}_dist.pdf'.format(save_file))
-            plt.close('all')
+            fig.close('all')
 
 
 if __name__ == '__main__':
