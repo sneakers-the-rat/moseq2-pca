@@ -12,7 +12,6 @@ import h5py
 import warnings
 import dask.array as da
 import tqdm
-import dask
 import pathlib
 
 orig_init = click.core.Option.__init__
@@ -162,6 +161,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
                         wall_time=wall_time,
                         queue=queue,
                         timeout=timeout,
+                        scheduler='distributed',
                         cache_path=dask_cache_path)
 
     dsets = [h5py.File(h5, mode='r')[h5_path] for h5 in h5s]
@@ -187,11 +187,11 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
         train_pca_dask(dask_array=stacked_array, mask=stacked_array_mask,
                        clean_params=clean_params, use_fft=use_fft,
                        rank=rank, cluster_type=cluster_type, min_height=min_height,
-                       max_height=max_height, client=client, 
+                       max_height=max_height, client=client,
                        iters=missing_data_iters, workers=workers, cache=cache,
                        recon_pcs=recon_pcs)
 
-    if workers is not None:
+    if cluster is not None:
         shutdown_dask(cluster.scheduler)
 
     if visualize_results:
@@ -330,7 +330,9 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
                            h5_mask_path=h5_mask_path, mask_params=mask_params)
 
             if workers is not None:
+                client.close()
                 shutdown_dask(cluster.scheduler)
+                cluster.close()
 
 
 @cli.command('compute-changepoints', cls=command_with_config('config_file'))
@@ -345,7 +347,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
 @click.option('--threshold', type=float, default=.5, help="Peak threshold to use for changepoints")
 @click.option('-k', '--klags', type=int, default=6, help="Lag to use for derivative calculation")
 @click.option('-s', '--sigma', type=float, default=3.5, help="Standard deviation of gaussian smoothing filter")
-@click.option('-d', '--dims', type=int, default=600, help="Number of random projections to use")
+@click.option('-d', '--dims', type=int, default=300, help="Number of random projections to use")
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
 @click.option('--h5-mask-path', default='/frames_mask', type=str, help="Path to log-likelihood mask in h5 files")
@@ -370,7 +372,7 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
     if output_dir is None:
-        output_dir = os.path.dirname(pca_file_scores)
+        output_dir = os.path.dirname(pca_file_components)
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -432,7 +434,9 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
                           h5_mask_path=h5_mask_path, mask_params=mask_params)
 
     if workers is not None:
+        client.close()
         shutdown_dask(cluster.scheduler)
+        cluster.close()
 
     if visualize_results:
         import numpy as np
