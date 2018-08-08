@@ -439,10 +439,12 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
         with h5py.File('{}.h5'.format(save_file), 'r') as f:
             cps = recursively_load_dict_contents_from_group(f, 'cps')
         block_durs = np.concatenate([np.diff(cp, axis=0) for k, cp in cps.items()])
-        plt, _ = changepoint_dist(block_durs, headless=True)
-        plt.savefig('{}_dist.png'.format(save_file))
-        plt.savefig('{}_dist.pdf'.format(save_file))
-        plt.close()
+        out = changepoint_dist(block_durs, headless=True)
+        if out:
+            fig, _ = out
+            fig.savefig('{}_dist.png'.format(save_file))
+            fig.savefig('{}_dist.pdf'.format(save_file))
+            fig.close('all')
 
 
 if __name__ == '__main__':
