@@ -214,14 +214,14 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
 @click.option('--cluster-type', type=click.Choice(['local', 'slurm', 'nodask']),
               default='local', help='Cluster type')
-@click.option('--output-dir', '-o', default=None, type=click.Path(), help='Directory to store results')
+@click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(exists=True), help='Directory to store results')
 @click.option('--output-file', default='pca_scores', type=str, help='Name of h5 file for storing pca results')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
 @click.option('--h5-mask-path', default='/frames_mask', type=str, help="Path to log-likelihood mask in h5 files")
 @click.option('--h5-timestamp-path', default='/metadata/timestamps', type=str, help='Path to timestamps in h5 files')
 @click.option('--h5-metadata-path', default='/metadata/extraction', type=str, help='Path to metadata in h5 files')
 @click.option('--pca-path', default='/components', type=str, help='Path to pca components')
-@click.option('--pca-file', type=click.Path(exists=True), default=os.path.join(os.getcwd(), '_pca/pca.h5'), help='Path to PCA results')
+@click.option('--pca-file', default=None, type=click.Path(), help='Path to PCA results')
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--fill-gaps', default=True, type=bool, help='Fill dropped frames with nans')
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
@@ -245,8 +245,11 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
     params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
-    if output_dir is None:
-        output_dir = os.path.dirname(pca_file)
+    if pca_file is None:
+        pca_file = os.path.join(output_dir, 'pca.h5')
+
+    if not os.path.exists(pca_file):
+        raise IOError('Could not find PCA components file {}'.format(pca_file))
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -335,11 +338,11 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
 
 @cli.command('compute-changepoints', cls=command_with_config('config_file'))
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
-@click.option('--output-dir', '-o', default=None, type=click.Path(), help='Directory to store results')
+@click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca/'), type=click.Path(exists=True), help='Directory to store results')
 @click.option('--output-file', default='changepoints', type=str, help='Name of h5 file for storing pca results')
 @click.option('--cluster-type', type=click.Choice(['local', 'slurm']), default='local', help='Cluster type')
-@click.option('--pca-file-components', type=click.Path(), default=os.path.join(os.getcwd(), '_pca/pca.h5'), help="Path to PCA components")
-@click.option('--pca-file-scores', type=click.Path(), default=os.path.join(os.getcwd(), '_pca/pca_scores.h5'), help='Path to PCA results')
+@click.option('--pca-file-components', type=click.Path(), default=None, help="Path to PCA components")
+@click.option('--pca-file-scores', type=click.Path(), default=None, help='Path to PCA results')
 @click.option('--pca-path', default='/components', type=str, help='Path to pca components')
 @click.option('--neighbors', type=int, default=1, help="Neighbors to use for peak identification")
 @click.option('--threshold', type=float, default=.5, help="Peak threshold to use for changepoints")
@@ -369,8 +372,14 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
     params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
-    if output_dir is None:
-        output_dir = os.path.dirname(pca_file_components)
+    if pca_file_components is None:
+        pca_file_components = os.path.join(output_dir, 'pca.h5')
+
+    if pca_file_scores is None:
+        pca_file_scores = os.path.join(output_dir, 'pca_scores.h5')
+
+    if not os.path.exists(pca_file_components):
+        raise IOError('Could not find PCA components file {}'.format(pca_file_components))
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
