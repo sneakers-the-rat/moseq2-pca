@@ -15,6 +15,7 @@ import time
 import warnings
 import tqdm
 import pathlib
+import warnings
 
 
 # from https://stackoverflow.com/questions/46358797/
@@ -225,7 +226,7 @@ def recursively_load_dict_contents_from_group(h5file, path):
     return ans
 
 
-def initialize_dask(nworkers=50, processes=4, memory='4GB', cores=2,
+def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                     wall_time='01:00:00', queue='debug',
                     cluster_type='local', scheduler='distributed', timeout=10,
                     cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca')):
@@ -245,6 +246,13 @@ def initialize_dask(nworkers=50, processes=4, memory='4GB', cores=2,
         cache = Chest(path=cache_path)
 
     elif cluster_type == 'local' and scheduler == 'distributed':
+
+        ncpus = os.cpu_count()
+
+        if cores * nworkers > ncpus:
+            cores = 1
+            nworkers = ncpus
+            warnings.warn('nworkers * cores > than number of cpus {}, setting to {} cores and {} workers'.format(ncpus, cores, nworkers))
 
         cluster = LocalCluster(n_workers=nworkers)
         client = Client(cluster)
