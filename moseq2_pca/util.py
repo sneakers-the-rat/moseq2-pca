@@ -255,7 +255,7 @@ def initialize_dask(nworkers=50, processes=4, memory='4GB', cores=2,
                                cores=cores,
                                memory=memory,
                                queue=queue,
-                               wall_time=wall_time,
+                               walltime=wall_time,
                                local_directory=cache_path)
 
         workers = cluster.start_workers(nworkers)
