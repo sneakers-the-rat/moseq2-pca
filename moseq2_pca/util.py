@@ -252,7 +252,12 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         if cores * nworkers > ncpus:
             cores = 1
             nworkers = ncpus
-            warnings.warn('nworkers * cores > than number of cpus {}, setting to {} cores and {} workers'.format(ncpus, cores, nworkers))
+            warnings.warn(""" nworkers * cores > than
+                              number of cpus {}, setting to
+                              {} cores and {} workers
+                              !!!IF YOU ARE RUNNING ON A CLUSTER MAKE
+                              SURE THIS IS CORRECT!!!""".format(ncpus, cores, nworkers))
+            input('Press ENTER to continue...')
 
         cluster = LocalCluster(n_workers=nworkers)
         client = Client(cluster)
