@@ -16,6 +16,7 @@ import warnings
 import tqdm
 import pathlib
 import warnings
+import platform
 
 
 # from https://stackoverflow.com/questions/46358797/
@@ -227,7 +228,7 @@ def recursively_load_dict_contents_from_group(h5file, path):
 
 
 def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
-                    wall_time='01:00:00', queue='debug',
+                    wall_time='01:00:00', queue='debug', local_processes=False,
                     cluster_type='local', scheduler='distributed', timeout=10,
                     cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca')):
 
@@ -249,17 +250,24 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
         ncpus = os.cpu_count()
 
+        # TODO: make a decision re: threads here (maybe leave as an option?)
+
         if cores * nworkers > ncpus:
             cores = 1
             nworkers = ncpus
-            warnings.warn(""" nworkers * cores > than
-                              number of cpus {}, setting to
-                              {} cores and {} workers
-                              !!!IF YOU ARE RUNNING ON A CLUSTER MAKE
-                              SURE THIS IS CORRECT!!!""".format(ncpus, cores, nworkers))
+            warning_string = ("nworkers * cores > than "
+                              "number of cpus {}, setting to "
+                              "{} cores and {} workers "
+                              "\n!!!IF YOU ARE RUNNING ON A CLUSTER MAKE "
+                              "SURE THESE SETTINGS ARE CORRECT!!!"
+                              ).format(ncpus, cores, nworkers)
+            warnings.warn(warning_string)
             input('Press ENTER to continue...')
 
-        cluster = LocalCluster(n_workers=nworkers)
+        cluster = LocalCluster(n_workers=nworkers,
+                               threads_per_worker=cores,
+                               processes=local_processes,
+                               local_dir=cache_path)
         client = Client(cluster)
 
     elif cluster_type == 'slurm':
@@ -279,8 +287,10 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         if 'services' in client_info.keys() and 'bokeh' in client_info['services'].keys():
             ip = client_info['address'].split('://')[1].split(':')[0]
             port = client_info['services']['bokeh']
+            hostname = platform.node()
             print('Web UI served at {}:{} (if port forwarding use internal IP not localhost)'
                   .format(ip, port))
+            print('Tunnel command:\n ssh -NL {}:{}:{} {}'.format(port, ip, port, hostname))
 
     if workers is not None:
 
