@@ -35,6 +35,16 @@ def cli():
 @click.argument('clip_samples', type=int)
 @click.option('--from-end', type=bool, is_flag=True)
 def clip_scores(pca_file, clip_samples, from_end):
+    """
+    Clips PCA scores from the beginning or end
+
+    Args:
+        pca_file (string): Path to PCA scores
+        clip_samples (int): number of samples to clip from beginning or end
+        from_end (bool): if true clip from end rather than beginning
+
+    Note that scores are modified *in place*.
+    """
 
     with h5py.File(pca_file, 'r') as f:
         store_dir = os.path.dirname(pca_file)
@@ -56,6 +66,13 @@ def clip_scores(pca_file, clip_samples, from_end):
 @click.argument('index_file', type=click.Path(exists=True, resolve_path=True))
 @click.argument('pca_file', type=click.Path(exists=True, resolve_path=True))
 def add_groups(index_file, pca_file):
+    """
+    Add group from an index file to a PCA scores file to use for modeling.
+
+    Args:
+        index_file (string): path to moseq2 index
+        pca_file (string): path to pca scores
+    """
 
     with open(index_file, 'r') as f:
         index = yaml.load(f.read(), Loader=yaml.RoundTripLoader)
@@ -103,18 +120,19 @@ def add_groups(index_file, pca_file):
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', type=click.Path(), help="Path to configuration file")
 @click.option('--dask-cache-path', '-d', default=os.path.join(pathlib.Path.home(), 'moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
+@click.option('--local-processes', default=True, type=bool, help='Use processes with local scheduler')
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
-@click.option('-n', '--nworkers', type=int, default=50, help="Number of workers")
-@click.option('-c', '--cores', type=int, default=5, help="Number of cores per worker")
+@click.option('-n', '--nworkers', type=int, default=10, help="Number of workers")
+@click.option('-c', '--cores', type=int, default=1, help="Number of cores per worker")
 @click.option('-p', '--processes', type=int, default=1, help="Number of processes to run on each worker")
-@click.option('-m', '--memory', type=str, default="40GB", help="Total RAM usage per worker")
+@click.option('-m', '--memory', type=str, default="15GB", help="Total RAM usage per worker")
 @click.option('-w', '--wall-time', type=str, default="06:00:00", help="Wall time for workers")
 @click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
 def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold, mask_height_threshold, min_height, max_height, tailfilter_size,
               tailfilter_shape, use_fft, recon_pcs, rank, output_file, h5_path, h5_mask_path, chunk_size,
-              visualize_results, config_file, dask_cache_path, queue, nworkers, cores, processes,
-              memory, wall_time, timeout):
+              visualize_results, config_file, dask_cache_path, local_processes, queue, nworkers,
+              cores, processes, memory, wall_time, timeout):
 
     # find directories with .dat files that either have incomplete or no extractions
 
@@ -157,6 +175,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
                         nworkers=nworkers,
                         cores=cores,
                         processes=processes,
+                        local_processes=local_processes,
                         memory=memory,
                         wall_time=wall_time,
                         queue=queue,
@@ -229,10 +248,10 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('--config-file', type=click.Path(), help="Path to configuration file")
 @click.option('--dask-cache-path', '-d', default=os.path.join(pathlib.Path.home(), 'moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
-@click.option('-n', '--nworkers', type=int, default=20, help="Number of workers")
-@click.option('-c', '--cores', type=int, default=5, help="Number of cores per worker")
+@click.option('-n', '--nworkers', type=int, default=10, help="Number of workers")
+@click.option('-c', '--cores', type=int, default=1, help="Number of cores per worker")
 @click.option('-p', '--processes', type=int, default=1, help="Number of processes to run on each worker")
-@click.option('-m', '--memory', type=str, default="40GB", help="RAM usage per workers")
+@click.option('-m', '--memory', type=str, default="15GB", help="RAM usage per workers")
 @click.option('-w', '--wall-time', type=str, default="06:00:00", help="Wall time for workers")
 @click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
 def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask_path, h5_timestamp_path,
@@ -358,10 +377,10 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
 @click.option('--dask-cache-path', '-d', default=os.path.join(pathlib.Path.home(), 'moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
-@click.option('-n', '--nworkers', type=int, default=20, help="Number of workers")
-@click.option('-c', '--cores', type=int, default=5, help="Number of cores per worker")
+@click.option('-n', '--nworkers', type=int, default=10, help="Number of workers")
+@click.option('-c', '--cores', type=int, default=1, help="Number of cores per worker")
 @click.option('-p', '--processes', type=int, default=1, help="Number of processes to run on each worker")
-@click.option('-m', '--memory', type=str, default="40GB", help="RAM usage per workers")
+@click.option('-m', '--memory', type=str, default="15GB", help="RAM usage per workers")
 @click.option('-w', '--wall-time', type=str, default="06:00:00", help="Wall time for workers")
 @click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
 def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_file_components,
