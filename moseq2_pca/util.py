@@ -267,7 +267,8 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         cluster = LocalCluster(n_workers=nworkers,
                                threads_per_worker=cores,
                                processes=local_processes,
-                               local_dir=cache_path)
+                               local_dir=cache_path,
+                               memory_limit=memory)
         client = Client(cluster)
 
     elif cluster_type == 'slurm':
