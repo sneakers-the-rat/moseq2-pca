@@ -4,7 +4,7 @@ setup(
     name='moseq2-pca',
     author='Jeff Markowitz',
     description='To boldly go where no mouse has gone before',
-    version='0.02a',
+    version='0.1.0',
     platforms=['mac', 'unix'],
     install_requires=['h5py', 'matplotlib', 'scipy>=0.19',
                       'tqdm', 'numpy', 'joblib==0.11',
