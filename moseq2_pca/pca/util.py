@@ -7,6 +7,7 @@ import dask
 import numpy as np
 import h5py
 import tqdm
+import warnings
 
 
 def mask_data(original_data, mask, new_data):
@@ -305,6 +306,10 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                 scores = f['scores/{}'.format(uuid)]
                 scores_idx = f['scores_idx/{}'.format(uuid)].value
                 scores = scores[~np.isnan(scores_idx), :]
+
+            if np.sum(frames.chunks[0]) != scores.shape[0]:
+                warnings.warn('Chunks do not add up to scores shape in file {}'.format(h5))
+                continue
 
             scores = da.from_array(scores, chunks=(frames.chunks[0], scores.shape[1]))
 
