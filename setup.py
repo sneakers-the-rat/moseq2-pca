@@ -6,6 +6,7 @@ setup(
     description='To boldly go where no mouse has gone before',
     version='0.1.0',
     platforms=['mac', 'unix'],
+    packages=find_packages(),
     install_requires=['h5py', 'matplotlib', 'scipy>=0.19',
                       'tqdm', 'numpy', 'joblib==0.11',
                       'opencv-python', 'click', 'ruamel.yaml<=0.15.0',
