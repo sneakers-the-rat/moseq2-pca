@@ -293,23 +293,22 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                   .format(ip, port))
             print('Tunnel command:\n ssh -NL {}:{}:{} {}'.format(port, ip, port, hostname))
 
-    if workers is not None:
+    if cluster_type == 'slurm':
 
-        nworkers = 0
+        active_workers = len(client.scheduler_info()['workers'])
         start_time = time.time()
-
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
-            pbar = tqdm.tqdm(total=len(workers) * processes,
+            pbar = tqdm.tqdm(total=nworkers * processes,
                              desc="Intializing workers")
 
             elapsed_time = (time.time() - start_time) / 60.0
 
-            while nworkers < len(workers) * processes and elapsed_time < timeout:
+            while active_workers < nworkers * processes and elapsed_time < timeout:
                 tmp = len(client.scheduler_info()['workers'])
-                if tmp - nworkers > 0:
-                    pbar.update(tmp - nworkers)
-                nworkers += tmp - nworkers
+                if tmp - active_workers > 0:
+                    pbar.update(tmp - active_workers)
+                active_workers += tmp - active_workers
                 time.sleep(5)
                 elapsed_time = (time.time() - start_time) / 60.0
 
