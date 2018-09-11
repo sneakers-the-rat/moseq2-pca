@@ -292,7 +292,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
             print('Web UI served at {}:{} (if port forwarding use internal IP not localhost)'
                   .format(ip, port))
             print('Tunnel command:\n ssh -NL {}:{}:{} {}'.format(port, ip, port, hostname))
-            print('Tunnel command (gcloud):\n gcloud compute ssh {} -- {}:{}:{}'.format(hostname, port, ip, port))
+            print('Tunnel command (gcloud):\n gcloud compute ssh {} -- -NL {}:{}:{}'.format(hostname, port, ip, port))
     if cluster_type == 'slurm':
 
         active_workers = len(client.scheduler_info()['workers'])
