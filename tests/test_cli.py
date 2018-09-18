@@ -44,7 +44,7 @@ def test_train_pca(temp_dir):
                             os.path.join(temp_dir, '_pca'),
                             '-n', 1,
                             '--visualize-results', True],
-                           catch_exceptions=True)
+                           catch_exceptions=False)
 
     assert(result.exit_code == 0)
 
@@ -53,7 +53,7 @@ def test_train_pca(temp_dir):
                             os.path.join(temp_dir, '_pca2'),
                             '-n', 1,
                             '--missing-data'],
-                           catch_exceptions=True)
+                           catch_exceptions=False)
 
     assert(result.exit_code == 0)
 
@@ -93,14 +93,14 @@ def test_apply_pca(temp_dir):
                        os.path.join(temp_dir, '_pca'),
                        '-n', 1,
                        '--visualize-results', True],
-                      catch_exceptions=True)
+                      catch_exceptions=False)
 
     result = runner.invoke(apply_pca,
                            ['-i', temp_dir,
                             '-o', os.path.join(temp_dir, '_pca'),
                             '--pca-file', os.path.join(temp_dir, '_pca/pca.h5'),
                             '--cluster-type', 'nodask'],
-                           catch_exceptions=True)
+                           catch_exceptions=False)
 
     assert(result.exit_code == 0)
 
@@ -110,7 +110,7 @@ def test_apply_pca(temp_dir):
                             '--pca-file', os.path.join(temp_dir, '_pca/pca.h5'),
                             '-n', 1,
                             '--cluster-type', 'local'],
-                           catch_exceptions=True)
+                           catch_exceptions=False)
 
     assert(result.exit_code == 0)
 
@@ -119,14 +119,14 @@ def test_apply_pca(temp_dir):
                        os.path.join(temp_dir, '_pca2'),
                        '-n', 1,
                        '--missing-data'],
-                      catch_exceptions=True)
+                      catch_exceptions=False)
 
     result = runner.invoke(apply_pca,
                            ['-i', temp_dir,
                             '-o', os.path.join(temp_dir, '_pca2'),
                             '--pca-file', os.path.join(temp_dir, '_pca2/pca.h5'),
                             '--cluster-type', 'nodask'],
-                           catch_exceptions=True)
+                           catch_exceptions=False)
 
     assert(result.exit_code == 0)
 
@@ -136,7 +136,7 @@ def test_apply_pca(temp_dir):
                             '--pca-file', os.path.join(temp_dir, '_pca2/pca.h5'),
                             '-n', 1,
                             '--cluster-type', 'local'],
-                           catch_exceptions=True)
+                           catch_exceptions=False)
 
     assert(result.exit_code == 0)
 
@@ -176,14 +176,14 @@ def test_compute_changepoints(temp_dir):
                        os.path.join(temp_dir, '_pca'),
                        '-n', 1,
                        '--visualize-results', True],
-                      catch_exceptions=True)
+                      catch_exceptions=False)
 
     _ = runner.invoke(apply_pca,
                       ['-i', temp_dir,
                        '-o', os.path.join(temp_dir, '_pca'),
                        '--pca-file', os.path.join(temp_dir, '_pca/pca.h5'),
                        '--cluster-type', 'nodask'],
-                      catch_exceptions=True)
+                      catch_exceptions=False)
 
     result = runner.invoke(compute_changepoints,
                            ['-i', temp_dir,
@@ -192,7 +192,7 @@ def test_compute_changepoints(temp_dir):
                             '-n', 1,
                             '--pca-file-scores', os.path.join(temp_dir, '_pca/pca_scores.h5'),
                             '--cluster-type', 'local'],
-                           catch_exceptions=True)
+                           catch_exceptions=False)
 
     assert(result.exit_code == 0)
 
@@ -202,14 +202,14 @@ def test_compute_changepoints(temp_dir):
                        os.path.join(temp_dir, '_pca2'),
                        '-n', 1,
                        '--missing-data'],
-                      catch_exceptions=True)
+                      catch_exceptions=False)
 
     _ = runner.invoke(apply_pca,
                       ['-i', temp_dir,
                        '-o', os.path.join(temp_dir, '_pca2'),
                        '--pca-file', os.path.join(temp_dir, '_pca2/pca.h5'),
                        '--cluster-type', 'nodask'],
-                      catch_exceptions=True)
+                      catch_exceptions=False)
 
     result = runner.invoke(compute_changepoints,
                            ['-i', temp_dir,
@@ -218,6 +218,6 @@ def test_compute_changepoints(temp_dir):
                             '--pca-file-scores', os.path.join(temp_dir, '_pca2/pca_scores.h5'),
                             '-n', 1,
                             '--cluster-type', 'local'],
-                           catch_exceptions=True)
+                           catch_exceptions=False)
 
     assert(result.exit_code == 0)

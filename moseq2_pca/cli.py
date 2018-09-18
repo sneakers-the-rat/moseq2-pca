@@ -210,8 +210,12 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
                        iters=missing_data_iters, workers=workers, cache=cache,
                        recon_pcs=recon_pcs)
 
+
     if cluster is not None:
-        shutdown_dask(cluster.scheduler)
+        try:
+            shutdown_dask(cluster.scheduler)
+        except:
+            pass
 
     if visualize_results:
         plt, _ = display_components(output_dict['components'], headless=True)
@@ -351,8 +355,11 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
                            client=client, missing_data=missing_data,
                            h5_mask_path=h5_mask_path, mask_params=mask_params)
 
-            if workers is not None:
-                shutdown_dask(cluster.scheduler)
+            if cluster is not None:
+                try:
+                    shutdown_dask(cluster.scheduler)
+                except:
+                    pass
 
 
 @cli.command('compute-changepoints', cls=command_with_config('config_file'))
@@ -459,8 +466,11 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
                           client=client, missing_data=missing_data,
                           h5_mask_path=h5_mask_path, mask_params=mask_params)
 
-    if workers is not None:
-        shutdown_dask(cluster.scheduler)
+    if cluster is not None:
+        try:
+            shutdown_dask(cluster.scheduler)
+        except:
+            pass
 
     if visualize_results:
         import numpy as np

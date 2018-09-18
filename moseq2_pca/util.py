@@ -68,11 +68,15 @@ def recursive_find_h5s(root_dir=os.getcwd(),
                         if 'frames' not in f.keys():
                             continue
                     dct = read_yaml(os.path.join(root, yaml_file))
-                    if dct['uuid'] not in uuids:
+                    if 'uuid' in dct.keys() and dct['uuid'] not in uuids:
                         h5s.append(os.path.join(root, file))
                         yamls.append(os.path.join(root, yaml_file))
                         dicts.append(dct)
                         uuids.append(dct['uuid'])
+                    elif 'uuid' not in dct.keys():
+                        h5s.append(os.path.join(root, file))
+                        yamls.append(os.path.join(root, yaml_file))
+                        dicts.append(dct)
                     else:
                         warnings.warn('Already found uuid {}, file {} is likely a dupe, skipping...'.format(dct['uuid'], os.path.join(root, file)))
             except OSError:
