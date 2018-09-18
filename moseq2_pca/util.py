@@ -290,6 +290,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         client = Client(cluster)
 
     if client is not None:
+
         client_info = client.scheduler_info()
         if 'services' in client_info.keys() and 'bokeh' in client_info['services'].keys():
             ip = client_info['address'].split('://')[1].split(':')[0]
@@ -299,6 +300,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                   .format(ip, port))
             print('Tunnel command:\n ssh -NL {}:{}:{} {}'.format(port, ip, port, hostname))
             print('Tunnel command (gcloud):\n gcloud compute ssh {} -- -NL {}:{}:{}'.format(hostname, port, ip, port))
+
     if cluster_type == 'slurm':
 
         active_workers = len(client.scheduler_info()['workers'])
