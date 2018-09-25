@@ -15,8 +15,9 @@ import time
 import warnings
 import tqdm
 import pathlib
-import warnings
+import psutil
 import platform
+import re
 
 
 # from https://stackoverflow.com/questions/46358797/
@@ -258,19 +259,28 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
     elif cluster_type == 'local' and scheduler == 'distributed':
 
-        ncpus = os.cpu_count()
+        ncpus = psutil.cpu_count()
+        mem = psutil.virtual_memory().total
+        mem_per_worker = np.floor(((mem * .8) / nworkers) / 1e9)
+        cur_mem = float(re.search(r'\d+', memory).group(0))
 
         # TODO: make a decision re: threads here (maybe leave as an option?)
 
-        if cores * nworkers > ncpus:
-            cores = 1
-            nworkers = ncpus
-            warning_string = ("nworkers * cores > than "
-                              "number of cpus {}, setting to "
-                              "{} cores and {} workers "
+        if cores * nworkers > ncpus or cur_mem > mem_per_worker:
+
+            if cores * nworkers > ncpus:
+                cores = 1
+                nworkers = ncpus
+
+            if cur_mem > mem_per_worker:
+                mem_per_worker = np.round(((mem * .8) / nworkers) / 1e9)
+                memory = '{}GB'.format(mem_per_worker)
+
+            warning_string = ("ncpus or memory out of range, setting to "
+                              "{} cores, {} workers, {} mem per worker "
                               "\n!!!IF YOU ARE RUNNING ON A CLUSTER MAKE "
                               "SURE THESE SETTINGS ARE CORRECT!!!"
-                              ).format(ncpus, cores, nworkers)
+                              ).format(cores, nworkers, memory)
             warnings.warn(warning_string)
             input('Press ENTER to continue...')
 
