@@ -43,6 +43,7 @@ def test_train_pca(temp_dir):
                            ['-i', temp_dir, '-o',
                             os.path.join(temp_dir, '_pca'),
                             '-n', 1,
+                            '--memory', '5GB',
                             '--visualize-results', True],
                            catch_exceptions=False)
 
@@ -52,6 +53,7 @@ def test_train_pca(temp_dir):
                            ['-i', temp_dir, '-o',
                             os.path.join(temp_dir, '_pca2'),
                             '-n', 1,
+                            '--memory', '5GB',
                             '--missing-data'],
                            catch_exceptions=False)
 
@@ -92,6 +94,7 @@ def test_apply_pca(temp_dir):
                       ['-i', temp_dir, '-o',
                        os.path.join(temp_dir, '_pca'),
                        '-n', 1,
+                       '--memory', '5GB',
                        '--visualize-results', True],
                       catch_exceptions=False)
 
@@ -109,6 +112,7 @@ def test_apply_pca(temp_dir):
                             '-o', os.path.join(temp_dir, '_pca'),
                             '--pca-file', os.path.join(temp_dir, '_pca/pca.h5'),
                             '-n', 1,
+                            '--memory', '5GB',
                             '--cluster-type', 'local'],
                            catch_exceptions=False)
 
@@ -118,6 +122,7 @@ def test_apply_pca(temp_dir):
                       ['-i', temp_dir, '-o',
                        os.path.join(temp_dir, '_pca2'),
                        '-n', 1,
+                       '--memory', '5GB',
                        '--missing-data'],
                       catch_exceptions=False)
 
@@ -135,6 +140,7 @@ def test_apply_pca(temp_dir):
                             '-o', os.path.join(temp_dir, '_pca2'),
                             '--pca-file', os.path.join(temp_dir, '_pca2/pca.h5'),
                             '-n', 1,
+                            '--memory', '5GB',
                             '--cluster-type', 'local'],
                            catch_exceptions=False)
 
@@ -175,6 +181,7 @@ def test_compute_changepoints(temp_dir):
                       ['-i', temp_dir, '-o',
                        os.path.join(temp_dir, '_pca'),
                        '-n', 1,
+                       '--memory', '5GB',
                        '--visualize-results', True],
                       catch_exceptions=False)
 
@@ -190,6 +197,7 @@ def test_compute_changepoints(temp_dir):
                             '-o', os.path.join(temp_dir, '_pca'),
                             '--pca-file-components', os.path.join(temp_dir, '_pca/pca.h5'),
                             '-n', 1,
+                            '--memory', '5GB',
                             '--pca-file-scores', os.path.join(temp_dir, '_pca/pca_scores.h5'),
                             '--cluster-type', 'local'],
                            catch_exceptions=False)
@@ -200,6 +208,7 @@ def test_compute_changepoints(temp_dir):
     _ = runner.invoke(train_pca,
                       ['-i', temp_dir, '-o',
                        os.path.join(temp_dir, '_pca2'),
+                       '--memory', '5GB',
                        '-n', 1,
                        '--missing-data'],
                       catch_exceptions=False)
@@ -217,6 +226,7 @@ def test_compute_changepoints(temp_dir):
                             '--pca-file-components', os.path.join(temp_dir, '_pca2/pca.h5'),
                             '--pca-file-scores', os.path.join(temp_dir, '_pca2/pca_scores.h5'),
                             '-n', 1,
+                            '--memory', '5GB',
                             '--cluster-type', 'local'],
                            catch_exceptions=False)
 
