@@ -15,8 +15,9 @@ import time
 import warnings
 import tqdm
 import pathlib
-import warnings
+import psutil
 import platform
+import re
 
 
 # from https://stackoverflow.com/questions/46358797/
@@ -58,6 +59,7 @@ def recursive_find_h5s(root_dir=os.getcwd(),
     dicts = []
     h5s = []
     yamls = []
+    uuids = []
     for root, dirs, files in os.walk(root_dir):
         for file in files:
             yaml_file = yaml_string.format(os.path.splitext(file)[0])
@@ -66,9 +68,18 @@ def recursive_find_h5s(root_dir=os.getcwd(),
                     with h5py.File(os.path.join(root, file), 'r') as f:
                         if 'frames' not in f.keys():
                             continue
-                    h5s.append(os.path.join(root, file))
-                    yamls.append(os.path.join(root, yaml_file))
-                    dicts.append(read_yaml(os.path.join(root, yaml_file)))
+                    dct = read_yaml(os.path.join(root, yaml_file))
+                    if 'uuid' in dct.keys() and dct['uuid'] not in uuids:
+                        h5s.append(os.path.join(root, file))
+                        yamls.append(os.path.join(root, yaml_file))
+                        dicts.append(dct)
+                        uuids.append(dct['uuid'])
+                    elif 'uuid' not in dct.keys():
+                        h5s.append(os.path.join(root, file))
+                        yamls.append(os.path.join(root, yaml_file))
+                        dicts.append(dct)
+                    else:
+                        warnings.warn('Already found uuid {}, file {} is likely a dupe, skipping...'.format(dct['uuid'], os.path.join(root, file)))
             except OSError:
                 print('Error loading {}'.format(os.path.join(root, file)))
 
@@ -248,19 +259,28 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
     elif cluster_type == 'local' and scheduler == 'distributed':
 
-        ncpus = os.cpu_count()
+        ncpus = psutil.cpu_count()
+        mem = psutil.virtual_memory().total
+        mem_per_worker = np.floor(((mem * .8) / nworkers) / 1e9)
+        cur_mem = float(re.search(r'\d+', memory).group(0))
 
         # TODO: make a decision re: threads here (maybe leave as an option?)
 
-        if cores * nworkers > ncpus:
-            cores = 1
-            nworkers = ncpus
-            warning_string = ("nworkers * cores > than "
-                              "number of cpus {}, setting to "
-                              "{} cores and {} workers "
+        if cores * nworkers > ncpus or cur_mem > mem_per_worker:
+
+            if cores * nworkers > ncpus:
+                cores = 1
+                nworkers = ncpus
+
+            if cur_mem > mem_per_worker:
+                mem_per_worker = np.round(((mem * .8) / nworkers) / 1e9)
+                memory = '{}GB'.format(mem_per_worker)
+
+            warning_string = ("ncpus or memory out of range, setting to "
+                              "{} cores, {} workers, {} mem per worker "
                               "\n!!!IF YOU ARE RUNNING ON A CLUSTER MAKE "
                               "SURE THESE SETTINGS ARE CORRECT!!!"
-                              ).format(ncpus, cores, nworkers)
+                              ).format(cores, nworkers, memory)
             warnings.warn(warning_string)
             input('Press ENTER to continue...')
 
@@ -284,6 +304,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         client = Client(cluster)
 
     if client is not None:
+
         client_info = client.scheduler_info()
         if 'services' in client_info.keys() and 'bokeh' in client_info['services'].keys():
             ip = client_info['address'].split('://')[1].split(':')[0]
@@ -292,24 +313,24 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
             print('Web UI served at {}:{} (if port forwarding use internal IP not localhost)'
                   .format(ip, port))
             print('Tunnel command:\n ssh -NL {}:{}:{} {}'.format(port, ip, port, hostname))
+            print('Tunnel command (gcloud):\n gcloud compute ssh {} -- -NL {}:{}:{}'.format(hostname, port, ip, port))
 
-    if workers is not None:
+    if cluster_type == 'slurm':
 
-        nworkers = 0
+        active_workers = len(client.scheduler_info()['workers'])
         start_time = time.time()
-
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
-            pbar = tqdm.tqdm(total=len(workers) * processes,
+            pbar = tqdm.tqdm(total=nworkers * processes,
                              desc="Intializing workers")
 
             elapsed_time = (time.time() - start_time) / 60.0
 
-            while nworkers < len(workers) * processes and elapsed_time < timeout:
+            while active_workers < nworkers * processes and elapsed_time < timeout:
                 tmp = len(client.scheduler_info()['workers'])
-                if tmp - nworkers > 0:
-                    pbar.update(tmp - nworkers)
-                nworkers += tmp - nworkers
+                if tmp - active_workers > 0:
+                    pbar.update(tmp - active_workers)
+                active_workers += tmp - active_workers
                 time.sleep(5)
                 elapsed_time = (time.time() - start_time) / 60.0
 
