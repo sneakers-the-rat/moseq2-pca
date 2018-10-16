@@ -31,9 +31,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     original_chunks = dask_array.chunks[0][0]
 
-    print(original_chunks)
-    print(dask_array.chunks[0])
-
     if original_chunks > 100:
         dask_array.rechunk(100, -1, -1)
         rechunked = True
