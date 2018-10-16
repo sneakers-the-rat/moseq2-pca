@@ -1,6 +1,6 @@
-from moseq2_pca.util import clean_frames, insert_nans, read_yaml, get_changepoints, get_rps, get_rps_dask
+from moseq2_pca.util import (clean_frames, insert_nans,
+                             read_yaml, get_changepoints, get_rps)
 from dask.distributed import as_completed, wait, progress
-from scipy.stats import zscore
 import dask.array.linalg as lng
 import dask.array as da
 import dask
@@ -84,7 +84,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     if not missing_data:
         u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
-        total_var = dask_array.var(ddof=1, axis=0).sum()
     else:
         for iter in range(iters):
             u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
@@ -94,7 +93,8 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
                 recon[recon > max_height] = 0
                 dask_array = da.map_blocks(mask_data, dask_array, mask, recon, dtype=dask_array.dtype)
                 mean = dask_array.mean(axis=0)
-        total_var = dask_array[~mask].var(ddof=1).sum()
+
+    total_var = dask_array.var(ddof=1, axis=0).sum()
 
     # if cluster_type == 'local':
     #     with ProgressBar():
@@ -116,7 +116,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     correction = np.sign(v[np.arange(v.shape[0]), tmp])
     v *= correction[:, None]
 
-    explained_variance = s**2 / (nsamples-1)
+    explained_variance = s ** 2 / (nsamples-1)
     explained_variance_ratio = explained_variance / total_var
 
     output_dict = {
@@ -175,6 +175,8 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
             # then move on
             if missing_data:
                 recon = scores.dot(pca_components)
+                recon[recon < clean_params['min_height']] = 0
+                recon[recon > clean_params['max_height']] = 0
                 frames[mask] = recon[mask]
                 scores = frames.dot(pca_components.T)
 
@@ -226,6 +228,8 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
 
         if missing_data:
             recon = scores.dot(pca_components)
+            recon[recon < clean_params['min_height']] = 0
+            recon[recon > clean_params['max_height']] = 0
             frames = da.map_blocks(mask_data, frames, mask, recon, dtype=frames.dtype)
             scores = frames.dot(pca_components.T)
 

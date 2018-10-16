@@ -304,7 +304,9 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
                 'gaussfilter_time': pca_config['gaussfilter_time'],
                 'tailfilter': tailfilter,
                 'medfilter_time': pca_config['medfilter_time'],
-                'medfilter_space': pca_config['medfilter_space']
+                'medfilter_space': pca_config['medfilter_space'],
+                'min_height': pca_config['min_height'],
+                'max_height': pca_config['max_height']
             }
 
             mask_params = {
