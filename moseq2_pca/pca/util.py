@@ -84,6 +84,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     if not missing_data:
         u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
+        total_var = dask_array.var(ddof=1, axis=0).sum()
     else:
         for iter in range(iters):
             u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
@@ -93,8 +94,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
                 recon[recon > max_height] = 0
                 dask_array = da.map_blocks(mask_data, dask_array, mask, recon, dtype=dask_array.dtype)
                 mean = dask_array.mean(axis=0)
-
-    total_var = dask_array.var(ddof=1, axis=0).sum()
+        total_var = dask_array[~mask].var(ddof=1).sum()
 
     # if cluster_type == 'local':
     #     with ProgressBar():
