@@ -31,9 +31,11 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     original_chunks = dask_array.chunks[0][0]
 
-    # if original_chunks > 100:
-    #     dask_array.rechunk(100, -1, -1)
-    #     rechunked = True
+    if original_chunks > 100:
+        dask_array.rechunk(100, -1, -1)
+        rechunked = True
+
+    smallest_chunk = np.min(dask_array.chunks[0])
 
     if mask is not None:
         missing_data = True
@@ -42,7 +44,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
         dask_array = dask_array.map_overlap(
-            clean_frames, depth=(20, 0, 0), boundary='reflect',
+            clean_frames, depth=(np.minimum(smallest_chunk, 20), 0, 0), boundary='reflect',
             dtype='float32', **clean_params)
     else:
         dask_array = dask_array.map_blocks(clean_frames, dtype='float32', **clean_params)
