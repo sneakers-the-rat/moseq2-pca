@@ -175,8 +175,8 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
             # then move on
             if missing_data:
                 recon = scores.dot(pca_components)
-                recon[recon < clean_params['min_height']] = 0
-                recon[recon > clean_params['max_height']] = 0
+                recon[recon < mask_params['min_height']] = 0
+                recon[recon > mask_params['max_height']] = 0
                 frames[mask] = recon[mask]
                 scores = frames.dot(pca_components.T)
 
@@ -228,8 +228,8 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
 
         if missing_data:
             recon = scores.dot(pca_components)
-            recon[recon < clean_params['min_height']] = 0
-            recon[recon > clean_params['max_height']] = 0
+            recon[recon < mask_params['min_height']] = 0
+            recon[recon > mask_params['max_height']] = 0
             frames = da.map_blocks(mask_data, frames, mask, recon, dtype=frames.dtype)
             scores = frames.dot(pca_components.T)
 
