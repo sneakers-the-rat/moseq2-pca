@@ -325,7 +325,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
             recon = scores.dot(pca_components)
             frames = da.map_blocks(mask_data, frames, mask, recon, dtype=frames.dtype)
 
-        rps = dask.delayed(lambda x: get_rps(x, rps=nrps, normalize=True), pure=False)(frames)
+        rps = dask.delayed(get_rps, pure=False)(frames, rps=nrps, normalize=True)
 
         # alternative to using delayed here...
         # rps = frames.dot(da.random.normal(0, 1,
@@ -334,7 +334,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
         # rps = zscore(zscore(rps).T)
         # rps = client.scatter(rps)
 
-        cps = dask.delayed(lambda x: get_changepoints(x, timestamps=timestamps, **changepoint_params), pure=True)(rps)
+        cps = dask.delayed(get_changepoints, pure=True)(rps, timestamps=timestamps, **changepoint_params)
 
         futures.append(cps)
         uuids.append(uuid)
