@@ -241,7 +241,8 @@ def recursively_load_dict_contents_from_group(h5file, path):
 def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                     wall_time='01:00:00', queue='debug', local_processes=False,
                     cluster_type='local', scheduler='distributed', timeout=10,
-                    cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca')):
+                    cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca'),
+                    **kwargs):
 
     # only use distributed if we need it
 
@@ -288,7 +289,8 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                                threads_per_worker=cores,
                                processes=local_processes,
                                local_dir=cache_path,
-                               memory_limit=memory)
+                               memory_limit=memory,
+                               **kwargs)
         client = Client(cluster)
 
     elif cluster_type == 'slurm':
@@ -298,7 +300,8 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                                memory=memory,
                                queue=queue,
                                walltime=wall_time,
-                               local_directory=cache_path)
+                               local_directory=cache_path,
+                               **kwargs)
 
         workers = cluster.start_workers(nworkers)
         client = Client(cluster)

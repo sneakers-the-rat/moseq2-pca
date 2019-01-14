@@ -1,6 +1,6 @@
-from moseq2_pca.util import clean_frames, insert_nans, read_yaml, get_changepoints, get_rps, get_rps_dask
+from moseq2_pca.util import (clean_frames, insert_nans,
+                             read_yaml, get_changepoints, get_rps)
 from dask.distributed import as_completed, wait, progress
-from scipy.stats import zscore
 import dask.array.linalg as lng
 import dask.array as da
 import dask
@@ -35,6 +35,8 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         dask_array.rechunk(100, -1, -1)
         rechunked = True
 
+    smallest_chunk = np.min(dask_array.chunks[0])
+
     if mask is not None:
         missing_data = True
         dask_array[mask] = 0
@@ -42,7 +44,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
         dask_array = dask_array.map_overlap(
-            clean_frames, depth=(20, 0, 0), boundary='reflect',
+            clean_frames, depth=(np.minimum(smallest_chunk, 20), 0, 0), boundary='reflect',
             dtype='float32', **clean_params)
     else:
         dask_array = dask_array.map_blocks(clean_frames, dtype='float32', **clean_params)
@@ -114,7 +116,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     correction = np.sign(v[np.arange(v.shape[0]), tmp])
     v *= correction[:, None]
 
-    explained_variance = s**2 / (nsamples-1)
+    explained_variance = s ** 2 / (nsamples-1)
     explained_variance_ratio = explained_variance / total_var
 
     output_dict = {
@@ -173,6 +175,8 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
             # then move on
             if missing_data:
                 recon = scores.dot(pca_components)
+                recon[recon < mask_params['min_height']] = 0
+                recon[recon > mask_params['max_height']] = 0
                 frames[mask] = recon[mask]
                 scores = frames.dot(pca_components.T)
 
@@ -224,6 +228,8 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
 
         if missing_data:
             recon = scores.dot(pca_components)
+            recon[recon < mask_params['min_height']] = 0
+            recon[recon > mask_params['max_height']] = 0
             frames = da.map_blocks(mask_data, frames, mask, recon, dtype=frames.dtype)
             scores = frames.dot(pca_components.T)
 
@@ -319,7 +325,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
             recon = scores.dot(pca_components)
             frames = da.map_blocks(mask_data, frames, mask, recon, dtype=frames.dtype)
 
-        rps = dask.delayed(lambda x: get_rps(x, rps=nrps, normalize=True), pure=False)(frames)
+        rps = dask.delayed(get_rps, pure=False)(frames, rps=nrps, normalize=True)
 
         # alternative to using delayed here...
         # rps = frames.dot(da.random.normal(0, 1,
@@ -328,7 +334,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
         # rps = zscore(zscore(rps).T)
         # rps = client.scatter(rps)
 
-        cps = dask.delayed(lambda x: get_changepoints(x, timestamps=timestamps, **changepoint_params), pure=True)(rps)
+        cps = dask.delayed(get_changepoints, pure=True)(rps, timestamps=timestamps, **changepoint_params)
 
         futures.append(cps)
         uuids.append(uuid)
