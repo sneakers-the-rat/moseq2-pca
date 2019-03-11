@@ -276,11 +276,11 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
 
                     if '/metadata/acquisition' in f:
                         # h5 format post v0.1.3
-                        metadata_name = 'metadata/{}'.format(uuid)
+                        metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
                         f.copy('/metadata/acquisition', f_scores, name=metadata_name)
                     elif '/metadata/extraction' in f:
                         # h5 format pre v0.1.3
-                        metadata_name = 'metadata/{}'.format(uuid)
+                        metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
                         f.copy('/metadata/extraction', f_scores, name=metadata_name)
 
                 scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
