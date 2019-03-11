@@ -274,7 +274,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, pca_path, pca_fi
 
     print('Loading PCs from {}'.format(pca_file))
     with h5py.File(pca_file, 'r') as f:
-        pca_components = f[pca_path].value
+        pca_components = f[pca_path][...]
 
     # get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
     pca_yaml = '{}.yaml'.format(os.path.splitext(pca_file)[0])
@@ -402,7 +402,7 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
 
     print('Loading PCs from {}'.format(pca_file_components))
     with h5py.File(pca_file_components, 'r') as f:
-        pca_components = f[pca_path].value
+        pca_components = f[pca_path][...]
 
     # get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
     pca_yaml = '{}.yaml'.format(os.path.splitext(pca_file_components)[0])
