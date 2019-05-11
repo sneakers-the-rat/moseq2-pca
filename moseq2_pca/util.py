@@ -219,7 +219,7 @@ def read_yaml(yaml_file):
 
 
 def get_timestamp_path(h5file):
-    '''Return path in h5 file that contains the kinect timestamps'''
+    '''Return path within h5 file that contains the kinect timestamps'''
     with h5py.File(h5file, 'r') as f:
         if '/timestamps' in f:
             return '/timestamps'
@@ -227,6 +227,17 @@ def get_timestamp_path(h5file):
             return '/metadata/timestamps'
         else:
             raise KeyError('timestamp key not found')
+
+
+def get_metadata_path(h5file):
+    '''Return path within h5 file that contains the kinect extraction metadata'''
+    with h5py.File(h5file, 'r') as f:
+        if '/metadata/acquisition' in f:
+            return '/metadata/acquisition'
+        elif '/metadata/extraction' in f:
+            return '/metadata/extraction'
+        else:
+            raise KeyError('acquisition metadata not found')
 
 
 def recursively_load_dict_contents_from_group(h5file, path):

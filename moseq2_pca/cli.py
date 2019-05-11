@@ -1,6 +1,6 @@
 from moseq2_pca.util import recursive_find_h5s, command_with_config,\
     select_strel, initialize_dask, recursively_load_dict_contents_from_group,\
-    shutdown_dask, get_timestamp_path
+    shutdown_dask, get_timestamp_path, get_metadata_path
 from moseq2_pca.viz import display_components, scree_plot, changepoint_dist
 from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local,\
     train_pca_dask, get_changepoints_dask
@@ -241,7 +241,6 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('--output-file', default='pca_scores', type=str, help='Name of h5 file for storing pca results')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
 @click.option('--h5-mask-path', default='/frames_mask', type=str, help="Path to log-likelihood mask in h5 files")
-@click.option('--h5-metadata-path', default='/metadata/extraction', type=str, help='Path to metadata in h5 files')
 @click.option('--pca-path', default='/components', type=str, help='Path to pca components')
 @click.option('--pca-file', default=None, type=click.Path(), help='Path to PCA results')
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
@@ -258,7 +257,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('-w', '--wall-time', type=str, default="06:00:00", help="Wall time for workers")
 @click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
 def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask_path,
-              h5_metadata_path, pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window,
+              pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window,
               config_file, dask_cache_path, queue, nworkers, cores, processes, memory, wall_time, timeout):
     # find directories with .dat files that either have incomplete or no extractions
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
@@ -269,6 +268,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
 
     # automatically get the correct timestamp path
     h5_timestamp_path = get_timestamp_path(h5s[0])
+    h5_metadata_path = get_metadata_path(h5s[0])
 
     if pca_file is None:
         pca_file = os.path.join(output_dir, 'pca.h5')
