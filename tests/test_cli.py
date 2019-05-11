@@ -84,6 +84,8 @@ def test_apply_pca(temp_dir):
     with h5py.File(data_path, 'w') as f:
         f.create_dataset('frames', data=fake_movie, compression='gzip', dtype='u1')
         f.create_dataset('frames_mask', data=fake_movie > 0, compression='gzip', dtype='bool')
+        f.create_dataset('timestamps', data=np.arange(len(fake_movie)) * 30, compression='gzip', dtype='int32')
+        f.create_dataset('/metadata/acquisition', data='acquisition')
 
     with open(yaml_path, 'w') as f:
         yaml.dump({'uuid': 'testing'}, f, Dumper=yaml.RoundTripDumper)
@@ -105,7 +107,7 @@ def test_apply_pca(temp_dir):
                             '--cluster-type', 'nodask'],
                            catch_exceptions=False)
 
-    assert(result.exit_code == 0)
+    assert result.exit_code == 0
 
     result = runner.invoke(apply_pca,
                            ['-i', temp_dir,
@@ -116,7 +118,7 @@ def test_apply_pca(temp_dir):
                             '--cluster-type', 'local'],
                            catch_exceptions=False)
 
-    assert(result.exit_code == 0)
+    assert result.exit_code == 0
 
     _ = runner.invoke(train_pca,
                       ['-i', temp_dir, '-o',
@@ -133,7 +135,7 @@ def test_apply_pca(temp_dir):
                             '--cluster-type', 'nodask'],
                            catch_exceptions=False)
 
-    assert(result.exit_code == 0)
+    assert result.exit_code == 0
 
     result = runner.invoke(apply_pca,
                            ['-i', temp_dir,
@@ -144,7 +146,7 @@ def test_apply_pca(temp_dir):
                             '--cluster-type', 'local'],
                            catch_exceptions=False)
 
-    assert(result.exit_code == 0)
+    assert result.exit_code == 0
 
 
 def test_compute_changepoints(temp_dir):
@@ -171,6 +173,8 @@ def test_compute_changepoints(temp_dir):
     with h5py.File(data_path, 'w') as f:
         f.create_dataset('frames', data=fake_movie, compression='gzip', dtype='u1')
         f.create_dataset('frames_mask', data=fake_movie > 0, compression='gzip', dtype='bool')
+        f.create_dataset('timestamps', data=np.arange(len(fake_movie)) * 30, compression='gzip', dtype='int32')
+        f.create_dataset('/metadata/acquisition', data='acquisition')
 
     with open(yaml_path, 'w') as f:
         yaml.dump({'uuid': 'testing'}, f, Dumper=yaml.RoundTripDumper)
@@ -203,7 +207,6 @@ def test_compute_changepoints(temp_dir):
                            catch_exceptions=False)
 
     assert(result.exit_code == 0)
-
 
     _ = runner.invoke(train_pca,
                       ['-i', temp_dir, '-o',
