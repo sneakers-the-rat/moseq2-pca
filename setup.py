@@ -1,5 +1,6 @@
 from setuptools import setup, find_packages
-
+import subprocess
+import sys
 
 def install(package):
     subprocess.call([sys.executable, "-m", "pip", "install", package])
