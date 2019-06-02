@@ -432,7 +432,7 @@ def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, bas
 
         if timestamps is not None:
             normed_df, _, _ = insert_nans(
-                timestamps, normed_df, fps=int(1 / np.mean(np.diff(timestamps))))
+                timestamps, normed_df, fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
 
         normed_df = np.squeeze(normed_df)
         cps = scipy.signal.argrelextrema(
