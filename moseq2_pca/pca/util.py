@@ -189,7 +189,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
                 scores = frames.dot(pca_components.T)
 
             scores, score_idx, _ = insert_nans(data=scores, timestamps=timestamps,
-                                               fps=int(1 / np.mean(np.diff(timestamps))))
+                                               fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
 
             f_scores.create_dataset('scores/{}'.format(uuid), data=scores,
                                     dtype='float32', compression='gzip')
@@ -284,7 +284,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                         f.copy('/metadata/extraction', f_scores, name=metadata_name)
 
                 scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
-                                                   fps=int(1 / np.mean(np.diff(timestamps))))
+                                                   fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
 
                 f_scores.create_dataset('scores/{}'.format(uuids_batch[file_idx]), data=scores,
                                         dtype='float32', compression='gzip')

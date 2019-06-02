@@ -75,9 +75,10 @@ def recursive_find_h5s(root_dir=os.getcwd(),
                         dicts.append(dct)
                         uuids.append(dct['uuid'])
                     elif 'uuid' not in dct.keys():
-                        h5s.append(os.path.join(root, file))
-                        yamls.append(os.path.join(root, yaml_file))
-                        dicts.append(dct)
+                        warnings.warn('No uuid for file {}, skipping...'.format(os.path.join(root, file)))
+                        # h5s.append(os.path.join(root, file))
+                        # yamls.append(os.path.join(root, yaml_file))
+                        # dicts.append(dct)
                     else:
                         warnings.warn('Already found uuid {}, file {} is likely a dupe, skipping...'.format(dct['uuid'], os.path.join(root, file)))
             except OSError:
@@ -216,6 +217,28 @@ def read_yaml(yaml_file):
         return_dict = {}
 
     return return_dict
+
+
+def get_timestamp_path(h5file):
+    '''Return path within h5 file that contains the kinect timestamps'''
+    with h5py.File(h5file, 'r') as f:
+        if '/timestamps' in f:
+            return '/timestamps'
+        elif '/metadata/timestamps' in f:
+            return '/metadata/timestamps'
+        else:
+            raise KeyError('timestamp key not found')
+
+
+def get_metadata_path(h5file):
+    '''Return path within h5 file that contains the kinect extraction metadata'''
+    with h5py.File(h5file, 'r') as f:
+        if '/metadata/acquisition' in f:
+            return '/metadata/acquisition'
+        elif '/metadata/extraction' in f:
+            return '/metadata/extraction'
+        else:
+            raise KeyError('acquisition metadata not found')
 
 
 def recursively_load_dict_contents_from_group(h5file, path):
@@ -409,7 +432,7 @@ def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, bas
 
         if timestamps is not None:
             normed_df, _, _ = insert_nans(
-                timestamps, normed_df, fps=int(1 / np.mean(np.diff(timestamps))))
+                timestamps, normed_df, fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
 
         normed_df = np.squeeze(normed_df)
         cps = scipy.signal.argrelextrema(
