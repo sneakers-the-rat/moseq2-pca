@@ -16,6 +16,8 @@ def temp_dir(tmpdir):
 def test_train_pca(temp_dir):
 
     data_path = os.path.join(temp_dir, 'test_mouse.h5')
+    yaml_path = os.path.join(temp_dir, 'test_mouse.yaml')
+
     edge_size = 40
     points = np.arange(-edge_size, edge_size)
     sig1 = 10
@@ -36,6 +38,10 @@ def test_train_pca(temp_dir):
     with h5py.File(data_path, 'w') as f:
         f.create_dataset('frames', data=fake_movie, compression='gzip', dtype='u1')
         f.create_dataset('frames_mask', data=fake_movie > 0, compression='gzip', dtype='bool')
+
+    with open(yaml_path, 'w') as f:
+        yaml.dump({'uuid': 'testing'}, f, Dumper=yaml.RoundTripDumper)
+
 
     runner = CliRunner()
 
