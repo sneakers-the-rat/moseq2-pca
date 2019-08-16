@@ -22,7 +22,7 @@ setup(
     install_requires=['h5py', 'matplotlib', 'scipy>=0.19',
                       'tqdm', 'numpy', 'joblib==0.13.1',
                       'click', 'ruamel.yaml>=0.15.0',
-                      'dask[complete]', 'chest', 'seaborn', 'dask_jobqueue>=0.3.0',
+                      'dask[complete]<2', 'chest', 'seaborn', 'dask_jobqueue>=0.3.0',
                       'scikit-image>=0.14', 'bokeh', 'psutil'],
     python_requires='>=3.6',
     entry_points={'console_scripts': ['moseq2-pca = moseq2_pca.cli:cli']}
