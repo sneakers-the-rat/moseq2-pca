@@ -4,13 +4,34 @@ import numpy as np
 import h5py
 import ruamel.yaml as yaml
 from click.testing import CliRunner
-from moseq2_pca.cli import train_pca, apply_pca, compute_changepoints
+from moseq2_pca.cli import clip_scores, add_groups, train_pca, apply_pca, compute_changepoints
 
 
 @pytest.fixture(scope='function')
 def temp_dir(tmpdir):
     f = tmpdir.mkdir('test_dir')
     return str(f)
+
+
+def test_clip_scores():
+
+    h5path = 'tests/test_files/test_scores.h5'
+    clip_samples = '15'
+    runner = CliRunner()
+    result = runner.invoke(clip_scores, [h5path, clip_samples])
+    outputfile = 'tests/test_files/test_scores_clip.h5'
+    assert(os.path.exists(outputfile) == True)
+    os.remove(outputfile)
+    assert (result.exit_code == 0)
+
+def test_add_groups():
+    index_filepath = 'tests/test_files/test_index.yaml'
+    pca_filepath = 'tests/test_files/test_scores.h5'
+
+    runner = CliRunner()
+    result = runner.invoke(add_groups, [index_filepath, pca_filepath])
+
+    assert (result.exit_code == 0)
 
 
 def test_train_pca(temp_dir):
@@ -53,6 +74,7 @@ def test_train_pca(temp_dir):
                             '--visualize-results', True],
                            catch_exceptions=False)
 
+    assert (os.path.exists(os.path.join(temp_dir, '_pca') == True))
     assert(result.exit_code == 0)
 
     result = runner.invoke(train_pca,
@@ -63,6 +85,7 @@ def test_train_pca(temp_dir):
                             '--missing-data'],
                            catch_exceptions=False)
 
+    assert (os.path.exists(os.path.join(temp_dir, '_pca2') == True))
     assert(result.exit_code == 0)
 
 
@@ -113,6 +136,7 @@ def test_apply_pca(temp_dir):
                             '--cluster-type', 'nodask'],
                            catch_exceptions=False)
 
+    assert (os.path.exists(os.path.join(temp_dir, '_pca') == True))
     assert result.exit_code == 0
 
     result = runner.invoke(apply_pca,
@@ -124,6 +148,7 @@ def test_apply_pca(temp_dir):
                             '--cluster-type', 'local'],
                            catch_exceptions=False)
 
+    assert (os.path.exists(os.path.join(temp_dir, '_pca') == True))
     assert result.exit_code == 0
 
     _ = runner.invoke(train_pca,
@@ -141,6 +166,7 @@ def test_apply_pca(temp_dir):
                             '--cluster-type', 'nodask'],
                            catch_exceptions=False)
 
+    assert (os.path.exists(os.path.join(temp_dir, '_pca2') == True))
     assert result.exit_code == 0
 
     result = runner.invoke(apply_pca,
@@ -151,7 +177,7 @@ def test_apply_pca(temp_dir):
                             '--memory', '5GB',
                             '--cluster-type', 'local'],
                            catch_exceptions=False)
-
+    assert (os.path.exists(os.path.join(temp_dir, '_pca2') == True))
     assert result.exit_code == 0
 
 
@@ -212,6 +238,7 @@ def test_compute_changepoints(temp_dir):
                             '--cluster-type', 'local'],
                            catch_exceptions=False)
 
+    assert (os.path.exists(os.path.join(temp_dir, '_pca') == True))
     assert(result.exit_code == 0)
 
     _ = runner.invoke(train_pca,
@@ -238,5 +265,5 @@ def test_compute_changepoints(temp_dir):
                             '--memory', '5GB',
                             '--cluster-type', 'local'],
                            catch_exceptions=False)
-
+    assert (os.path.exists(os.path.join(temp_dir, '_pca2') == True))
     assert(result.exit_code == 0)
