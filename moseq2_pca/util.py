@@ -352,7 +352,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
             elapsed_time = (time.time() - start_time) / 60.0
 
-            while active_workers < nworkers * processes and elapsed_time < timeout:
+            while active_workers < nworkers and elapsed_time < timeout:
                 tmp = len(client.scheduler_info()['workers'])
                 if tmp - active_workers > 0:
                     pbar.update(tmp - active_workers)
