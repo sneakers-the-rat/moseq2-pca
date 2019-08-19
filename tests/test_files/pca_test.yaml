@@ -37,5 +37,8 @@ input_dir: /Users/aymanzeine/Desktop/Playground/good-session
 chunk_size: 4000
 start_time: 2019-08-05_14-21-09
 inputs:
-- /Users/aymanzeine/Desktop/Playground/good-session/proc/results_00.h5
-- /Users/aymanzeine/Desktop/Playground/good-session/example_extraction/results_00.h5
+- /Users/aymanzeine/Desktop/Playground/good-session/proc/test_00.h5
+- /Users/aymanzeine/Desktop/Playground/good-session/example_extraction/test_00.h5
+groups:
+  - group1
+  - group2
