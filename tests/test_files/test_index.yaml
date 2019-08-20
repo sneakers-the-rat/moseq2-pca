@@ -1,9 +1,9 @@
 files:
 - path:
-  - proc/test_00.h5
-  - proc/test_00.yaml
+  - proc/results_00.h5
+  - proc/results_00.yaml
   uuid: 5c72bf30-9596-4d4d-ae38-db9a7a28e912
-  group: default
+  group: Group1
   metadata:
     SubjectName: blackStockOFA80GritSanded_012517
     SessionName: '012517'
@@ -20,10 +20,10 @@ files:
     ColorDataType: Byte[]
     StartTime: '2017-01-25T10:42:07.1734698-05:00'
 - path:
-  - example_extraction/test_00.h5
-  - example_extraction/test_00.yaml
+  - proc/results_00.h5
+  - proc/results_00.yaml
   uuid: abe92017-1d40-495e-95ef-e420b7f0f4b9
-  group: default
+  group: Group1
   metadata:
     SubjectName: blackStockOFA80GritSanded_012517
     SessionName: '012517'
@@ -39,5 +39,4 @@ files:
     - 424
     ColorDataType: Byte[]
     StartTime: '2017-01-25T10:42:07.1734698-05:00'
-pca_path: tests/test_files/test_scores.h5
-groups: {group1: name1, group2: name2}
+pca_path: _pca/pca_scores.h5
