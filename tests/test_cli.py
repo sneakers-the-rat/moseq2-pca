@@ -4,6 +4,7 @@ import numpy as np
 import h5py
 import ruamel.yaml as yaml
 from click.testing import CliRunner
+import pathlib
 from moseq2_pca.cli import clip_scores, add_groups, train_pca, apply_pca, compute_changepoints
 
 
@@ -17,8 +18,11 @@ def test_clip_scores():
 
     h5path = 'tests/test_files/test_scores.h5'
     clip_samples = '15'
+
+    clip_params = [h5path, clip_samples]
+
     runner = CliRunner()
-    result = runner.invoke(clip_scores, [h5path, clip_samples])
+    result = runner.invoke(clip_scores, clip_params)
     outputfile = 'tests/test_files/test_scores_clip.h5'
     assert(os.path.exists(outputfile) == True)
     os.remove(outputfile)
@@ -63,26 +67,75 @@ def test_train_pca(temp_dir):
     with open(yaml_path, 'w') as f:
         yaml.dump({'uuid': 'testing'}, f, Dumper=yaml.RoundTripDumper)
 
+    train_params_local = ['-i', temp_dir,
+                    '--cluster-type', 'local',
+                    '-o', os.path.join(temp_dir, '_pca'),
+                    '--gaussfilter-space',  1.5, 1,
+                    '--gaussfilter-time', 0,
+                    'medfilter-space', 0,
+                    'medfilter-time', 0,
+                    '--missing-data', ## FLAG
+                    '--missing-data-iters', 10,
+                    '--mask-threshold', -16,
+                    '--mask-height-threshold', 5,
+                    '--min-height', 10,
+                    '--max-height', 100,
+                    '--tailfilter-size',  9, 9,
+                    '--tailfilter-shape', 'ellipse',
+                    'use_fft', ## FLAG
+                    '--recon-pcs', 10,
+                    '--rank', 50,
+                    '--output-file', 'pca',
+                    '--visualize-results', True,
+                    '--config-file', 'tests/test_files/test_conf.yaml',
+                    '-d', os.path.join(pathlib.Path.home(), 'moseq2_pca'),
+                    '-n', 1,
+                    '-c', 1,
+                    '-p', 1,
+                    '-m', "5GB",
+                    '-w', '6:00:00',
+                    '--timeout', 5]
+
+    train_params_slurm = ['-i', temp_dir,
+                          '--cluster-type', 'slurm',
+                          '-o', os.path.join(temp_dir, '_pca'),
+                          '--gaussfilter-space', 1.5, 1,
+                          '--gaussfilter-time', 0,
+                          'medfilter-space', 0,
+                          'medfilter-time', 0,
+                          '--missing-data',  ## FLAG
+                          '--missing-data-iters', 10,
+                          '--mask-threshold', -16,
+                          '--mask-height-threshold', 5,
+                          '--min-height', 10,
+                          '--max-height', 100,
+                          '--tailfilter-size', 9, 9,
+                          '--tailfilter-shape', 'ellipse',
+                          'use_fft',  ## FLAG
+                          '--recon-pcs', 10,
+                          '--rank', 50,
+                          '--output-file', 'pca',
+                          '--visualize-results', True,
+                          '--config-file', 'tests/test_files/test_conf.yaml',
+                          '-d', os.path.join(pathlib.Path.home(), 'moseq2_pca'),
+                          '-n', 1,
+                          '-c', 1,
+                          '-p', 1,
+                          '-m', "5GB",
+                          '-w', '6:00:00',
+                          '--timeout', 5]
 
     runner = CliRunner()
 
     result = runner.invoke(train_pca,
-                           ['-i', temp_dir, '-o',
-                            os.path.join(temp_dir, '_pca'),
-                            '-n', 1,
-                            '--memory', '5GB',
-                            '--visualize-results', True],
+                           train_params_local,
                            catch_exceptions=False)
 
     assert (os.path.exists(os.path.join(temp_dir, '_pca') == True))
     assert(result.exit_code == 0)
 
     result = runner.invoke(train_pca,
-                           ['-i', temp_dir, '-o',
-                            os.path.join(temp_dir, '_pca2'),
-                            '-n', 1,
-                            '--memory', '5GB',
-                            '--missing-data'],
+                           train_params_slurm,
                            catch_exceptions=False)
 
     assert (os.path.exists(os.path.join(temp_dir, '_pca2') == True))
@@ -119,21 +172,64 @@ def test_apply_pca(temp_dir):
     with open(yaml_path, 'w') as f:
         yaml.dump({'uuid': 'testing'}, f, Dumper=yaml.RoundTripDumper)
 
+    apply_params_local = ['-i', temp_dir,
+                          '-o', os.path.join(temp_dir, '_pca'),
+                          '--output-file', 'pca_scores',
+                          '--cluster-type', 'local',
+                          '--fps', 30,
+                          '--fill-gaps', True,
+                          '--chunk-size', 4000,
+                          '--fill-gaps', True,
+                          '--pca-path', '/components',
+                          '--pca-file', None,
+                          '--h5-path', '/frames',
+                           '-n', 1,
+                          '-q', 'debug',
+                          '--detrend-window', 0,
+                           '--memory', '5GB',
+                           '--visualize-results', True,
+                          '--config-file', 'tests/test_files/test_conf.yaml',
+                          '-d', os.path.join(pathlib.Path.home(), 'moseq2_pca'),
+                          '-n', 1,
+                          '-c', 1,
+                          '-p', 1,
+                          '-m', "5GB",
+                          '-w', '6:00:00',
+                          '--timeout', 5]
+
+    apply_params_slurm = ['-i', temp_dir,
+                          '-o', os.path.join(temp_dir, '_pca'),
+                          '--output-file', 'pca_scores',
+                          '--cluster-type', 'slurm',
+                          '--fps', 30,
+                          '--fill-gaps', True,
+                          '--chunk-size', 4000,
+                          '--fill-gaps', True,
+                          '--pca-path', '/components',
+                          '--pca-file', None,
+                          '--h5-path', '/frames',
+                          '-n', 1,
+                          '-q', 'debug',
+                          '--detrend-window', 0,
+                          '--memory', '5GB',
+                          '--visualize-results', True,
+                          '--config-file', 'tests/test_files/test_conf.yaml',
+                          '-d', os.path.join(pathlib.Path.home(), 'moseq2_pca'),
+                          '-n', 1,
+                          '-c', 1,
+                          '-p', 1,
+                          '-m', "5GB",
+                          '-w', '6:00:00',
+                          '--timeout', 5]
+
     runner = CliRunner()
 
     _ = runner.invoke(train_pca,
-                      ['-i', temp_dir, '-o',
-                       os.path.join(temp_dir, '_pca'),
-                       '-n', 1,
-                       '--memory', '5GB',
-                       '--visualize-results', True],
+                      apply_params_local,
                       catch_exceptions=False)
 
     result = runner.invoke(apply_pca,
-                           ['-i', temp_dir,
-                            '-o', os.path.join(temp_dir, '_pca'),
-                            '--pca-file', os.path.join(temp_dir, '_pca/pca.h5'),
-                            '--cluster-type', 'nodask'],
+                           apply_params_slurm,
                            catch_exceptions=False)
 
     assert (os.path.exists(os.path.join(temp_dir, '_pca') == True))
@@ -211,21 +307,70 @@ def test_compute_changepoints(temp_dir):
     with open(yaml_path, 'w') as f:
         yaml.dump({'uuid': 'testing'}, f, Dumper=yaml.RoundTripDumper)
 
+
+    cc_params_local = ['-i', temp_dir,
+                       '-o', os.path.join(temp_dir, '_pca'),
+                       '--output-file', 'changepoints',
+                       '--cluster-type', 'local',
+                       '--pca-file-components', None,
+                       '--pca-file-scores', None,
+                       '--pca-path', '/components',
+                       '--neighbors', 1,
+                       '--threshold', .5,
+                       '-k', 6,
+                       '-s', 3.5,
+                       '-d', 30,
+                       '--config-file', 'tests/test_files/test_conf.yaml',
+                       '-q', 'debug',
+                       '--h5-path', '/frames',
+                       '--h5-mask-path', 'frames_mask',
+                       '--chunk-size', 4000
+                       '-d', os.path.join(pathlib.Path.home(), 'moseq2_pca'),
+                       '-n', 1,
+                       '-c', 1,
+                       '-p', 1,
+                       '-m', "5GB",
+                       '-w', '6:00:00',
+                       '--timeout', 5
+                       '--fps', 30,
+                       '--memory', '5GB',
+                       '--visualize-results', True]
     runner = CliRunner()
 
     _ = runner.invoke(train_pca,
-                      ['-i', temp_dir, '-o',
-                       os.path.join(temp_dir, '_pca'),
-                       '-n', 1,
-                       '--memory', '5GB',
-                       '--visualize-results', True],
+                      cc_params_local,
                       catch_exceptions=False)
 
-    _ = runner.invoke(apply_pca,
-                      ['-i', temp_dir,
+    cc_params_nodask = ['-i', temp_dir,
                        '-o', os.path.join(temp_dir, '_pca'),
-                       '--pca-file', os.path.join(temp_dir, '_pca/pca.h5'),
-                       '--cluster-type', 'nodask'],
+                       '--output-file', 'changepoints',
+                       '--cluster-type', 'nodask',
+                       '--pca-file-components', None,
+                       '--pca-file-scores', None,
+                       '--pca-path', '/components',
+                       '--neighbors', 1,
+                       '--threshold', .5,
+                       '-k', 6,
+                       '-s', 3.5,
+                       '-d', 30,
+                       '--config-file', 'tests/test_files/test_conf.yaml',
+                       '-q', 'debug',
+                       '--h5-path', '/frames',
+                       '--h5-mask-path', 'frames_mask',
+                       '--chunk-size', 4000
+                       '-d', os.path.join(pathlib.Path.home(), 'moseq2_pca'),
+                       '-n', 1,
+                       '-c', 1,
+                       '-p', 1,
+                       '-m', "5GB",
+                       '-w', '6:00:00',
+                       '--timeout', 5
+                       '--fps', 30,
+                       '--memory', '5GB',
+                       '--visualize-results', True]
+
+    _ = runner.invoke(apply_pca,
+                      cc_params_nodask,
                       catch_exceptions=False)
 
     result = runner.invoke(compute_changepoints,
