@@ -379,7 +379,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
 @click.option('--h5-mask-path', default='/frames_mask', type=str, help="Path to log-likelihood mask in h5 files")
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--config-file', type=click.Path(), help="Path to configuration file")
-@click.option('--dask-cache-path', '-d', default=os.path.join(pathlib.Path.home(), 'moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
+@click.option('--dask-cache-path', default=os.path.join(pathlib.Path.home(), 'moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
 @click.option('-n', '--nworkers', type=int, default=10, help="Number of workers")
