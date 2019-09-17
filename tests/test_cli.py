@@ -4,7 +4,7 @@ import numpy as np
 import h5py
 import ruamel.yaml as yaml
 from click.testing import CliRunner
-from moseq2_pca.cli import clip_scores, add_groups, train_pca, apply_pca, compute_changepoints
+from moseq2_pca.cli import clip_scores, train_pca, apply_pca, compute_changepoints
 
 
 @pytest.fixture(scope='function')
@@ -24,14 +24,14 @@ def test_clip_scores():
     os.remove(outputfile)
     assert (result.exit_code == 0)
 
-def test_add_groups():
-    index_filepath = 'tests/test_files/test_index.yaml'
-    pca_filepath = 'tests/test_files/test_scores.h5'
-
-    runner = CliRunner()
-    result = runner.invoke(add_groups, [index_filepath, pca_filepath])
-
-    assert (result.exit_code == 0)
+# def test_add_groups():
+#     index_filepath = 'tests/test_files/test_index.yaml'
+#     pca_filepath = 'tests/test_files/test_scores.h5'
+#
+#     runner = CliRunner()
+#     result = runner.invoke(add_groups, [index_filepath, pca_filepath])
+#
+#     assert (result.exit_code == 0)
 
 
 def test_train_pca(temp_dir):

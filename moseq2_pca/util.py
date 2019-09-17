@@ -389,17 +389,18 @@ def get_rps(frames, rps=600, normalize=True):
     return rproj
 
 
-def get_rps_dask(frames, client=None, rps=600, chunk_size=5000, normalize=True):
-
-    rps = frames.dot(da.random.normal(0, 1,
-                                      size=(frames.shape[1], 600),
-                                      chunks=(chunk_size, -1)))
-    rps = scipy.stats.zscore(scipy.stats.zscore(rps).T)
-
-    if client is not None:
-        rps = client.scatter(rps)
-
-    return rps
+# JM: commented out 9/4/2019, wasn't being used for anything!
+# def get_rps_dask(frames, client=None, rps=600, chunk_size=5000, normalize=True):
+#
+#     rps = frames.dot(da.random.normal(0, 1,
+#                                       size=(frames.shape[1], rps),
+#                                       chunks=(chunk_size, -1)))
+#     rps = scipy.stats.zscore(scipy.stats.zscore(rps).T)
+#
+#     if client is not None:
+#         rps = client.scatter(rps)
+#
+#     return rps
 
 
 def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, baseline=True, timestamps=None):
