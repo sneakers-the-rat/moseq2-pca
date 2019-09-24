@@ -4,6 +4,7 @@ import dask.array as da
 from chest import Chest
 from copy import deepcopy
 from tornado import gen
+import tqdm
 from tqdm.auto import tqdm
 from tqdm import TqdmSynchronisationWarning
 import ruamel.yaml as yaml
