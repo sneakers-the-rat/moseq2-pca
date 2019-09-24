@@ -16,11 +16,13 @@ import pathlib
 
 
 def train_pca_command(input_dir, cluster_type, output_dir, gaussfilter_space,
-              gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold, mask_height_threshold, min_height, max_height, tailfilter_size,
+              gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters,
+              mask_threshold, mask_height_threshold, min_height, max_height, tailfilter_size,
               tailfilter_shape, use_fft, recon_pcs, rank, output_file, chunk_size,
-              visualize_results, config_file, dask_cache_path, local_processes, queue, nworkers,
+              config_file, local_processes, queue, nworkers,
               cores, processes, memory, wall_time, timeout):
 
+    dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
     # find directories with .dat files that either have incomplete or no extractions
 
     if missing_data and use_fft:
@@ -104,7 +106,7 @@ def train_pca_command(input_dir, cluster_type, output_dir, gaussfilter_space,
         except:
             pass
 
-    if visualize_results:
+    if True:
         plt, _ = display_components(output_dict['components'], headless=True)
         plt.savefig('{}_components.png'.format(save_file))
         plt.savefig('{}_components.pdf'.format(save_file))
@@ -124,11 +126,12 @@ def train_pca_command(input_dir, cluster_type, output_dir, gaussfilter_space,
 
 def apply_pca_command(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask_path,
               pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window,
-              config_file, dask_cache_path, queue, nworkers, cores, processes, memory, wall_time, timeout):
+              config_file, queue, nworkers, cores, processes, memory, wall_time, timeout):
     # find directories with .dat files that either have incomplete or no extractions
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
     # moseq2-model processes these files correctly
 
+    dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
     params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
@@ -230,9 +233,10 @@ def apply_pca_command(input_dir, cluster_type, output_dir, output_file, h5_path,
 
 def compute_changepoints_command(input_dir, output_dir, output_file, cluster_type, pca_file_components,
                          pca_file_scores, pca_path, neighbors, threshold, klags, sigma, dims, fps, h5_path,
-                         h5_mask_path, chunk_size, config_file, dask_cache_path,
-                         visualize_results, queue, nworkers, cores, processes, memory, wall_time, timeout):
+                         h5_mask_path, chunk_size, config_file,
+                         queue, nworkers, cores, processes, memory, wall_time, timeout):
 
+    dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
     params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
@@ -311,7 +315,7 @@ def compute_changepoints_command(input_dir, output_dir, output_file, cluster_typ
         except:
             pass
 
-    if visualize_results:
+    if True:
         import numpy as np
         with h5py.File('{}.h5'.format(save_file), 'r') as f:
             cps = recursively_load_dict_contents_from_group(f, 'cps')
