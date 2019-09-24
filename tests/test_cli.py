@@ -33,18 +33,15 @@ def test_clip_scores():
     assert(os.path.exists(outputfile) == True)
     os.remove(outputfile)
     assert (result.exit_code == 0)
-
-# DEPRECATED
-'''
-def test_add_groups():
-    index_filepath = 'tests/test_files/test_index.yaml'
-    pca_filepath = 'tests/test_files/test_scores.h5'
-
-    runner = CliRunner()
-    result = runner.invoke(add_groups, [index_filepath, pca_filepath])
-
-    assert (result.exit_code == 0)
-'''
+    
+# def test_add_groups():
+#     index_filepath = 'tests/test_files/test_index.yaml'
+#     pca_filepath = 'tests/test_files/test_scores.h5'
+#
+#     runner = CliRunner()
+#     result = runner.invoke(add_groups, [index_filepath, pca_filepath])
+#
+#     assert (result.exit_code == 0)
 
 def test_train_pca():
     temp_dir = 'tests/test_files/'

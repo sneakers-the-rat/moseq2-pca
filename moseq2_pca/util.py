@@ -4,6 +4,8 @@ import dask.array as da
 from chest import Chest
 from copy import deepcopy
 from tornado import gen
+from tqdm.auto import tqdm
+from tqdm import TqdmSynchronisationWarning
 import ruamel.yaml as yaml
 import os
 import cv2
@@ -13,7 +15,6 @@ import click
 import scipy.signal
 import time
 import warnings
-import tqdm
 import pathlib
 import psutil
 import platform
@@ -346,13 +347,13 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         active_workers = len(client.scheduler_info()['workers'])
         start_time = time.time()
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
-            pbar = tqdm.tqdm(total=nworkers * processes,
-                             desc="Intializing workers")
+            warnings.simplefilter("ignore", TqdmSynchronisationWarning)
+            pbar = tqdm(total=nworkers,
+                        desc="Intializing workers")
 
             elapsed_time = (time.time() - start_time) / 60.0
 
-            while active_workers < nworkers * processes and elapsed_time < timeout:
+            while active_workers < nworkers and elapsed_time < timeout:
                 tmp = len(client.scheduler_info()['workers'])
                 if tmp - active_workers > 0:
                     pbar.update(tmp - active_workers)
@@ -388,17 +389,18 @@ def get_rps(frames, rps=600, normalize=True):
     return rproj
 
 
-def get_rps_dask(frames, client=None, rps=600, chunk_size=5000, normalize=True):
-
-    rps = frames.dot(da.random.normal(0, 1,
-                                      size=(frames.shape[1], 600),
-                                      chunks=(chunk_size, -1)))
-    rps = scipy.stats.zscore(scipy.stats.zscore(rps).T)
-
-    if client is not None:
-        rps = client.scatter(rps)
-
-    return rps
+# JM: commented out 9/4/2019, wasn't being used for anything!
+# def get_rps_dask(frames, client=None, rps=600, chunk_size=5000, normalize=True):
+#
+#     rps = frames.dot(da.random.normal(0, 1,
+#                                       size=(frames.shape[1], rps),
+#                                       chunks=(chunk_size, -1)))
+#     rps = scipy.stats.zscore(scipy.stats.zscore(rps).T)
+#
+#     if client is not None:
+#         rps = client.scatter(rps)
+#
+#     return rps
 
 
 def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, baseline=True, timestamps=None):
