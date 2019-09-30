@@ -138,8 +138,8 @@ def apply_pca_command(input_dir, config_file, output_dir, output_file):
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
     # automatically get the correct timestamp path
-    #h5_timestamp_path = get_timestamp_path(h5s[0])
-    #h5_metadata_path = get_metadata_path(h5s[0])
+    h5_timestamp_path = get_timestamp_path(h5s[0])
+    h5_metadata_path = get_metadata_path(h5s[0])
 
     if config_data['pca_file'] is None:
         pca_file = os.path.join(output_dir, 'pca.h5')
@@ -248,7 +248,7 @@ def compute_changepoints_command(input_dir, config_file, output_dir, output_file
     params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
-    #h5_timestamp_path = get_timestamp_path(h5s[0])
+    h5_timestamp_path = get_timestamp_path(h5s[0])
 
     if config_data['pca_file_components'] is None:
         pca_file_components = os.path.join(output_dir, 'pca.h5')
