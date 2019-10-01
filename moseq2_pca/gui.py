@@ -260,6 +260,8 @@ def compute_changepoints_command(input_dir, config_file, output_dir, output_file
 
     if config_data['pca_file_scores'] is None:
         pca_file_scores = os.path.join(output_dir, 'pca_scores.h5')
+    else:
+        pca_file_scores = config_data['pca_file_scores']
 
     if not os.path.exists(config_data['pca_file_components']):
         raise IOError('Could not find PCA components file {}'.format(config_data['pca_file_components']))
