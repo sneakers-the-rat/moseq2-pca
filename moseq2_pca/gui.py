@@ -236,6 +236,15 @@ def apply_pca_command(input_dir, config_file, output_dir, output_file):
     with open(config_file, 'w') as f:
         yaml.dump(config_data, f, Dumper=yaml.RoundTripDumper)
 
+    with open('moseq2-index.yaml', 'r') as f:
+        index_params = yaml.safe_load(f)
+    f.close()
+    index_params['pca_path'] = config_data['pca_file_scores']
+
+    with open('moseq2-index.yaml', 'w') as f:
+        yaml.dump(index_params, f, Dumper=yaml.RoundTripDumper)
+    f.close()
+
     return True
 
 
