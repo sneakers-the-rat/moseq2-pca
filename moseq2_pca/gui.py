@@ -122,7 +122,7 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
     with open(config_file, 'w') as f:
         yaml.dump(config_data, f, Dumper=yaml.RoundTripDumper)
 
-    return True
+    return 'PCA has been trained successfully.'
 
 
 def apply_pca_command(input_dir, config_file, output_dir, output_file):
@@ -245,7 +245,7 @@ def apply_pca_command(input_dir, config_file, output_dir, output_file):
         yaml.dump(index_params, f, Dumper=yaml.RoundTripDumper)
     f.close()
 
-    return True
+    return 'PCA Scores have been successfully computed.'
 
 
 def compute_changepoints_command(input_dir, config_file, output_dir, output_file):
@@ -351,4 +351,4 @@ def compute_changepoints_command(input_dir, config_file, output_dir, output_file
             fig.savefig('{}_dist.pdf'.format(save_file))
             fig.close('all')
 
-    return True
+    return 'Model-free syllable changepoints have been successfully computed.'
