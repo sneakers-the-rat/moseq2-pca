@@ -35,7 +35,7 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    save_file = output_dir+output_file
+    save_file = os.path.join(output_dir, output_file)
 
     if os.path.exists('{}.h5'.format(save_file)):
         raise IOError('{}.h5 already exists, delete before recomputing'.format(save_file))
@@ -114,11 +114,11 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
         plt.savefig('{}_scree.pdf'.format(save_file))
         plt.close()
 
-    with h5py.File('{}.h5'.format(save_file)) as f:
+    with h5py.File('{}.h5'.format(save_file), 'w') as f:
         for k, v in output_dict.items():
             f.create_dataset(k, data=v, compression='gzip', dtype='float32')
 
-    config_data['pca_file'] = './'+save_file+'.h5'
+    config_data['pca_file'] = f'{save_file}.h5'
     with open(config_file, 'w') as f:
         yaml.dump(config_data, f, Dumper=yaml.RoundTripDumper)
 
