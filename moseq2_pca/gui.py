@@ -11,7 +11,7 @@ import datetime
 import h5py
 import warnings
 import dask.array as da
-import tqdm
+from tqdm.auto import tqdm
 import pathlib
 
 def train_pca_command(input_dir, config_file, output_dir, output_file):
@@ -84,7 +84,7 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
         stacked_array_mask = da.logical_and(stacked_array_mask < config_data['mask_threshold'],
                                             stacked_array > config_data['mask_height_threshold'])
         print('Loaded mask...')
-        # stacked_array_mask = dask.compute(stacked_array_mask)
+
     else:
         stacked_array_mask = None
 
@@ -232,7 +232,7 @@ def apply_pca_command(input_dir, config_file, output_dir, output_file):
                 except:
                     pass
 
-    config_data['pca_file_scores'] = './'+save_file+'.h5'
+    config_data['pca_file_scores'] = save_file+'.h5'
     with open(config_file, 'w') as f:
         yaml.dump(config_data, f, Dumper=yaml.RoundTripDumper)
 
