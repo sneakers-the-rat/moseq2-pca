@@ -200,7 +200,7 @@ def apply_pca_command(input_dir, config_file, output_dir, output_file):
         print('Using FFT...')
 
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
+        #warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
         if config_data['cluster_type'] == 'nodask':
             apply_pca_local(pca_components=pca_components, h5s=h5s, yamls=yamls,
                             use_fft=use_fft, clean_params=clean_params,
@@ -236,14 +236,17 @@ def apply_pca_command(input_dir, config_file, output_dir, output_file):
     with open(config_file, 'w') as f:
         yaml.dump(config_data, f, Dumper=yaml.RoundTripDumper)
 
-    with open('moseq2-index.yaml', 'r') as f:
-        index_params = yaml.safe_load(f)
-    f.close()
-    index_params['pca_path'] = config_data['pca_file_scores']
+    try:
+        with open('moseq2-index.yaml', 'r') as f:
+            index_params = yaml.safe_load(f)
+        f.close()
+        index_params['pca_path'] = config_data['pca_file_scores']
 
-    with open('moseq2-index.yaml', 'w') as f:
-        yaml.dump(index_params, f, Dumper=yaml.RoundTripDumper)
-    f.close()
+        with open('moseq2-index.yaml', 'w') as f:
+            yaml.dump(index_params, f, Dumper=yaml.RoundTripDumper)
+        f.close()
+    except:
+        print('moseq2-index not found, did not update paths')
 
     return 'PCA Scores have been successfully computed.'
 
