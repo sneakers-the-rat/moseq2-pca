@@ -294,13 +294,13 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
 
 def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                           save_file, chunk_size, mask_params, missing_data,
-                          client, fps=30, pca_scores=None):
+                          client, fps=30, pca_scores=None, progress_bar=False):
 
     futures = []
     uuids = []
     nrps = changepoint_params.pop('rps')
 
-    for h5, yml in tqdm.tqdm(zip(h5s, yamls), desc='Setting up calculation', total=len(h5s)):
+    for h5, yml in tqdm.tqdm(zip(h5s, yamls), disable=not progress_bar, desc='Setting up calculation', total=len(h5s)):
         data = read_yaml(yml)
         uuid = data['uuid']
 
@@ -374,14 +374,27 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
             uuids_batch = uuids[i:i+batch_size]
             keys = [tmp.key for tmp in futures_batch]
             batch_count += 1
+            try:
+                for future, result in tqdm.tqdm_notebook(as_completed(futures_batch, with_results=True), total=len(futures_batch),
+                                                desc="Collecting results (batch {}/{})".format(batch_count, total_batches)):
 
-            for future, result in tqdm.tqdm(as_completed(futures_batch, with_results=True), total=len(futures_batch),
-                                            desc="Collecting results (batch {}/{})".format(batch_count, total_batches)):
+                    file_idx = keys.index(future.key)
 
-                file_idx = keys.index(future.key)
+                    if result[0] is not None and result[1] is not None:
+                        f_cps.create_dataset('cps_score/{}'.format(uuids_batch[file_idx]), data=result[1],
+                                             dtype='float32', compression='gzip')
+                        f_cps.create_dataset('cps/{}'.format(uuids_batch[file_idx]), data=result[0] / fps,
+                                             dtype='float32', compression='gzip')
+            except:
+                for future, result in tqdm.tqdm(as_completed(futures_batch, with_results=True),
+                                                total=len(futures_batch),
+                                                desc="Collecting results (batch {}/{})".format(batch_count,
+                                                                                               total_batches)):
 
-                if result[0] is not None and result[1] is not None:
-                    f_cps.create_dataset('cps_score/{}'.format(uuids_batch[file_idx]), data=result[1],
-                                         dtype='float32', compression='gzip')
-                    f_cps.create_dataset('cps/{}'.format(uuids_batch[file_idx]), data=result[0] / fps,
-                                         dtype='float32', compression='gzip')
+                    file_idx = keys.index(future.key)
+
+                    if result[0] is not None and result[1] is not None:
+                        f_cps.create_dataset('cps_score/{}'.format(uuids_batch[file_idx]), data=result[1],
+                                             dtype='float32', compression='gzip')
+                        f_cps.create_dataset('cps/{}'.format(uuids_batch[file_idx]), data=result[0] / fps,
+                                             dtype='float32', compression='gzip')
