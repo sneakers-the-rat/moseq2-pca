@@ -104,15 +104,20 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
             pass
 
     if True:
-        plt, _ = display_components(output_dict['components'], headless=True)
-        plt.savefig('{}_components.png'.format(save_file))
-        plt.savefig('{}_components.pdf'.format(save_file))
-        plt.close()
-
-        plt = scree_plot(output_dict['explained_variance_ratio'], headless=True)
-        plt.savefig('{}_scree.png'.format(save_file))
-        plt.savefig('{}_scree.pdf'.format(save_file))
-        plt.close()
+        try:
+            plt, _ = display_components(output_dict['components'], headless=True)
+            plt.savefig('{}_components.png'.format(save_file))
+            plt.savefig('{}_components.pdf'.format(save_file))
+            plt.close()
+        except:
+            print('could not plot components')
+        try:
+            plt = scree_plot(output_dict['explained_variance_ratio'], headless=True)
+            plt.savefig('{}_scree.png'.format(save_file))
+            plt.savefig('{}_scree.pdf'.format(save_file))
+            plt.close()
+        except:
+            print('could not plot scree')
 
     with h5py.File('{}.h5'.format(save_file), 'w') as f:
         for k, v in output_dict.items():
