@@ -61,39 +61,6 @@ def clip_scores(pca_file, clip_samples, from_end):
                     f2['/scores/{}'.format(key)] = f['/scores/{}'.format(key)][clip_samples:]
                     f2['/scores_idx/{}'.format(key)] = f['/scores_idx/{}'.format(key)][clip_samples:]
 
-
-# DEPRECATED IN FAVOR OF USING THE YAML FILE FOR GROUP DEFINITIONS
-# @cli.command(name='add-groups')
-# @click.argument('index_file', type=click.Path(exists=True, resolve_path=True))
-# @click.argument('pca_file', type=click.Path(exists=True, resolve_path=True))
-# def add_groups(index_file, pca_file):
-#     """
-#     Add group from an index file to a PCA scores file to use for modeling.
-#
-#     Args:
-#         index_file (string): path to moseq2 index
-#         pca_file (string): path to pca scores
-#     """
-#
-#     with open(index_file, 'r') as f:
-#         index = yaml.load(f.read(), Loader=yaml.RoundTripLoader)
-#
-#     if 'groups' in index:
-#         print('Adding groups to pca file {}'.format(pca_file))
-#         with h5py.File(pca_file, 'a') as f:
-#             for k, v in index['groups'].items():
-#
-#                 print('Adding {}:{}'.format(k, v))
-#                 new_key = 'groups/{}'.format(k)
-#
-#                 if new_key in f:
-#                     del f[new_key]
-#
-#                 f[new_key] = v
-#     else:
-#         raise IOError('Could not find key groups in index file {}'.format(index_file))
-
-
 @cli.command(name='train-pca', cls=command_with_config('config_file'))
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
 @click.option('--cluster-type', type=click.Choice(['local', 'slurm']),
@@ -290,7 +257,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
     # todo detect missing data and mask parameters, then 0 out, fill in, compute scores...
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
-            pca_config = yaml.load(f.read(), Loader=yaml.RoundTripLoader)
+            pca_config = yaml.safe_load(f.read())
             if 'use_fft' in pca_config.keys() and pca_config['use_fft']:
                 print('Will use FFT...')
                 use_fft = True
@@ -422,7 +389,7 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
     # todo detect missing data and mask parameters, then 0 out, fill in, compute scores...
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
-            pca_config = yaml.load(f.read(), Loader=yaml.RoundTripLoader)
+            pca_config = yaml.safe_load(f.read())
 
             if 'missing_data' in pca_config.keys() and pca_config['missing_data']:
                 print('Detected missing data...')

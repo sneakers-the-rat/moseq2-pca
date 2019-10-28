@@ -167,7 +167,7 @@ def apply_pca_command(input_dir, config_file, output_dir, output_file):
     # todo detect missing data and mask parameters, then 0 out, fill in, compute scores...
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
-            pca_config = yaml.load(f.read(), Loader=yaml.RoundTripLoader)
+            pca_config = yaml.safe_load(f.read())
             if 'use_fft' in pca_config.keys() and pca_config['use_fft']:
                 print('Will use FFT...')
                 use_fft = True
@@ -298,7 +298,7 @@ def compute_changepoints_command(input_dir, config_file, output_dir, output_file
     # todo detect missing data and mask parameters, then 0 out, fill in, compute scores...
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
-            pca_config = yaml.load(f.read(), Loader=yaml.RoundTripLoader)
+            pca_config = yaml.safe_load(f.read())
 
             if 'missing_data' in pca_config.keys() and pca_config['missing_data']:
                 print('Detected missing data...')
@@ -339,7 +339,7 @@ def compute_changepoints_command(input_dir, config_file, output_dir, output_file
                           h5s=h5s, yamls=yamls, changepoint_params=changepoint_params,
                           save_file=save_file, chunk_size=config_data['chunk_size'],
                           fps=config_data['fps'], client=client, missing_data=missing_data,
-                          mask_params=mask_params)
+                          mask_params=mask_params, gui=True)
 
     if cluster is not None:
         try:
