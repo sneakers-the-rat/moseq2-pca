@@ -328,7 +328,10 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                                local_directory=cache_path,
                                **kwargs)
 
-        workers = cluster.start_workers(nworkers)
+        try:
+            workers = cluster.start_workers(nworkers)
+        except AttributeError:
+            workers = cluster.scale(nworkers)
         client = Client(cluster)
 
     if client is not None:
