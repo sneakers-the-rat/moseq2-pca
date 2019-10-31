@@ -32,6 +32,9 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
     params['start_time'] = timestamp
     params['inputs'] = h5s
 
+
+    output_dir = os.path.join(input_dir, output_dir) # outputting pca folder in inputted base directory.
+
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -141,6 +144,8 @@ def apply_pca_command(input_dir, config_file, output_dir, output_file):
     dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
     params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
+
+    output_dir = os.path.join(input_dir, output_dir)
 
     # automatically get the correct timestamp path
     h5_timestamp_path = get_timestamp_path(h5s[0])
@@ -268,7 +273,7 @@ def compute_changepoints_command(input_dir, config_file, output_dir, output_file
     h5_timestamp_path = get_timestamp_path(h5s[0])
 
     if config_data['pca_file_components'] is None:
-        pca_file_components = os.path.join(output_dir, 'pca.h5')
+        pca_file_components = os.path.join(input_dir, output_dir, 'pca.h5')
         config_data['pca_file_components'] = pca_file_components
         with open(config_file, 'w') as f:
             yaml.dump(config_data, f, Dumper=yaml.RoundTripDumper)
