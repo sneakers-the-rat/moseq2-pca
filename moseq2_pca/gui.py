@@ -272,8 +272,10 @@ def compute_changepoints_command(input_dir, config_file, output_dir, output_file
 
     h5_timestamp_path = get_timestamp_path(h5s[0])
 
+    output_dir = os.path.join(input_dir, output_dir)
+
     if config_data['pca_file_components'] is None:
-        pca_file_components = os.path.join(input_dir, output_dir, 'pca.h5')
+        pca_file_components = os.path.join(output_dir, 'pca.h5')
         config_data['pca_file_components'] = pca_file_components
         with open(config_file, 'w') as f:
             yaml.dump(config_data, f, Dumper=yaml.RoundTripDumper)
