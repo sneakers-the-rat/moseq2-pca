@@ -133,7 +133,7 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
     return 'PCA has been trained successfully.'
 
 
-def apply_pca_command(input_dir, config_file, output_dir, output_file):
+def apply_pca_command(input_dir, index_file, config_file, output_dir, output_file):
     # find directories with .dat files that either have incomplete or no extractions
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
     # moseq2-model processes these files correctly
@@ -247,12 +247,12 @@ def apply_pca_command(input_dir, config_file, output_dir, output_file):
         yaml.dump(config_data, f, Dumper=yaml.RoundTripDumper)
 
     try:
-        with open('moseq2-index.yaml', 'r') as f:
+        with open(index_file, 'r') as f:
             index_params = yaml.safe_load(f)
         f.close()
         index_params['pca_path'] = config_data['pca_file_scores']
 
-        with open('moseq2-index.yaml', 'w') as f:
+        with open(index_file, 'w') as f:
             yaml.dump(index_params, f, Dumper=yaml.RoundTripDumper)
         f.close()
     except:
