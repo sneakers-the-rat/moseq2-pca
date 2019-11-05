@@ -41,7 +41,7 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
     save_file = os.path.join(output_dir, output_file)
 
     if os.path.exists('{}.h5'.format(save_file)):
-        print(f'The file {save_file}.h5 already exists. \nWould you like to overwrite it? [Y/n]\n')
+        print(f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [Y -> yes, else -> exit]\n')
         ow = input()
         if ow == 'Y':
             print('Deleting old pca.')
