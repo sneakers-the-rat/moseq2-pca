@@ -265,9 +265,9 @@ def test_read_yaml():
         with open(yaml_file, 'r') as f:
             dat = f.read()
             try:
-                return_dict = yaml.load(dat, Loader=yaml.RoundTripLoader)
+                return_dict = yaml.safe_load(dat)
             except yaml.constructor.ConstructorError:
-                return_dict = yaml.load(dat, Loader=yaml.Loader)
+                return_dict = yaml.safe_load(dat)
                 pytest.fail('yaml exception thrown')
     except IOError:
         return_dict = {}

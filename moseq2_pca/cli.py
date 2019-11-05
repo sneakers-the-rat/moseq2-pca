@@ -155,7 +155,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 
     config_store = '{}.yaml'.format(save_file)
     with open(config_store, 'w') as f:
-        yaml.dump(params, f, Dumper=yaml.RoundTripDumper)
+        yaml.safe_dump(params, f)
 
     tailfilter = select_strel(tailfilter_shape, tailfilter_size)
 
@@ -290,7 +290,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
     # todo detect missing data and mask parameters, then 0 out, fill in, compute scores...
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
-            pca_config = yaml.load(f.read(), Loader=yaml.RoundTripLoader)
+            pca_config = yaml.safe_load(f.read())
             if 'use_fft' in pca_config.keys() and pca_config['use_fft']:
                 print('Will use FFT...')
                 use_fft = True
@@ -422,7 +422,7 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
     # todo detect missing data and mask parameters, then 0 out, fill in, compute scores...
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
-            pca_config = yaml.load(f.read(), Loader=yaml.RoundTripLoader)
+            pca_config = yaml.safe_load(f.read())
 
             if 'missing_data' in pca_config.keys() and pca_config['missing_data']:
                 print('Detected missing data...')

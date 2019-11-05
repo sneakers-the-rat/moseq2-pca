@@ -211,9 +211,9 @@ def read_yaml(yaml_file):
         with open(yaml_file, 'r') as f:
             dat = f.read()
             try:
-                return_dict = yaml.load(dat, Loader=yaml.RoundTripLoader)
+                return_dict = yaml.safe_load(dat)
             except yaml.constructor.ConstructorError:
-                return_dict = yaml.load(dat, Loader=yaml.Loader)
+                return_dict = yaml.safe_load(dat)
     except IOError:
         return_dict = {}
 

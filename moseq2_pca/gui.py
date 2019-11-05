@@ -41,11 +41,17 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
     save_file = os.path.join(output_dir, output_file)
 
     if os.path.exists('{}.h5'.format(save_file)):
-        raise IOError('{}.h5 already exists, delete before recomputing'.format(save_file))
+        print(f'The file {save_file}.h5 already exists. \nWould you like to overwrite it? [Y/n]\n')
+        ow = input()
+        if ow == 'Y':
+            print('Deleting old pca.')
+            os.remove(f'{save_file}.h5')
+        else:
+            return "Did not overwrite"
 
     config_store = '{}.yaml'.format(save_file)
     with open(config_store, 'w') as f:
-        yaml.dump(params, f, Dumper=yaml.RoundTripDumper)
+        yaml.safe_dump(params, f)
 
     tailfilter = select_strel((config_data['tailfilter_shape'], config_data['tailfilter_size']))
 
@@ -128,7 +134,7 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
 
     config_data['pca_file'] = f'{save_file}.h5'
     with open(config_file, 'w') as f:
-        yaml.dump(config_data, f, Dumper=yaml.RoundTripDumper)
+        yaml.safe_dump(config_data, f)
 
     return 'PCA has been trained successfully.'
 
@@ -172,7 +178,7 @@ def apply_pca_command(input_dir, index_file, config_file, output_dir, output_fil
     # todo detect missing data and mask parameters, then 0 out, fill in, compute scores...
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
-            pca_config = yaml.load(f.read(), Loader=yaml.RoundTripLoader)
+            pca_config = yaml.safe_load(f.read())
             if 'use_fft' in pca_config.keys() and pca_config['use_fft']:
                 print('Will use FFT...')
                 use_fft = True
@@ -244,7 +250,7 @@ def apply_pca_command(input_dir, index_file, config_file, output_dir, output_fil
 
     config_data['pca_file_scores'] = save_file+'.h5'
     with open(config_file, 'w') as f:
-        yaml.dump(config_data, f, Dumper=yaml.RoundTripDumper)
+        yaml.safe_dump(config_data, f)
 
     try:
         with open(index_file, 'r') as f:
@@ -253,7 +259,7 @@ def apply_pca_command(input_dir, index_file, config_file, output_dir, output_fil
         index_params['pca_path'] = config_data['pca_file_scores']
 
         with open(index_file, 'w') as f:
-            yaml.dump(index_params, f, Dumper=yaml.RoundTripDumper)
+            yaml.safe_dump(index_params, f)
         f.close()
     except:
         print('moseq2-index not found, did not update paths')
@@ -278,7 +284,7 @@ def compute_changepoints_command(input_dir, config_file, output_dir, output_file
         pca_file_components = os.path.join(output_dir, 'pca.h5')
         config_data['pca_file_components'] = pca_file_components
         with open(config_file, 'w') as f:
-            yaml.dump(config_data, f, Dumper=yaml.RoundTripDumper)
+            yaml.safe_dump(config_data, f)
     else:
         pca_file_components = config_data['pca_file_components']
 
@@ -305,7 +311,7 @@ def compute_changepoints_command(input_dir, config_file, output_dir, output_file
     # todo detect missing data and mask parameters, then 0 out, fill in, compute scores...
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
-            pca_config = yaml.load(f.read(), Loader=yaml.RoundTripLoader)
+            pca_config = yaml.safe_load(f.read())
 
             if 'missing_data' in pca_config.keys() and pca_config['missing_data']:
                 print('Detected missing data...')
