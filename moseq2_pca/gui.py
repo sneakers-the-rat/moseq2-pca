@@ -240,7 +240,7 @@ def apply_pca_command(input_dir, index_file, config_file, output_dir, output_fil
                            use_fft=use_fft, clean_params=clean_params,
                            save_file=save_file, chunk_size=config_data['chunk_size'],
                            fps=config_data['fps'], client=client, missing_data=missing_data,
-                           mask_params=mask_params)
+                           mask_params=mask_params, gui=True)
 
             if cluster is not None:
                 try:
