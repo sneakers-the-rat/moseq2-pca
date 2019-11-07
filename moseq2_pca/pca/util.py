@@ -329,7 +329,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
 
 def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                           save_file, chunk_size, mask_params, missing_data,
-                          client, fps=30, pca_scores=None, progress_bar=False):
+                          client, fps=30, pca_scores=None, progress_bar=False, gui=False):
 
     futures = []
     uuids = []
@@ -409,7 +409,8 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
             uuids_batch = uuids[i:i+batch_size]
             keys = [tmp.key for tmp in futures_batch]
             batch_count += 1
-            try:
+
+            if gui == True:
                 for future, result in tqdm.tqdm_notebook(as_completed(futures_batch, with_results=True), total=len(futures_batch),
                                                 desc="Collecting results (batch {}/{})".format(batch_count, total_batches)):
 
@@ -420,7 +421,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                                              dtype='float32', compression='gzip')
                         f_cps.create_dataset('cps/{}'.format(uuids_batch[file_idx]), data=result[0] / fps,
                                              dtype='float32', compression='gzip')
-            except:
+            else:
                 for future, result in tqdm.tqdm(as_completed(futures_batch, with_results=True),
                                                 total=len(futures_batch),
                                                 desc="Collecting results (batch {}/{})".format(batch_count,

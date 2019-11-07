@@ -31,8 +31,7 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
 
     params['start_time'] = timestamp
     params['inputs'] = h5s
-
-
+    
     output_dir = os.path.join(input_dir, output_dir) # outputting pca folder in inputted base directory.
 
     if not os.path.exists(output_dir):
@@ -260,6 +259,7 @@ def apply_pca_command(input_dir, index_file, config_file, output_dir, output_fil
 
         with open(index_file, 'w') as f:
             yaml.safe_dump(index_params, f)
+
         f.close()
     except:
         print('moseq2-index not found, did not update paths')
@@ -352,7 +352,7 @@ def compute_changepoints_command(input_dir, config_file, output_dir, output_file
                           h5s=h5s, yamls=yamls, changepoint_params=changepoint_params,
                           save_file=save_file, chunk_size=config_data['chunk_size'],
                           fps=config_data['fps'], client=client, missing_data=missing_data,
-                          mask_params=mask_params)
+                          mask_params=mask_params, gui=True)
 
     if cluster is not None:
         try:

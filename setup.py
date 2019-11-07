@@ -19,11 +19,11 @@ setup(
     version='0.1.3',
     platforms=['mac', 'unix'],
     packages=find_packages(),
-    install_requires=['h5py', 'matplotlib', 'scipy>=0.19',
-                      'tqdm', 'numpy', 'joblib==0.13.1',
-                      'click', 'ruamel.yaml>=0.15.0',
-                      'dask', 'distributed', 'chest', 'seaborn', 'dask_jobqueue>=0.3.0',
-                      'scikit-image>=0.14', 'bokeh', 'psutil'],
+    install_requires=['h5py', 'matplotlib', 'scipy',
+                      'tqdm', 'numpy', 'joblib',
+                      'click', 'ruamel.yaml',
+                      'dask', 'distributed', 'chest', 'seaborn', 'dask_jobqueue',
+                      'scikit-image', 'bokeh', 'psutil'],
     python_requires='>=3.6',
     entry_points={'console_scripts': ['moseq2-pca = moseq2_pca.cli:cli']}
 )
