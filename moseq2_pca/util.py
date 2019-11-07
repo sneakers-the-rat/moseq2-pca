@@ -228,7 +228,8 @@ def get_timestamp_path(h5file):
         elif '/metadata/timestamps' in f:
             return '/metadata/timestamps'
         else:
-            raise KeyError('timestamp key not found')
+            #raise KeyError('timestamp key not found')
+            print('timestamp key not found!')
 
 
 def get_metadata_path(h5file):

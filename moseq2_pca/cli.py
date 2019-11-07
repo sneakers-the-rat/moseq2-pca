@@ -122,7 +122,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 
     config_store = '{}.yaml'.format(save_file)
     with open(config_store, 'w') as f:
-        yaml.dump(params, f, Dumper=yaml.RoundTripDumper)
+        yaml.safe_dump(params, f)
 
     tailfilter = select_strel(tailfilter_shape, tailfilter_size)
 

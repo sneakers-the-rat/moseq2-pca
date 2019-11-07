@@ -31,6 +31,8 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
 
     params['start_time'] = timestamp
     params['inputs'] = h5s
+    
+    output_dir = os.path.join(input_dir, output_dir) # outputting pca folder in inputted base directory.
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -38,11 +40,17 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
     save_file = os.path.join(output_dir, output_file)
 
     if os.path.exists('{}.h5'.format(save_file)):
-        raise IOError('{}.h5 already exists, delete before recomputing'.format(save_file))
+        print(f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [Y -> yes, else -> exit]\n')
+        ow = input()
+        if ow == 'Y':
+            print('Deleting old pca.')
+            os.remove(f'{save_file}.h5')
+        else:
+            return "Did not overwrite"
 
     config_store = '{}.yaml'.format(save_file)
     with open(config_store, 'w') as f:
-        yaml.dump(params, f, Dumper=yaml.RoundTripDumper)
+        yaml.safe_dump(params, f)
 
     tailfilter = select_strel((config_data['tailfilter_shape'], config_data['tailfilter_size']))
 
@@ -125,12 +133,12 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
 
     config_data['pca_file'] = f'{save_file}.h5'
     with open(config_file, 'w') as f:
-        yaml.dump(config_data, f, Dumper=yaml.RoundTripDumper)
+        yaml.safe_dump(config_data, f)
 
     return 'PCA has been trained successfully.'
 
 
-def apply_pca_command(input_dir, config_file, output_dir, output_file):
+def apply_pca_command(input_dir, index_file, config_file, output_dir, output_file):
     # find directories with .dat files that either have incomplete or no extractions
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
     # moseq2-model processes these files correctly
@@ -141,6 +149,8 @@ def apply_pca_command(input_dir, config_file, output_dir, output_file):
     dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
     params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
+
+    output_dir = os.path.join(input_dir, output_dir)
 
     # automatically get the correct timestamp path
     h5_timestamp_path = get_timestamp_path(h5s[0])
@@ -229,7 +239,7 @@ def apply_pca_command(input_dir, config_file, output_dir, output_file):
                            use_fft=use_fft, clean_params=clean_params,
                            save_file=save_file, chunk_size=config_data['chunk_size'],
                            fps=config_data['fps'], client=client, missing_data=missing_data,
-                           mask_params=mask_params)
+                           mask_params=mask_params, gui=True)
 
             if cluster is not None:
                 try:
@@ -239,16 +249,17 @@ def apply_pca_command(input_dir, config_file, output_dir, output_file):
 
     config_data['pca_file_scores'] = save_file+'.h5'
     with open(config_file, 'w') as f:
-        yaml.dump(config_data, f, Dumper=yaml.RoundTripDumper)
+        yaml.safe_dump(config_data, f)
 
     try:
-        with open('moseq2-index.yaml', 'r') as f:
+        with open(index_file, 'r') as f:
             index_params = yaml.safe_load(f)
         f.close()
         index_params['pca_path'] = config_data['pca_file_scores']
 
-        with open('moseq2-index.yaml', 'w') as f:
-            yaml.dump(index_params, f, Dumper=yaml.RoundTripDumper)
+        with open(index_file, 'w') as f:
+            yaml.safe_dump(index_params, f)
+
         f.close()
     except:
         print('moseq2-index not found, did not update paths')
@@ -267,11 +278,13 @@ def compute_changepoints_command(input_dir, config_file, output_dir, output_file
 
     h5_timestamp_path = get_timestamp_path(h5s[0])
 
+    output_dir = os.path.join(input_dir, output_dir)
+
     if config_data['pca_file_components'] is None:
         pca_file_components = os.path.join(output_dir, 'pca.h5')
         config_data['pca_file_components'] = pca_file_components
         with open(config_file, 'w') as f:
-            yaml.dump(config_data, f, Dumper=yaml.RoundTripDumper)
+            yaml.safe_dump(config_data, f)
     else:
         pca_file_components = config_data['pca_file_components']
 

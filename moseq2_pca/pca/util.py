@@ -199,7 +199,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
 def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                    save_file, chunk_size, mask_params, missing_data,
-                   client, fps=30):
+                   client, fps=30, gui=False):
 
     futures = []
     uuids = []
@@ -259,37 +259,72 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
             keys = [tmp.key for tmp in futures_batch]
             batch_count += 1
 
-            for future, result in tqdm.tqdm(as_completed(futures_batch, with_results=True), total=len(futures_batch),
-                                            desc="Computing scores (batch {}/{})".format(batch_count, total_batches)):
+            if not gui:
+                for future, result in tqdm.tqdm(as_completed(futures_batch, with_results=True), total=len(futures_batch),
+                                                desc="Computing scores (batch {}/{})".format(batch_count, total_batches)):
 
-                file_idx = keys.index(future.key)
+                    file_idx = keys.index(future.key)
 
-                with h5py.File(h5s_batch[file_idx], mode='r') as f:
-                    if '/timestamps' in f:
-                        # h5 format post v0.1.3
-                        timestamps = f['/timestamps'][...] / 1000.0
-                    elif '/metadata/timestamps' in f:
-                        # h5 format pre v0.1.3
-                        timestamps = f['/metadata/timestamps'][...] / 1000.0
-                    else:
-                        timestamps = np.arange(frames.shape[0]) / fps
+                    with h5py.File(h5s_batch[file_idx], mode='r') as f:
+                        if '/timestamps' in f:
+                            # h5 format post v0.1.3
+                            timestamps = f['/timestamps'][...] / 1000.0
+                        elif '/metadata/timestamps' in f:
+                            # h5 format pre v0.1.3
+                            timestamps = f['/metadata/timestamps'][...] / 1000.0
+                        else:
+                            timestamps = np.arange(frames.shape[0]) / fps
 
-                    if '/metadata/acquisition' in f:
-                        # h5 format post v0.1.3
-                        metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
-                        f.copy('/metadata/acquisition', f_scores, name=metadata_name)
-                    elif '/metadata/extraction' in f:
-                        # h5 format pre v0.1.3
-                        metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
-                        f.copy('/metadata/extraction', f_scores, name=metadata_name)
+                        if '/metadata/acquisition' in f:
+                            # h5 format post v0.1.3
+                            metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
+                            f.copy('/metadata/acquisition', f_scores, name=metadata_name)
+                        elif '/metadata/extraction' in f:
+                            # h5 format pre v0.1.3
+                            metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
+                            f.copy('/metadata/extraction', f_scores, name=metadata_name)
 
-                scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
-                                                   fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
+                    scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
+                                                       fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
 
-                f_scores.create_dataset('scores/{}'.format(uuids_batch[file_idx]), data=scores,
-                                        dtype='float32', compression='gzip')
-                f_scores.create_dataset('scores_idx/{}'.format(uuids_batch[file_idx]), data=score_idx,
-                                        dtype='float32', compression='gzip')
+                    f_scores.create_dataset('scores/{}'.format(uuids_batch[file_idx]), data=scores,
+                                            dtype='float32', compression='gzip')
+                    f_scores.create_dataset('scores_idx/{}'.format(uuids_batch[file_idx]), data=score_idx,
+                                            dtype='float32', compression='gzip')
+            else:
+                for future, result in tqdm.tqdm_notebook(as_completed(futures_batch, with_results=True),
+                                                total=len(futures_batch),
+                                                desc="Computing scores (batch {}/{})".format(batch_count,
+                                                                                             total_batches)):
+
+                    file_idx = keys.index(future.key)
+
+                    with h5py.File(h5s_batch[file_idx], mode='r') as f:
+                        if '/timestamps' in f:
+                            # h5 format post v0.1.3
+                            timestamps = f['/timestamps'][...] / 1000.0
+                        elif '/metadata/timestamps' in f:
+                            # h5 format pre v0.1.3
+                            timestamps = f['/metadata/timestamps'][...] / 1000.0
+                        else:
+                            timestamps = np.arange(frames.shape[0]) / fps
+
+                        if '/metadata/acquisition' in f:
+                            # h5 format post v0.1.3
+                            metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
+                            f.copy('/metadata/acquisition', f_scores, name=metadata_name)
+                        elif '/metadata/extraction' in f:
+                            # h5 format pre v0.1.3
+                            metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
+                            f.copy('/metadata/extraction', f_scores, name=metadata_name)
+
+                    scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
+                                                       fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
+
+                    f_scores.create_dataset('scores/{}'.format(uuids_batch[file_idx]), data=scores,
+                                            dtype='float32', compression='gzip')
+                    f_scores.create_dataset('scores_idx/{}'.format(uuids_batch[file_idx]), data=score_idx,
+                                            dtype='float32', compression='gzip')
 
 
 def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
@@ -374,6 +409,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
             uuids_batch = uuids[i:i+batch_size]
             keys = [tmp.key for tmp in futures_batch]
             batch_count += 1
+
             if gui == True:
                 for future, result in tqdm.tqdm_notebook(as_completed(futures_batch, with_results=True), total=len(futures_batch),
                                                 desc="Collecting results (batch {}/{})".format(batch_count, total_batches)):
