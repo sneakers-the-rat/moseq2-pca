@@ -296,6 +296,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
+        warnings.simplefilter('ignore')
         if cluster_type == 'nodask':
             apply_pca_local(pca_components=pca_components, h5s=h5s, yamls=yamls,
                             use_fft=use_fft, clean_params=clean_params,
@@ -414,6 +415,7 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
         'rps': dims
     }
 
+    warnings.simplefilter('ignore')
     client, cluster, workers, cache =\
         initialize_dask(cluster_type=cluster_type,
                         nworkers=nworkers,

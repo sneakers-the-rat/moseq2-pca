@@ -302,6 +302,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                 mem_per_worker = np.round(((mem * .8) / nworkers) / 1e9)
                 memory = '{}GB'.format(mem_per_worker)
 
+            '''
             warning_string = ("ncpus or memory out of range, setting to "
                               "{} cores, {} workers, {} mem per worker "
                               "\n!!!IF YOU ARE RUNNING ON A CLUSTER MAKE "
@@ -309,6 +310,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                               ).format(cores, nworkers, memory)
             warnings.warn(warning_string)
             input('Press ENTER to continue...')
+            '''
 
         cluster = LocalCluster(n_workers=nworkers,
                                threads_per_worker=cores,
@@ -352,6 +354,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         start_time = time.time()
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", TqdmSynchronisationWarning)
+            warnings.simplefilter('ignore')
             pbar = tqdm(total=nworkers,
                         desc="Intializing workers")
 
