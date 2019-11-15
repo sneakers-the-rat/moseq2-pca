@@ -14,7 +14,7 @@ import dask.array as da
 from tqdm.auto import tqdm
 import pathlib
 
-def train_pca_command(input_dir, config_file, output_dir, output_file):
+def train_pca_command(input_dir, config_file, output_dir, output_file, output_directory=None):
 
     with open(config_file, 'r') as f:
         config_data = yaml.safe_load(f)
@@ -26,13 +26,19 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
         raise NotImplementedError("FFT and missing data not implemented yet")
 
     params = config_data
-    h5s, dicts, yamls = recursive_find_h5s(input_dir)
+    if output_directory is None:
+        h5s, dicts, yamls = recursive_find_h5s(input_dir)
+    else:
+        h5s, dicts, yamls = recursive_find_h5s(output_directory)
     timestamp = '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
 
     params['start_time'] = timestamp
     params['inputs'] = h5s
-    
-    output_dir = os.path.join(input_dir, output_dir) # outputting pca folder in inputted base directory.
+
+    if output_directory is None:
+        output_dir = os.path.join(input_dir, output_dir) # outputting pca folder in inputted base directory.
+    else:
+        output_dir = os.path.join(output_directory, output_dir)
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -138,7 +144,7 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
     return 'PCA has been trained successfully.'
 
 
-def apply_pca_command(input_dir, index_file, config_file, output_dir, output_file):
+def apply_pca_command(input_dir, index_file, config_file, output_dir, output_file, output_directory=None):
     # find directories with .dat files that either have incomplete or no extractions
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
     # moseq2-model processes these files correctly
@@ -150,7 +156,10 @@ def apply_pca_command(input_dir, index_file, config_file, output_dir, output_fil
     params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
-    output_dir = os.path.join(input_dir, output_dir)
+    if output_directory is None:
+        output_dir = os.path.join(input_dir, output_dir)  # outputting pca folder in inputted base directory.
+    else:
+        output_dir = os.path.join(output_directory, output_dir)
 
     # automatically get the correct timestamp path
     h5_timestamp_path = get_timestamp_path(h5s[0])
@@ -267,7 +276,7 @@ def apply_pca_command(input_dir, index_file, config_file, output_dir, output_fil
     return 'PCA Scores have been successfully computed.'
 
 
-def compute_changepoints_command(input_dir, config_file, output_dir, output_file):
+def compute_changepoints_command(input_dir, config_file, output_dir, output_file, output_directory=None):
 
     with open(config_file, 'r') as f:
         config_data = yaml.safe_load(f)
@@ -278,7 +287,10 @@ def compute_changepoints_command(input_dir, config_file, output_dir, output_file
 
     h5_timestamp_path = get_timestamp_path(h5s[0])
 
-    output_dir = os.path.join(input_dir, output_dir)
+    if output_directory is None:
+        output_dir = os.path.join(input_dir, output_dir)  # outputting pca folder in inputted base directory.
+    else:
+        output_dir = os.path.join(output_directory, output_dir)
 
     if config_data['pca_file_components'] is None:
         pca_file_components = os.path.join(output_dir, 'pca.h5')
