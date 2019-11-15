@@ -36,7 +36,7 @@ def train_pca_command(input_dir, config_file, output_dir, output_file, output_di
     params['inputs'] = h5s
 
     if output_directory is None:
-        output_dir = os.path.join(input_dir, output_dir) # outputting pca folder in inputted base directory.
+        output_dir = os.path.join(os.path.dirname(os.path.dirname(input_dir)), output_dir) # outputting pca folder in inputted base directory.
     else:
         output_dir = os.path.join(output_directory, output_dir)
 
