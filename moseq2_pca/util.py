@@ -284,7 +284,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         cache = Chest(path=cache_path)
 
     elif cluster_type == 'local' and scheduler == 'distributed':
-
+        warnings.simplefilter('ignore')
         ncpus = psutil.cpu_count()
         mem = psutil.virtual_memory().total
         mem_per_worker = np.floor(((mem * .8) / nworkers) / 1e9)

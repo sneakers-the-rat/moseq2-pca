@@ -12,9 +12,12 @@ import h5py
 import warnings
 import dask.array as da
 from tqdm.auto import tqdm
+import logging
 import pathlib
 
 def train_pca_command(input_dir, config_file, output_dir, output_file, output_directory=None):
+    warnings.filterwarnings("ignore", category=RuntimeWarning)
+    warnings.filterwarnings("ignore", category=UserWarning)
 
     with open(config_file, 'r') as f:
         config_data = yaml.safe_load(f)
@@ -83,6 +86,9 @@ def train_pca_command(input_dir, config_file, output_dir, output_file, output_di
                         scheduler='distributed',
                         cache_path=dask_cache_path)
 
+    logger = logging.getLogger("distributed.utils_perf")
+    logger.setLevel(logging.ERROR)
+
     dsets = [h5py.File(h5, mode='r')['/frames'] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=(config_data['chunk_size'], -1, -1)) for dset in dsets]
     stacked_array = da.concatenate(arrays, axis=0)
@@ -148,6 +154,8 @@ def apply_pca_command(input_dir, index_file, config_file, output_dir, output_fil
     # find directories with .dat files that either have incomplete or no extractions
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
     # moseq2-model processes these files correctly
+    warnings.filterwarnings("ignore", category=RuntimeWarning)
+    warnings.filterwarnings("ignore", category=UserWarning)
 
     with open(config_file, 'r') as f:
         config_data = yaml.safe_load(f)
@@ -244,6 +252,10 @@ def apply_pca_command(input_dir, index_file, config_file, output_dir, output_fil
                              scheduler='distributed',
                              timeout=config_data['timeout'],
                              cache_path=dask_cache_path)
+
+            logger = logging.getLogger("distributed.utils_perf")
+            logger.setLevel(logging.ERROR)
+
             apply_pca_dask(pca_components=pca_components, h5s=h5s, yamls=yamls,
                            use_fft=use_fft, clean_params=clean_params,
                            save_file=save_file, chunk_size=config_data['chunk_size'],
@@ -277,6 +289,10 @@ def apply_pca_command(input_dir, index_file, config_file, output_dir, output_fil
 
 
 def compute_changepoints_command(input_dir, config_file, output_dir, output_file, output_directory=None):
+    warnings.filterwarnings("ignore", category=RuntimeWarning)
+    warnings.filterwarnings("ignore", category=UserWarning)
+
+
 
     with open(config_file, 'r') as f:
         config_data = yaml.safe_load(f)
@@ -359,6 +375,9 @@ def compute_changepoints_command(input_dir, config_file, output_dir, output_file
                         scheduler='distributed',
                         timeout=config_data['timeout'],
                         cache_path=dask_cache_path)
+
+    logger = logging.getLogger("distributed.utils_perf")
+    logger.setLevel(logging.ERROR)
 
     get_changepoints_dask(pca_components=pca_components, pca_scores=pca_file_scores,
                           h5s=h5s, yamls=yamls, changepoint_params=changepoint_params,

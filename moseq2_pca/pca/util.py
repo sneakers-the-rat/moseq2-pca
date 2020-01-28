@@ -8,6 +8,7 @@ import numpy as np
 import h5py
 import tqdm
 import warnings
+import logging
 
 
 def mask_data(original_data, mask, new_data):
@@ -23,6 +24,9 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
                    cluster_type, client, workers,
                    cache, mask=None, iters=10, recon_pcs=10,
                    min_height=10, max_height=100):
+
+    logger = logging.getLogger("distributed.utils_perf")
+    logger.setLevel(logging.WARNING)
 
     missing_data = False
     rechunked = False
@@ -201,6 +205,9 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                    save_file, chunk_size, mask_params, missing_data,
                    client, fps=30, gui=False):
 
+    logger = logging.getLogger("distributed.utils_perf")
+    logger.setLevel(logging.WARNING)
+
     futures = []
     uuids = []
 
@@ -330,10 +337,11 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
 def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                           save_file, chunk_size, mask_params, missing_data,
                           client, fps=30, pca_scores=None, progress_bar=False, gui=False):
-
     futures = []
     uuids = []
     nrps = changepoint_params.pop('rps')
+    logger = logging.getLogger("distributed.utils_perf")
+    logger.setLevel(logging.WARNING)
 
     for h5, yml in tqdm.tqdm(zip(h5s, yamls), disable=not progress_bar, desc='Setting up calculation', total=len(h5s)):
         data = read_yaml(yml)
@@ -395,7 +403,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
         uuids.append(uuid)
 
     # pin the batch size to the number of workers (assume each worker has enough RAM for one session)
-    batch_size = len(client.scheduler_info()['workers'])
+    batch_size = 1
 
     with h5py.File('{}.h5'.format(save_file), 'w') as f_cps:
         f_cps.create_dataset('metadata/fps', data=fps, dtype='float32')
