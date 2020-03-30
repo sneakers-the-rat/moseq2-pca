@@ -4,6 +4,7 @@ from dask.distributed import as_completed, wait, progress
 import dask.array.linalg as lng
 import dask.array as da
 import dask
+from dask.diagnostics import ProgressBar
 import numpy as np
 import h5py
 import tqdm
@@ -107,8 +108,10 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     # elif cluster_type == 'slurm':
 
     futures = client.compute([s, v, mean, total_var])
-    progress(futures)
-    s, v, mean, total_var = client.gather(futures)
+
+    with ProgressBar():
+        progress(futures)
+        s, v, mean, total_var = client.gather(futures)
 
     # cluster.stop_workers(workers)
 
@@ -258,7 +261,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
         batch_count = 0
         total_batches = len(range(0, len(futures), batch_size))
 
-        for i in range(0, len(futures), batch_size):
+        for i in tqdm.tdqm(range(0, len(futures), batch_size)):
 
             futures_batch = client.compute(futures[i:i+batch_size])
             uuids_batch = uuids[i:i+batch_size]
@@ -266,72 +269,37 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
             keys = [tmp.key for tmp in futures_batch]
             batch_count += 1
 
-            if not gui:
-                for future, result in tqdm.tqdm(as_completed(futures_batch, with_results=True), total=len(futures_batch),
-                                                desc="Computing scores (batch {}/{})".format(batch_count, total_batches)):
 
-                    file_idx = keys.index(future.key)
+            for future, result in as_completed(futures_batch, with_results=True):
 
-                    with h5py.File(h5s_batch[file_idx], mode='r') as f:
-                        if '/timestamps' in f:
-                            # h5 format post v0.1.3
-                            timestamps = f['/timestamps'][...] / 1000.0
-                        elif '/metadata/timestamps' in f:
-                            # h5 format pre v0.1.3
-                            timestamps = f['/metadata/timestamps'][...] / 1000.0
-                        else:
-                            timestamps = np.arange(frames.shape[0]) / fps
+                file_idx = keys.index(future.key)
 
-                        if '/metadata/acquisition' in f:
-                            # h5 format post v0.1.3
-                            metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
-                            f.copy('/metadata/acquisition', f_scores, name=metadata_name)
-                        elif '/metadata/extraction' in f:
-                            # h5 format pre v0.1.3
-                            metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
-                            f.copy('/metadata/extraction', f_scores, name=metadata_name)
+                with h5py.File(h5s_batch[file_idx], mode='r') as f:
+                    if '/timestamps' in f:
+                        # h5 format post v0.1.3
+                        timestamps = f['/timestamps'][...] / 1000.0
+                    elif '/metadata/timestamps' in f:
+                        # h5 format pre v0.1.3
+                        timestamps = f['/metadata/timestamps'][...] / 1000.0
+                    else:
+                        timestamps = np.arange(frames.shape[0]) / fps
 
-                    scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
-                                                       fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
+                    if '/metadata/acquisition' in f:
+                        # h5 format post v0.1.3
+                        metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
+                        f.copy('/metadata/acquisition', f_scores, name=metadata_name)
+                    elif '/metadata/extraction' in f:
+                        # h5 format pre v0.1.3
+                        metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
+                        f.copy('/metadata/extraction', f_scores, name=metadata_name)
 
-                    f_scores.create_dataset('scores/{}'.format(uuids_batch[file_idx]), data=scores,
-                                            dtype='float32', compression='gzip')
-                    f_scores.create_dataset('scores_idx/{}'.format(uuids_batch[file_idx]), data=score_idx,
-                                            dtype='float32', compression='gzip')
-            else:
-                for future, result in tqdm.tqdm_notebook(as_completed(futures_batch, with_results=True),
-                                                total=len(futures_batch),
-                                                desc="Computing scores (batch {}/{})".format(batch_count,
-                                                                                             total_batches)):
+                scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
+                                                   fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
 
-                    file_idx = keys.index(future.key)
-
-                    with h5py.File(h5s_batch[file_idx], mode='r') as f:
-                        if '/timestamps' in f:
-                            # h5 format post v0.1.3
-                            timestamps = f['/timestamps'][...] / 1000.0
-                        elif '/metadata/timestamps' in f:
-                            # h5 format pre v0.1.3
-                            timestamps = f['/metadata/timestamps'][...] / 1000.0
-                        else:
-                            timestamps = np.arange(frames.shape[0]) / fps
-
-                        if '/metadata/acquisition' in f:
-                            # h5 format post v0.1.3
-                            metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
-                            f.copy('/metadata/acquisition', f_scores, name=metadata_name)
-                        elif '/metadata/extraction' in f:
-                            # h5 format pre v0.1.3
-                            metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
-                            f.copy('/metadata/extraction', f_scores, name=metadata_name)
-
-                    scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
-                                                       fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
-
-                    f_scores.create_dataset('scores/{}'.format(uuids_batch[file_idx]), data=scores,
-                                            dtype='float32', compression='gzip')
-                    f_scores.create_dataset('scores_idx/{}'.format(uuids_batch[file_idx]), data=score_idx,
-                                            dtype='float32', compression='gzip')
+                f_scores.create_dataset('scores/{}'.format(uuids_batch[file_idx]), data=scores,
+                                        dtype='float32', compression='gzip')
+                f_scores.create_dataset('scores_idx/{}'.format(uuids_batch[file_idx]), data=score_idx,
+                                        dtype='float32', compression='gzip')
 
 
 def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
@@ -343,7 +311,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
     logger = logging.getLogger("distributed.utils_perf")
     logger.setLevel(logging.WARNING)
 
-    for h5, yml in tqdm.tqdm(zip(h5s, yamls), disable=not progress_bar, desc='Setting up calculation', total=len(h5s)):
+    for h5, yml in tqdm.tqdm(zip(h5s, yamls), disable=progress_bar, desc='Setting up calculation', total=len(h5s)):
         data = read_yaml(yml)
         uuid = data['uuid']
 
@@ -390,13 +358,6 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
 
         rps = dask.delayed(get_rps, pure=False)(frames, rps=nrps, normalize=True)
 
-        # alternative to using delayed here...
-        # rps = frames.dot(da.random.normal(0, 1,
-        #                                   size=(frames.shape[1], 600),
-        #                                   chunks=(chunk_size, -1)))
-        # rps = zscore(zscore(rps).T)
-        # rps = client.scatter(rps)
-
         cps = dask.delayed(get_changepoints, pure=True)(rps, timestamps=timestamps, **changepoint_params)
 
         futures.append(cps)
@@ -418,27 +379,12 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
             keys = [tmp.key for tmp in futures_batch]
             batch_count += 1
 
-            if gui == True:
-                for future, result in tqdm.tqdm_notebook(as_completed(futures_batch, with_results=True), total=len(futures_batch),
-                                                desc="Collecting results (batch {}/{})".format(batch_count, total_batches)):
+            for future, result in as_completed(futures_batch, with_results=True):
 
-                    file_idx = keys.index(future.key)
+                file_idx = keys.index(future.key)
 
-                    if result[0] is not None and result[1] is not None:
-                        f_cps.create_dataset('cps_score/{}'.format(uuids_batch[file_idx]), data=result[1],
-                                             dtype='float32', compression='gzip')
-                        f_cps.create_dataset('cps/{}'.format(uuids_batch[file_idx]), data=result[0] / fps,
-                                             dtype='float32', compression='gzip')
-            else:
-                for future, result in tqdm.tqdm(as_completed(futures_batch, with_results=True),
-                                                total=len(futures_batch),
-                                                desc="Collecting results (batch {}/{})".format(batch_count,
-                                                                                               total_batches)):
-
-                    file_idx = keys.index(future.key)
-
-                    if result[0] is not None and result[1] is not None:
-                        f_cps.create_dataset('cps_score/{}'.format(uuids_batch[file_idx]), data=result[1],
-                                             dtype='float32', compression='gzip')
-                        f_cps.create_dataset('cps/{}'.format(uuids_batch[file_idx]), data=result[0] / fps,
-                                             dtype='float32', compression='gzip')
+                if result[0] is not None and result[1] is not None:
+                    f_cps.create_dataset('cps_score/{}'.format(uuids_batch[file_idx]), data=result[1],
+                                         dtype='float32', compression='gzip')
+                    f_cps.create_dataset('cps/{}'.format(uuids_batch[file_idx]), data=result[0] / fps,
+                                         dtype='float32', compression='gzip')

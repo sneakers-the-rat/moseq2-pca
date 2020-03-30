@@ -4,14 +4,14 @@ from moseq2_pca.util import recursive_find_h5s, command_with_config,\
 from moseq2_pca.viz import display_components, scree_plot, changepoint_dist
 from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local,\
     train_pca_dask, get_changepoints_dask
+from moseq2_pca.command_helpers.data import setup_train_pca, setup_cp_command, \
+                                        get_pca_yaml_data, load_pcs_for_cp
 import click
 import os
 import ruamel.yaml as yaml
-import datetime
 import h5py
 import warnings
 import dask.array as da
-from tqdm.auto import tqdm
 import logging
 import pathlib
 
@@ -22,72 +22,8 @@ def train_pca_command(input_dir, config_file, output_dir, output_file, output_di
     with open(config_file, 'r') as f:
         config_data = yaml.safe_load(f)
 
-    dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
-    # find directories with .dat files that either have incomplete or no extractions
-
-    if config_data['missing_data'] and config_data['use_fft']:
-        raise NotImplementedError("FFT and missing data not implemented yet")
-
-    params = config_data
-    if output_directory is None:
-        h5s, dicts, yamls = recursive_find_h5s(input_dir)
-    else:
-        h5s, dicts, yamls = recursive_find_h5s(output_directory)
-    timestamp = '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
-
-    params['start_time'] = timestamp
-    params['inputs'] = h5s
-
-    if output_directory is None:
-        output_dir = os.path.join(os.path.dirname(os.path.dirname(input_dir)), output_dir) # outputting pca folder in inputted base directory.
-    else:
-        output_dir = os.path.join(output_directory, output_dir)
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    save_file = os.path.join(output_dir, output_file)
-
-    if os.path.exists('{}.h5'.format(save_file)):
-        print(f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [Y -> yes, else -> exit]\n')
-        ow = input()
-        if ow == 'Y':
-            print('Deleting old pca.')
-            os.remove(f'{save_file}.h5')
-        else:
-            return "Did not overwrite"
-
-    config_store = '{}.yaml'.format(save_file)
-    with open(config_store, 'w') as f:
-        yaml.safe_dump(params, f)
-
-    tailfilter = select_strel((config_data['tailfilter_shape'], config_data['tailfilter_size']))
-
-    clean_params = {
-        'gaussfilter_space': config_data['gaussfilter_space'],
-        'gaussfilter_time': config_data['gaussfilter_time'],
-        'tailfilter': tailfilter,
-        'medfilter_time': config_data['medfilter_time'],
-        'medfilter_space': config_data['medfilter_space']
-    }
-
-    # dask.set_options(temporary_directory='/home/jmarkow/dask-tmp')
-
-    client, cluster, workers, cache =\
-        initialize_dask(cluster_type=config_data['cluster_type'],
-                        nworkers=config_data['nworkers'],
-                        cores=config_data['cores'],
-                        processes=config_data['processes'],
-                        local_processes=config_data['local_processes'],
-                        memory=config_data['memory'],
-                        wall_time=config_data['wall_time'],
-                        queue=config_data['queue'],
-                        timeout=config_data['timeout'],
-                        scheduler='distributed',
-                        cache_path=dask_cache_path)
-
-    logger = logging.getLogger("distributed.utils_perf")
-    logger.setLevel(logging.ERROR)
+    h5s, client, cluster, workers, cache, clean_params, save_file = \
+        setup_train_pca(input_dir, config_data, output_dir, output_file, output_directory)
 
     dsets = [h5py.File(h5, mode='r')['/frames'] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=(config_data['chunk_size'], -1, -1)) for dset in dsets]
@@ -123,21 +59,20 @@ def train_pca_command(input_dir, config_file, output_dir, output_file, output_di
         except:
             pass
 
-    if True:
-        try:
-            plt, _ = display_components(output_dict['components'], headless=True)
-            plt.savefig('{}_components.png'.format(save_file))
-            plt.savefig('{}_components.pdf'.format(save_file))
-            plt.close()
-        except:
-            print('could not plot components')
-        try:
-            plt = scree_plot(output_dict['explained_variance_ratio'], headless=True)
-            plt.savefig('{}_scree.png'.format(save_file))
-            plt.savefig('{}_scree.pdf'.format(save_file))
-            plt.close()
-        except:
-            print('could not plot scree')
+    try:
+        plt, _ = display_components(output_dict['components'], headless=True)
+        plt.savefig('{}_components.png'.format(save_file))
+        plt.savefig('{}_components.pdf'.format(save_file))
+        plt.close()
+    except:
+        print('could not plot components')
+    try:
+        plt = scree_plot(output_dict['explained_variance_ratio'], headless=True)
+        plt.savefig('{}_scree.png'.format(save_file))
+        plt.savefig('{}_scree.pdf'.format(save_file))
+        plt.close()
+    except:
+        print('could not plot scree')
 
     with h5py.File('{}.h5'.format(save_file), 'w') as f:
         for k, v in output_dict.items():
@@ -151,6 +86,7 @@ def train_pca_command(input_dir, config_file, output_dir, output_file, output_di
 
 
 def apply_pca_command(input_dir, index_file, config_file, output_dir, output_file, output_directory=None):
+
     # find directories with .dat files that either have incomplete or no extractions
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
     # moseq2-model processes these files correctly
@@ -165,7 +101,11 @@ def apply_pca_command(input_dir, index_file, config_file, output_dir, output_fil
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
     if output_directory is None:
-        output_dir = os.path.join(input_dir, output_dir)  # outputting pca folder in inputted base directory.
+        if 'aggregate_results' in input_dir:
+            outpath = '/'.join(input_dir.split('/')[:-2])
+            output_dir = os.path.join(outpath, output_dir)  # outputting pca folder in inputted base directory.
+        else:
+            output_dir = os.path.join(input_dir, output_dir)  # outputting pca folder in inputted base directory.
     else:
         output_dir = os.path.join(output_directory, output_dir)
 
@@ -191,42 +131,7 @@ def apply_pca_command(input_dir, index_file, config_file, output_dir, output_fil
     # get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
     pca_yaml = '{}.yaml'.format(os.path.splitext(config_data['pca_file'])[0])
 
-    # todo detect missing data and mask parameters, then 0 out, fill in, compute scores...
-    if os.path.exists(pca_yaml):
-        with open(pca_yaml, 'r') as f:
-            pca_config = yaml.safe_load(f.read())
-            if 'use_fft' in pca_config.keys() and pca_config['use_fft']:
-                print('Will use FFT...')
-                use_fft = True
-            else:
-                use_fft = False
-
-            tailfilter = select_strel(pca_config['tailfilter_shape'],
-                                      tuple(pca_config['tailfilter_size']))
-
-            clean_params = {
-                'gaussfilter_space': pca_config['gaussfilter_space'],
-                'gaussfilter_time': pca_config['gaussfilter_time'],
-                'tailfilter': tailfilter,
-                'medfilter_time': pca_config['medfilter_time'],
-                'medfilter_space': pca_config['medfilter_space'],
-            }
-
-            mask_params = {
-                'mask_height_threshold': pca_config['mask_height_threshold'],
-                'mask_threshold': pca_config['mask_threshold'],
-                'min_height': pca_config['min_height'],
-                'max_height': pca_config['max_height']
-            }
-
-            if 'missing_data' in pca_config.keys() and pca_config['missing_data']:
-                print('Detected missing data...')
-                missing_data = True
-            else:
-                missing_data = False
-
-    else:
-        IOError('Could not find {}'.format(pca_yaml))
+    use_fft, clean_params, mask_params, missing_data = get_pca_yaml_data(pca_yaml)
 
     if use_fft:
         print('Using FFT...')
@@ -292,89 +197,14 @@ def compute_changepoints_command(input_dir, config_file, output_dir, output_file
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
 
-
-
     with open(config_file, 'r') as f:
         config_data = yaml.safe_load(f)
 
-    dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
-    params = locals()
-    h5s, dicts, yamls = recursive_find_h5s(input_dir)
+    pca_file_scores, pca_file_components, h5s, yamls, save_file = \
+        setup_cp_command(input_dir, config_file, config_data, output_dir, output_file, output_directory)
 
-    h5_timestamp_path = get_timestamp_path(h5s[0])
-
-    if output_directory is None:
-        output_dir = os.path.join(input_dir, output_dir)  # outputting pca folder in inputted base directory.
-    else:
-        output_dir = os.path.join(output_directory, output_dir)
-
-    if config_data['pca_file_components'] is None:
-        pca_file_components = os.path.join(output_dir, 'pca.h5')
-        config_data['pca_file_components'] = pca_file_components
-        with open(config_file, 'w') as f:
-            yaml.safe_dump(config_data, f)
-    else:
-        pca_file_components = config_data['pca_file_components']
-
-    if config_data['pca_file_scores'] is None:
-        pca_file_scores = os.path.join(output_dir, 'pca_scores.h5')
-    else:
-        pca_file_scores = config_data['pca_file_scores']
-
-    if not os.path.exists(config_data['pca_file_components']):
-        raise IOError('Could not find PCA components file {}'.format(config_data['pca_file_components']))
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    save_file = output_dir+output_file
-
-    print('Loading PCs from {}'.format(pca_file_components))
-    with h5py.File(pca_file_components, 'r') as f:
-        pca_components = f[config_data['pca_path']][...]
-
-    # get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
-    pca_yaml = '{}.yaml'.format(os.path.splitext(config_data['pca_file_components'])[0])
-
-    # todo detect missing data and mask parameters, then 0 out, fill in, compute scores...
-    if os.path.exists(pca_yaml):
-        with open(pca_yaml, 'r') as f:
-            pca_config = yaml.safe_load(f.read())
-
-            if 'missing_data' in pca_config.keys() and pca_config['missing_data']:
-                print('Detected missing data...')
-                missing_data = True
-                mask_params = {
-                    'mask_height_threshold': pca_config['mask_height_threshold'],
-                    'mask_threshold': pca_config['mask_threshold']
-                }
-            else:
-                missing_data = False
-                pca_file_scores = None
-                mask_params = None
-
-            if missing_data and not os.path.exists(config_data['pca_file_scores']):
-                raise RuntimeError("Need PCA scores to impute missing data, run apply pca first")
-
-    changepoint_params = {
-        'k': config_data['klags'],
-        'sigma': config_data['sigma'],
-        'peak_height': config_data['threshold'],
-        'peak_neighbors': config_data['neighbors'],
-        'rps': config_data['dims']
-    }
-
-    client, cluster, workers, cache =\
-        initialize_dask(cluster_type=config_data['cluster_type'],
-                        nworkers=config_data['nworkers'],
-                        cores=config_data['cores'],
-                        processes=config_data['processes'],
-                        memory=config_data['memory'],
-                        wall_time=config_data['wall_time'],
-                        queue=config_data['queue'],
-                        scheduler='distributed',
-                        timeout=config_data['timeout'],
-                        cache_path=dask_cache_path)
+    pca_components, changepoint_params, cluster, client, missing_data, mask_params = \
+        load_pcs_for_cp(pca_file_components, config_data)
 
     logger = logging.getLogger("distributed.utils_perf")
     logger.setLevel(logging.ERROR)
