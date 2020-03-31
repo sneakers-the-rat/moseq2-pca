@@ -261,7 +261,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
         batch_count = 0
         total_batches = len(range(0, len(futures), batch_size))
 
-        for i in tqdm.tdqm(range(0, len(futures), batch_size)):
+        for i in range(0, len(futures), batch_size):
 
             futures_batch = client.compute(futures[i:i+batch_size])
             uuids_batch = uuids[i:i+batch_size]
