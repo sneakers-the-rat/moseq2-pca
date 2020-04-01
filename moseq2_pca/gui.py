@@ -23,7 +23,7 @@ def apply_pca_command(input_dir, index_file, config_file, output_dir, output_fil
     with open(config_file, 'r') as f:
         config_data = yaml.safe_load(f)
 
-    config_data = apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_directory=output_directory)
+    config_data = apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_directory=output_directory, gui=True)
 
     with open(config_file, 'w') as f:
         yaml.safe_dump(config_data, f)

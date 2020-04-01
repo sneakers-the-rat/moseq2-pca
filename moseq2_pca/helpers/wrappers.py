@@ -163,6 +163,8 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     if config_data['pca_file'] is None:
         pca_file = os.path.join(output_dir, 'pca.h5')
         config_data['pca_file'] = pca_file
+    else:
+        pca_file = config_data['pca_file']
 
     if not os.path.exists(pca_file):
         raise IOError('Could not find PCA components file {}'.format(config_data['pca_file']))
@@ -170,7 +172,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    save_file = output_dir + output_file
+    save_file = os.path.join(output_dir, output_file)
 
     print('Loading PCs from {}'.format(config_data['pca_file']))
     with h5py.File(config_data['pca_file'], 'r') as f:
@@ -220,7 +222,6 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                     shutdown_dask(cluster.scheduler)
                 except:
                     pass
-
 
     if gui:
         config_data['pca_file_scores'] = save_file + '.h5'
