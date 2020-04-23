@@ -29,29 +29,27 @@ def cli():
 def clip_scores(pca_file, clip_samples, from_end):
     """
     Clips PCA scores from the beginning or end
-
     Args:
         pca_file (string): Path to PCA scores
         clip_samples (int): number of samples to clip from beginning or end
         from_end (bool): if true clip from end rather than beginning
-
     Note that scores are modified *in place*.
     """
 
     with h5py.File(pca_file, 'r') as f:
         store_dir = os.path.dirname(pca_file)
         base_filename = os.path.splitext(os.path.basename(pca_file))[0]
-        new_filename = os.path.join(store_dir, '{}_clip.h5'.format(base_filename))
+        new_filename = os.path.join(store_dir, f'{base_filename}_clip.h5')
 
         with h5py.File(new_filename, 'w') as f2:
             f.copy('/metadata', f2)
             for key in tqdm.tqdm(f['/scores'].keys(), desc='Copying data'):
                 if from_end:
-                    f2['/scores/{}'.format(key)] = f['/scores/{}'.format(key)][:-clip_samples]
-                    f2['/scores_idx/{}'.format(key)] = f['/scores_idx/{}'.format(key)][:-clip_samples]
+                    f2[f'/scores/{key}'] = f[f'/scores/{key}'][:-clip_samples]
+                    f2[f'/scores_idx/{key}'] = f[f'/scores_idx/{key}'][:-clip_samples]
                 else:
-                    f2['/scores/{}'.format(key)] = f['/scores/{}'.format(key)][clip_samples:]
-                    f2['/scores_idx/{}'.format(key)] = f['/scores_idx/{}'.format(key)][clip_samples:]
+                    f2[f'/scores/{key}'] = f[f'/scores/{key}'][clip_samples:]
+                    f2[f'/scores_idx/{key}'] = f[f'/scores_idx/{key}'][clip_samples:]
 
 @cli.command(name='train-pca', cls=command_with_config('config_file'))
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
@@ -102,7 +100,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
 @click.option('--cluster-type', type=click.Choice(['local', 'slurm', 'nodask']),
               default='local', help='Cluster type')
-@click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(exists=True), help='Directory to store results')
+@click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(exists=False), help='Directory to store results')
 @click.option('--output-file', default='pca_scores', type=str, help='Name of h5 file for storing pca results')
 @click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
 @click.option('--h5-mask-path', default='/frames_mask', type=str, help="Path to log-likelihood mask in h5 files")
@@ -131,7 +129,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
 
 @cli.command('compute-changepoints', cls=command_with_config('config_file'))
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
-@click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca/'), type=click.Path(exists=True), help='Directory to store results')
+@click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca/'), type=click.Path(exists=False), help='Directory to store results')
 @click.option('--output-file', default='changepoints', type=str, help='Name of h5 file for storing pca results')
 @click.option('--cluster-type', type=click.Choice(['local', 'slurm']), default='local', help='Cluster type')
 @click.option('--pca-file-components', type=click.Path(), default=None, help="Path to PCA components")

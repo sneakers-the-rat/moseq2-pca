@@ -13,6 +13,20 @@ from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, \
             recursively_load_dict_contents_from_group, get_timestamp_path, get_metadata_path, shutdown_dask
 
 def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_directory=None, gui=False):
+    '''
+    Wrapper function to train PCA.
+    Parameters
+    ----------
+    input_dir (int): path to directory containing all h5+yaml files
+    config_data (dict): dict of relevant PCA parameters (image filtering etc.)
+    output_dir (str): path to directory to store PCA data
+    output_file (str): pca model filename
+    output_directory (str): alternative output_dir
+    gui (bool): indicate GUI is running
+    Returns
+    -------
+    config_data (dict): updated config_data variable to write back in GUI API
+    '''
 
     dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
     # find directories with .dat files that either have incomplete or no extractions
@@ -25,7 +39,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
         h5s, dicts, yamls = recursive_find_h5s(input_dir)
     else:
         h5s, dicts, yamls = recursive_find_h5s(output_directory)
-    timestamp = '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
+    timestamp = f'{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}'
 
     params['start_time'] = timestamp
     params['inputs'] = h5s
@@ -41,7 +55,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
 
     save_file = os.path.join(output_dir, output_file)
 
-    if os.path.exists('{}.h5'.format(save_file)):
+    if os.path.exists(f'{save_file}.h5'):
         print(f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [Y -> yes, else -> exit]\n')
         ow = input()
         if ow == 'Y':
@@ -86,7 +100,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     stacked_array[stacked_array < config_data['min_height']] = 0
     stacked_array[stacked_array > config_data['max_height']] = 0
 
-    print('Processing {:d} total frames'.format(stacked_array.shape[0]))
+    print(f'Processing {len(stacked_array):d} total frames')
 
     if config_data['missing_data']:
         mask_dsets = [h5py.File(h5, mode='r')['/frames_mask'] for h5 in h5s]
@@ -116,20 +130,20 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
 
     try:
         plt, _ = display_components(output_dict['components'], headless=True)
-        plt.savefig('{}_components.png'.format(save_file))
-        plt.savefig('{}_components.pdf'.format(save_file))
+        plt.savefig(f'{save_file}_components.png')
+        plt.savefig(f'{save_file}_components.pdf')
         plt.close()
     except:
         print('could not plot components')
     try:
         plt = scree_plot(output_dict['explained_variance_ratio'], headless=True)
-        plt.savefig('{}_scree.png'.format(save_file))
-        plt.savefig('{}_scree.pdf'.format(save_file))
+        plt.savefig(f'{save_file}_scree.png')
+        plt.savefig(f'{save_file}_scree.pdf')
         plt.close()
     except:
         print('could not plot scree')
 
-    with h5py.File('{}.h5'.format(save_file), 'w') as f:
+    with h5py.File(f'{save_file}.h5', 'w') as f:
         for k, v in output_dict.items():
             f.create_dataset(k, data=v, compression='gzip', dtype='float32')
 
@@ -139,6 +153,21 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
         return config_data
 
 def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_directory=None, gui=False):
+    '''
+    Wrapper function to obtain PCA Scores.
+    Parameters
+    ----------
+    input_dir (int): path to directory containing all h5+yaml files
+    config_data (dict): dict of relevant PCA parameters (image filtering etc.)
+    output_dir (str): path to directory to store PCA data
+    output_file (str): pca model filename
+    output_directory (str): alternative output_dir
+    gui (bool): indicate GUI is running
+    Returns
+    -------
+    config_data (dict): updated config_data variable to write back in GUI API
+    '''
+
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -157,29 +186,36 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
         output_dir = os.path.join(output_directory, output_dir)
 
     # automatically get the correct timestamp path
-    h5_timestamp_path = get_timestamp_path(h5s[0])
-    h5_metadata_path = get_metadata_path(h5s[0])
+    try:
+        h5_timestamp_path = get_timestamp_path(h5s[0])
+        h5_metadata_path = get_metadata_path(h5s[0])
+    except:
+        print('Autoload timestamps failed, will perform search.')
 
     if config_data['pca_file'] is None:
         pca_file = os.path.join(output_dir, 'pca.h5')
         config_data['pca_file'] = pca_file
     else:
-        pca_file = config_data['pca_file']
+        if not os.path.exists(config_data['pca_file']):
+            pca_file = os.path.join(output_dir, 'pca.h5')
+            config_data['pca_file'] = pca_file
+        else:
+            pca_file = config_data['pca_file']
 
     if not os.path.exists(pca_file):
-        raise IOError('Could not find PCA components file {}'.format(config_data['pca_file']))
+        raise IOError(f'Could not find PCA components file {pca_file}')
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     save_file = os.path.join(output_dir, output_file)
 
-    print('Loading PCs from {}'.format(config_data['pca_file']))
+    print('Loading PCs from', pca_file)
     with h5py.File(config_data['pca_file'], 'r') as f:
         pca_components = f[config_data['pca_path']][...]
 
     # get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
-    pca_yaml = '{}.yaml'.format(os.path.splitext(config_data['pca_file'])[0])
+    pca_yaml = os.path.splitext(pca_file)[0] + '.yaml'
 
     use_fft, clean_params, mask_params, missing_data = get_pca_yaml_data(pca_yaml)
 
@@ -228,6 +264,21 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
         return config_data
 
 def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file, gui=False, output_directory=None):
+    '''
+    Wrapper function to compute model-free (PCA based) Changepoints.
+    Parameters
+    ----------
+    input_dir (int): path to directory containing all h5+yaml files
+    config_data (dict): dict of relevant PCA parameters (image filtering etc.)
+    output_dir (str): path to directory to store PCA data
+    output_file (str): pca model filename
+    output_directory (str): alternative output_dir
+    gui (bool): indicate GUI is running
+    Returns
+    -------
+    config_data (dict): updated config_data variable to write back in GUI API
+    '''
+
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -253,14 +304,14 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
             pass
 
     import numpy as np
-    with h5py.File('{}.h5'.format(save_file), 'r') as f:
+    with h5py.File(f'{save_file}.h5', 'r') as f:
         cps = recursively_load_dict_contents_from_group(f, 'cps')
     block_durs = np.concatenate([np.diff(cp, axis=0) for k, cp in cps.items()])
     out = changepoint_dist(block_durs, headless=True)
     if out:
         fig, _ = out
-        fig.savefig('{}_dist.png'.format(save_file))
-        fig.savefig('{}_dist.pdf'.format(save_file))
+        fig.savefig(f'{save_file}_dist.png')
+        fig.savefig(f'{save_file}_dist.pdf')
         fig.close('all')
 
     if gui:
