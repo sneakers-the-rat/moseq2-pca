@@ -57,11 +57,13 @@ def recursive_find_h5s(root_dir=os.getcwd(),
                        yaml_string='{}.yaml'):
     '''
     Recursively find h5 files, along with yaml files with the same basename
+
     Parameters
     ----------
     root_dir (str or os.Pathlike): path to directory to start recursive search
     ext (str): extension to search for, e.g. .h5
     yaml_string (str): a format to use to name yaml files
+
     Returns
     -------
     h5s (list): list of h5 file paths
@@ -103,12 +105,14 @@ def recursive_find_h5s(root_dir=os.getcwd(),
 def gauss_smooth(signal, win_length=None, sig=1.5, kernel=None):
     '''
     Perform Gaussian Smoothing on a 1D signal.
+
     Parameters
     ----------
     signal (1d numpy array): signal to perform smoothing
     win_length (int): window_size for gaussian kernel filter
     sig (float): variance of 1d gaussian kernel.
     kernel (tuple): kernel size to use for smoothing
+
     Returns
     -------
     result (1d numpy array): smoothed signal
@@ -129,10 +133,12 @@ def gauss_smooth(signal, win_length=None, sig=1.5, kernel=None):
 def gaussian_kernel1d(n=None, sig=3):
     '''
     Get 1D gaussian kernel.
+
     Parameters
     ----------
     n (int): number of points to use.
     sig (int): variance of kernel to use.
+
     Returns
     -------
     kernel (1d array): 1D numpy kernel.
@@ -155,6 +161,7 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
     '''
     Filters spatial/temporal noise from frames using Median and Gaussian filters,
     given kernel sizes for each respective requested filter.
+
     Parameters
     ----------
     frames (3D numpy array): frames to filter.
@@ -165,6 +172,7 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
     detrend_time (int): number of frames to lag for.
     tailfilter (int): size of tail-filter kernel.
     tail_threshold (int): threshold value to use for tail filtering
+
     Returns
     -------
     out (3D numpy array): filtered frames.
@@ -211,10 +219,12 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
 def select_strel(string='e', size=(10, 10)):
     '''
     Selects Structuring Element Shape
+
     Parameters
     ----------
     string (str): e for Ellipse, r for Rectangle
     size (tuple): size of StructuringElement
+
     Returns
     -------
     strel (cv2.StructuringElement): returned StructuringElement with specified size.
@@ -234,11 +244,13 @@ def select_strel(string='e', size=(10, 10)):
 def insert_nans(timestamps, data, fps=30):
     '''
     Fills NaN values with 0 in timestamps.
+
     Parameters
     ----------
     timestamps (1D array): timestamp time-strs
     data (1D array): timestamp values
     fps (int): frames per second
+
     Returns
     -------
     filled_data (1D array): filled missing timestamp values.
@@ -282,9 +294,11 @@ def insert_nans(timestamps, data, fps=30):
 def read_yaml(yaml_file):
     '''
     Reads yaml file and returns dictionary representation of file contents.
+
     Parameters
     ----------
     yaml_file (str): path to yaml file
+
     Returns
     -------
     return_dict (dict): dict of yaml file contents
@@ -306,9 +320,11 @@ def read_yaml(yaml_file):
 def get_timestamp_path(h5file):
     '''
     Return path within h5 file that contains the kinect timestamps
+
     Parameters
     ----------
     h5file (str): path to h5 file.
+
     Returns
     -------
     (str): path to metadata timestamps within h5 file
@@ -327,9 +343,11 @@ def get_timestamp_path(h5file):
 def get_metadata_path(h5file):
     '''
     Return path within h5 file that contains the kinect extraction metadata.
+
     Parameters
     ----------
     h5file (str): path to h5 file.
+
     Returns
     -------
     (str): path to acquistion metadata within h5 file.
@@ -347,10 +365,12 @@ def get_metadata_path(h5file):
 def recursively_load_dict_contents_from_group(h5file, path):
     '''
     Reads all contents from h5 and returns them in a nested dict object.
+
     Parameters
     ----------
     h5file (str): path to h5 file
     path (str): path to group within h5 file
+
     Returns
     -------
     ans (dict): dictionary of all h5 group contents
@@ -379,6 +399,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                     **kwargs):
     '''
     Initialize dask client, cluster, workers, etc.
+
     Parameters
     ----------
     nworkers (int): number of dask workers to initialize
@@ -393,6 +414,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     timeout (int): number of worker timeouts to allow
     cache_path (str or Pathlike): path to store cached data
     kwargs: extra keyward arguments
+
     Returns
     -------
     client (dask Client): initialized Client
@@ -510,9 +532,11 @@ def shutdown_dask(scheduler):
     '''
     Graceful shutdown dask scheduler.
     source: https://github.com/dask/distributed/issues/1703#issuecomment-361291492
+
     Parameters
     ----------
     scheduler (dask Scheduler): scheduler to shutdown.
+
     Returns
     -------
     None
@@ -525,11 +549,13 @@ def shutdown_dask(scheduler):
 def get_rps(frames, rps=600, normalize=True):
     '''
     Get random projections of frames.
+
     Parameters
     ----------
     frames (2D or 3D numpy array): Frames to get dimensions from.
     rps (int): Number of random projections.
     normalize (bool): indicates whether to normalize frames.
+
     Returns
     -------
     rproj (2D or 3D numpy array): Computed random projections with same shape as frames
@@ -565,6 +591,7 @@ def get_rps(frames, rps=600, normalize=True):
 def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, baseline=True, timestamps=None):
     '''
     Compute changepoints distribution and CP Curve.
+
     Parameters
     ----------
     scores (3D numpy array): nframes * r * c
@@ -574,6 +601,7 @@ def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, bas
     peak_neighbors (int): number of peaks in the CP curve.
     baseline (bool): normalize data.
     timestamps (array): loaded timestamps.
+
     Returns
     -------
     cps (numpy array): array of values for CP curve

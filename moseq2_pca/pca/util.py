@@ -15,11 +15,13 @@ import logging
 def mask_data(original_data, mask, new_data):
     '''
     Create a mask subregion given a boolean mask if missing data flag is used.
+
     Parameters
     ----------
     original_data (3d np.ndarray): input frames
     mask (3d boolean np.ndarray): mask array
     new_data (3d np.ndarray): frames to use
+
     Returns
     -------
     output (3d np.ndarray): masked data array
@@ -38,6 +40,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
                    min_height=10, max_height=100):
     '''
     Train PCA using dask arrays.
+
     Parameters
     ----------
     dask_array (dask array): chunked frames to train PCA
@@ -53,6 +56,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     recon_pcs (int): number of PCs to reconstruct. (if missing_data = True)
     min_height (int): minimum mouse height from floor in (mm)
     max_height (int): maximum mouse height from floor in (mm)
+
     Returns
     -------
     output_dict (dict): dictionary containing PCA training results.
@@ -175,6 +179,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
     '''
     "Apply" trained PCA on input frame data to obtain PCA Scores
     using local cluster/platform.
+
     Parameters
     ----------
     pca_components (np.array): array of computed Principal Components
@@ -187,6 +192,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
     mask_params (dict): dictionary of masking parameters (if missing data)
     missing_data (bool): indicates whether to use mask arrays.
     fps (int): frames per second
+
     Returns
     -------
     None
@@ -261,6 +267,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
     '''
     "Apply" trained PCA on input frame data to obtain PCA Scores using
     Distributed Dask cluster.
+
     Parameters
     ----------
     pca_components (np.array): array of computed Principal Components
@@ -273,6 +280,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
     mask_params (dict): dictionary of masking parameters (if missing data)
     missing_data (bool): indicates whether to use mask arrays.
     fps (int): frames per second
+
     Returns
     -------
     None
@@ -377,6 +385,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                           client, fps=30, pca_scores=None, progress_bar=False, gui=False):
     '''
     Computes model-free changepoints using PCs and PC Scores on distributed dask cluster.
+
     Parameters
     ----------
     changepoint_params (dict): dict of changepoint parameters
@@ -392,6 +401,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
     pca_scores (np.array): computed principal component scores
     progress_bar (bool): display progress bar
     gui (bool): indicate GUI use
+
     Returns
     -------
     None

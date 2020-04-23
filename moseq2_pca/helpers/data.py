@@ -7,6 +7,7 @@ from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, g
 def setup_cp_command(input_dir, config_data, output_dir, output_file, output_directory):
     '''
     Helper function for changepoints_wrapper to perform data-path existence checks.
+
     Parameters
     ----------
     input_dir (int): path to directory containing all h5+yaml files
@@ -14,6 +15,7 @@ def setup_cp_command(input_dir, config_data, output_dir, output_file, output_dir
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
     output_directory (str): alternative output_dir
+
     Returns
     -------
     config_data (dict): updated config_data dict with the proper paths
@@ -70,10 +72,12 @@ def setup_cp_command(input_dir, config_data, output_dir, output_file, output_dir
 def load_pcs_for_cp(pca_file_components, config_data):
     '''
     Load computed Principal Components.
+
     Parameters
     ----------
     pca_file_components (str): path to pca h5 file to read PCs
     config_data (dict): config parameters
+
     Returns
     -------
     pca_components (str): path to pca components
@@ -137,9 +141,11 @@ def load_pcs_for_cp(pca_file_components, config_data):
 def get_pca_yaml_data(pca_yaml):
     '''
     Reads PCA yaml file and returns metadata
+
     Parameters
     ----------
     pca_yaml (str): path to pca.yaml
+
     Returns
     -------
     use_fft (bool): indicates whether to use FFT
