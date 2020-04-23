@@ -29,6 +29,7 @@ def cli():
 def clip_scores(pca_file, clip_samples, from_end):
     """
     Clips PCA scores from the beginning or end
+
     Args:
         pca_file (string): Path to PCA scores
         clip_samples (int): number of samples to clip from beginning or end
