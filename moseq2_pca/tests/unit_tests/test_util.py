@@ -154,65 +154,6 @@ class TestUtils(TestCase):
             strel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, size)
             assert all([c == d for a, b in zip(strel, mock_strel1) for c, d in zip(a, b)])
 
-    def test_insert_nans(self):
-        # original params: timestamps, data, fps
-
-        # generate mock timestamps from test h5 file
-        h5file = 'data/testh5.h5'
-        fps = 30
-        chunk_size = 5000
-        print('to be implemented with simpler test data file')
-        '''
-        with h5py.File(h5file, 'r') as f:
-
-            dset = h5py.File(h5file, mode='r')['/frames']
-            frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
-
-            if '/timestamps' in f:
-                # h5 format post v0.1.3
-                timestamps = f['/timestamps'][...] / 1000.0
-            elif '/metadata/timestamps' in f:
-                # h5 format pre v0.1.3
-                timestamps = f['/metadata/timestamps'][...] / 1000.0
-            else:
-                timestamps = np.arange(frames.shape[0]) / fps
-
-        df_timestamps = np.diff(
-            np.insert(timestamps, 0, timestamps[0] - 1.0 / fps))
-        missing_frames = np.floor(df_timestamps / (1.0 / fps))
-        fill_idx = np.where(missing_frames > 1)[0]
-        data_idx = np.arange(len(timestamps)).astype('float64')
-
-        filled_data = deepcopy(timestamps)
-        filled_timestamps = deepcopy(timestamps)
-
-        if filled_data.ndim == 1:
-            isvec = True
-            filled_data = filled_data[:, None]
-        else:
-            isvec = False
-
-        nframes, nfeatures = filled_data.shape
-
-        for idx in fill_idx[::-1]:
-            ninserts = int(missing_frames[idx] - 1)
-            data_idx = np.insert(data_idx, idx, [np.nan] * ninserts)
-            insert_timestamps = timestamps[idx - 1] + \
-                                np.cumsum(np.ones(ninserts, ) * 1.0 / fps)
-            filled_data = np.insert(filled_data, idx,
-                                    np.ones((ninserts, nfeatures)) * np.nan, axis=0)
-            filled_timestamps = np.insert(
-                filled_timestamps, idx, insert_timestamps)
-
-        if isvec:
-            filled_data = np.squeeze(filled_data)
-
-        if missing_frames.all() > 0:
-            if np.nan not in filled_data:
-                print('failed')
-                #pytest.fail('data not filled properly.')
-        '''
-
     def test_read_yaml(self):
         # original param: yaml_file
         yaml_file = 'data/config.yaml'
@@ -507,4 +448,63 @@ class TestUtils(TestCase):
                 normed_df, np.greater, order=peak_neighbors)[0]
             cps = cps[np.argwhere(normed_df[cps] > peak_height)]
 
+        '''
+
+    def test_insert_nans(self):
+        # original params: timestamps, data, fps
+
+        # generate mock timestamps from test h5 file
+        h5file = 'data/testh5.h5'
+        fps = 30
+        chunk_size = 5000
+        print('to be implemented with simpler test data file')
+        '''
+        with h5py.File(h5file, 'r') as f:
+
+            dset = h5py.File(h5file, mode='r')['/frames']
+            frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
+
+            if '/timestamps' in f:
+                # h5 format post v0.1.3
+                timestamps = f['/timestamps'][...] / 1000.0
+            elif '/metadata/timestamps' in f:
+                # h5 format pre v0.1.3
+                timestamps = f['/metadata/timestamps'][...] / 1000.0
+            else:
+                timestamps = np.arange(frames.shape[0]) / fps
+
+        df_timestamps = np.diff(
+            np.insert(timestamps, 0, timestamps[0] - 1.0 / fps))
+        missing_frames = np.floor(df_timestamps / (1.0 / fps))
+        fill_idx = np.where(missing_frames > 1)[0]
+        data_idx = np.arange(len(timestamps)).astype('float64')
+
+        filled_data = deepcopy(timestamps)
+        filled_timestamps = deepcopy(timestamps)
+
+        if filled_data.ndim == 1:
+            isvec = True
+            filled_data = filled_data[:, None]
+        else:
+            isvec = False
+
+        nframes, nfeatures = filled_data.shape
+
+        for idx in fill_idx[::-1]:
+            ninserts = int(missing_frames[idx] - 1)
+            data_idx = np.insert(data_idx, idx, [np.nan] * ninserts)
+            insert_timestamps = timestamps[idx - 1] + \
+                                np.cumsum(np.ones(ninserts, ) * 1.0 / fps)
+            filled_data = np.insert(filled_data, idx,
+                                    np.ones((ninserts, nfeatures)) * np.nan, axis=0)
+            filled_timestamps = np.insert(
+                filled_timestamps, idx, insert_timestamps)
+
+        if isvec:
+            filled_data = np.squeeze(filled_data)
+
+        if missing_frames.all() > 0:
+            if np.nan not in filled_data:
+                print('failed')
+                #pytest.fail('data not filled properly.')
         '''

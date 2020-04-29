@@ -26,7 +26,6 @@ class TestPCAUtils(TestCase):
 
         assert(new_data.shape == (80, 80))
 
-
         frames[mask] = new_data
 
     def test_train_pca_dask(self):
@@ -36,4 +35,13 @@ class TestPCAUtils(TestCase):
     #                    min_height=10, max_height=100
 
         #pytest.fail('not implemented')
-        print('not implemented')
+        print('test not implemented')
+
+    def test_apply_pca_local(self):
+        print('test not implemented')
+
+    def test_apply_pca_dask(self):
+        print('test not implemented')
+
+    def test_get_changepoints_dask(self):
+        print('test not implemented')
