@@ -44,7 +44,7 @@ class TestCli(TestCase):
 
         result = runner.invoke(train_pca,
                                train_params_local,
-                               catch_exceptions=False)
+                               catch_exceptions=True)
 
         assert (out_dir.exists()), "pca directory was not successfully created"
         outfiles = [str(f.name) for f in list(out_dir.iterdir())]
