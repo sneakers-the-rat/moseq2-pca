@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 from unittest import TestCase
 from click.testing import CliRunner
+from tempfile import TemporaryDirectory, NamedTemporaryFile
 from moseq2_pca.cli import clip_scores, train_pca, apply_pca, compute_changepoints
 
 
@@ -32,6 +33,12 @@ class TestCli(TestCase):
                         '--cluster-type', 'local',
                         '-o', str(out_dir)]
 
+        # in case it asks for user input
+        with TemporaryDirectory() as tmp:
+            stdin = NamedTemporaryFile(prefix=tmp, suffix=".txt")
+            with open(stdin.name, 'w') as f:
+                f.write('Y')
+            f.close()
 
         runner = CliRunner()
 

@@ -1,6 +1,7 @@
-import os
+import shutil
 from pathlib import Path
 from unittest import TestCase
+from tempfile import TemporaryDirectory, NamedTemporaryFile
 from moseq2_pca.gui import train_pca_command, apply_pca_command, compute_changepoints_command
 
 class TestGUI(TestCase):
@@ -10,6 +11,13 @@ class TestGUI(TestCase):
         config_file = 'data/config.yaml'
         output_dir = 'data/tmp_pca'
         output_file = 'pca'
+
+        # in case it asks for user input
+        with TemporaryDirectory() as tmp:
+            stdin = NamedTemporaryFile(prefix=tmp, suffix=".txt")
+            with open(stdin.name, 'w') as f:
+                f.write('Y')
+            f.close()
 
         train_pca_command(data_dir, config_file, output_dir, output_file)
 
@@ -23,9 +31,7 @@ class TestGUI(TestCase):
         assert Path(output_dir).joinpath('pca_components.pdf').is_file(), "PCA components image is missing"
         assert Path(output_dir).joinpath('pca_scree.pdf').is_file(), "PCA Scree plot is missing"
 
-        for file in os.listdir(output_dir):
-            os.remove(os.path.join(output_dir, file))
-        os.removedirs(output_dir)
+        shutil.rmtree(output_dir)
 
 
     def test_apply_pca_command(self):
