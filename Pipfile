@@ -22,7 +22,6 @@ joblib = "*"
 cytoolz = "*"
 seaborn = '*'
 matplotlib = '*'
-moseq2-pca = {editable = true, path = "."}
 statsmodels = "*"
 ruamel_yaml = '*'
 distributed = '*'
@@ -30,6 +29,3 @@ scikit-image = "*"
 scikit-learn = "*"
 dask_jobqueue = '*'
 opencv-python = '*'
-
-[requires]
-python_version = "3.6"
