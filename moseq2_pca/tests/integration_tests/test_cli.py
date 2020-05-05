@@ -22,14 +22,14 @@ def temp_dir(tmpdir):
 
 def test_clip_scores():
 
-    h5path = 'tests/test_files/test_scores.h5'
+    h5path = 'data/test_scores.h5'
     clip_samples = '15'
 
     clip_params = [h5path, clip_samples]
 
     runner = CliRunner()
     result = runner.invoke(clip_scores, clip_params)
-    outputfile = 'tests/test_files/test_scores_clip.h5'
+    outputfile = 'data/test_scores_clip.h5'
     assert(os.path.exists(outputfile) == True)
     os.remove(outputfile)
     assert (result.exit_code == 0)
@@ -44,7 +44,7 @@ def test_clip_scores():
 #     assert (result.exit_code == 0)
 
 def test_train_pca():
-    temp_dir = 'tests/test_files/'
+    temp_dir = 'data/proc/'
     data_path = os.path.join(temp_dir, 'testh5.h5')
     yaml_path = os.path.join(temp_dir, 'test_index.yaml')
 
@@ -150,7 +150,7 @@ def test_train_pca():
     '''
 
 def test_apply_pca():
-    temp_dir = 'tests/test_files/'
+    temp_dir = 'data/proc/'
     data_path = os.path.join(temp_dir, 'testh5.h5')
     yaml_path = os.path.join(temp_dir, 'test_index.yaml')
     edge_size = 40
@@ -279,7 +279,7 @@ def test_apply_pca():
     '''
 
 def test_compute_changepoints():
-    temp_dir = 'tests/test_files/'
+    temp_dir = 'data/proc/'
     data_path = os.path.join(temp_dir, 'testh5.h5')
     yaml_path = os.path.join(temp_dir, 'test_index.yaml')
     edge_size = 40
