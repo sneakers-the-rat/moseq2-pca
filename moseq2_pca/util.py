@@ -230,7 +230,7 @@ def select_strel(string='e', size=(10, 10)):
     strel (cv2.StructuringElement): returned StructuringElement with specified size.
     '''
 
-    if string is None or 'none' in string or np.all(np.array(size) == 0):
+    if string is None or 'none' in string or np.all(np.array(size) == 0) or len(string) == 0:
         strel = None
     elif string[0].lower() == 'e':
         strel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, size)

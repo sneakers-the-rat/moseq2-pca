@@ -4,7 +4,7 @@ import pathlib
 import ruamel.yaml as yaml
 from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, get_timestamp_path
 
-def setup_cp_command(input_dir, config_data, output_dir, output_file, output_directory):
+def setup_cp_command(input_dir, config_data, output_dir, output_file, output_directory=None):
     '''
     Helper function for changepoints_wrapper to perform data-path existence checks.
 
@@ -136,6 +136,7 @@ def load_pcs_for_cp(pca_file_components, config_data):
                         scheduler='distributed',
                         timeout=config_data['timeout'],
                         cache_path=dask_cache_path)
+
     return pca_components, changepoint_params, cluster, client, missing_data, mask_params
 
 def get_pca_yaml_data(pca_yaml):
