@@ -4,7 +4,7 @@ import pathlib
 import ruamel.yaml as yaml
 from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, get_timestamp_path
 
-def setup_cp_command(input_dir, config_data, output_dir, output_file, output_directory):
+def setup_cp_command(input_dir, config_data, output_dir, output_file, output_directory=None):
     '''
     Helper function for changepoints_wrapper to perform data-path existence checks.
 
