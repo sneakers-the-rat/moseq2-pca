@@ -61,6 +61,8 @@ jobs:
         - make
       script:
         - pytest --cov=./moseq2_pca/tests/
+      after_success:
+        - codecov -t $CC_TEST_REPORTER_ID
 
     - env: ISOLATED=true
       dist: xenial
@@ -78,3 +80,5 @@ jobs:
         - make
       script:
         - pytest --cov=./moseq2_pca/tests/
+      after_success:
+        - codecov -t $CC_TEST_REPORTER_ID

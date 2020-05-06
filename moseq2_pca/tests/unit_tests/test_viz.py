@@ -10,7 +10,7 @@ class TestViz(TestCase):
         # get components
         pca_path = 'data/_pca/pca.h5'
         with h5py.File(pca_path, 'r') as f:
-            components = f['components'].value
+            components = f['components'][()]
             plt, ax = display_components(components)
             assert (plt != None and ax != None)
 
@@ -18,7 +18,7 @@ class TestViz(TestCase):
         # get explained_variance_ratio
         pca_path = 'data/_pca/pca.h5'
         with h5py.File(pca_path, 'r') as f:
-            components = f['explained_variance_ratio'].value
+            components = f['explained_variance_ratio'][()]
             plt = scree_plot(components)
             assert (plt != None)
 
