@@ -92,9 +92,7 @@ def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
               cores, processes, memory, wall_time, timeout):
 
     click_data = click.get_current_context().params
-    cli_data = {k: v for k, v in click_data.items()}
-
-    train_pca_wrapper(input_dir, cli_data, output_dir, output_file)
+    train_pca_wrapper(input_dir, click_data, output_dir, output_file)
 
 
 @cli.command(name='apply-pca', cls=command_with_config('config_file'))
@@ -125,8 +123,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
               config_file, dask_cache_path, queue, nworkers, cores, processes, memory, wall_time, timeout):
 
     click_data = click.get_current_context().params
-    cli_data = {k: v for k, v in click_data.items()}
-    apply_pca_wrapper(input_dir, cli_data, output_dir, output_file)
+    apply_pca_wrapper(input_dir, click_data, output_dir, output_file)
 
 @cli.command('compute-changepoints', cls=command_with_config('config_file'))
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
@@ -161,8 +158,7 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
                          visualize_results, queue, nworkers, cores, processes, memory, wall_time, timeout):
 
     click_data = click.get_current_context().params
-    cli_data = {k: v for k, v in click_data.items()}
-    compute_changepoints_wrapper(input_dir, cli_data, output_dir, output_file)
+    compute_changepoints_wrapper(input_dir, click_data, output_dir, output_file)
 
 if __name__ == '__main__':
     cli()
