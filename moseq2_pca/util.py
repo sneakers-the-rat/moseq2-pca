@@ -67,7 +67,7 @@ def recursive_find_h5s(root_dir=os.getcwd(),
     Returns
     -------
     h5s (list): list of h5 file paths
-    dicts (list): list of metadata file paths
+    dicts (list): list of dicts containing metadata file contents
     yamls (list): list of yaml file paths
     '''
 
@@ -91,9 +91,6 @@ def recursive_find_h5s(root_dir=os.getcwd(),
                         uuids.append(dct['uuid'])
                     elif 'uuid' not in dct.keys():
                         warnings.warn('No uuid for file {}, skipping...'.format(os.path.join(root, file)))
-                        # h5s.append(os.path.join(root, file))
-                        # yamls.append(os.path.join(root, yaml_file))
-                        # dicts.append(dct)
                     else:
                         warnings.warn('Already found uuid {}, file {} is likely a dupe, skipping...'.format(dct['uuid'], os.path.join(root, file)))
             except OSError:
@@ -121,11 +118,6 @@ def gauss_smooth(signal, win_length=None, sig=1.5, kernel=None):
         kernel = gaussian_kernel1d(n=win_length, sig=sig)
 
     result = scipy.signal.convolve(signal, kernel, mode='same', method='direct')
-
-#    win_length = len(kernel)
-
-#     result[:win_length] = np.nan
-#     result[-win_length:] = np.nan
 
     return result
 
@@ -419,8 +411,8 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     -------
     client (dask Client): initialized Client
     cluster (dask Cluster): initialized Cluster
-    workers (dask Workers): intialized workers
-    cache (dask Chest): initialized Chest (cache) object
+    workers (dask Workers): intialized workers or None if cluster_type = 'local'
+    cache (dask Chest): initialized Chest (cache) object pointing to given cache path
     '''
 
     # only use distributed if we need it
@@ -604,8 +596,8 @@ def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, bas
 
     Returns
     -------
-    cps (numpy array): array of values for CP curve
-    normed_df (numpy array): array of values for bar plot
+    cps (2D numpy array): array of values for CP curve
+    normed_df (1D numpy array): array of values for bar plot
     '''
 
     if type(k) is not int:

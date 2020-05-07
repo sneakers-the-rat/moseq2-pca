@@ -12,7 +12,7 @@ def display_components(components, cmap='gray', headless=False):
 
     Parameters
     ----------
-    components (np.ndarray): components to graph
+    components (2D np.ndarray): components to graph
     cmap (str): color map to use
     headless (bool): trim first element in PC list
 
@@ -43,7 +43,7 @@ def scree_plot(explained_variance_ratio, headless=False):
 
     Parameters
     ----------
-    explained_variance_ratio (np.array): explained variance ratio of each principal component
+    explained_variance_ratio (1D np.array): explained variance ratio of each principal component
     headless (bool): trim first element in PC list
 
     Returns
@@ -90,6 +90,7 @@ def changepoint_dist(cps, headless=False):
     plt (plt.figure): figure to save/graph
     ax (plt.ax): figure axis variable
     '''
+
     if cps.size > 0:
 
         if headless:
