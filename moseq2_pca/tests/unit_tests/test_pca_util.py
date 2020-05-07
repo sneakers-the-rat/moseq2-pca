@@ -139,6 +139,15 @@ class TestPCAUtils(TestCase):
         assert os.path.exists(f'{save_file}.h5')
         os.remove(f'{save_file}.h5')
 
+        missing_data = True
+
+        apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
+                       save_file, chunk_size, mask_params, missing_data,
+                       client)
+
+        assert os.path.exists(f'{save_file}.h5')
+        os.remove(f'{save_file}.h5')
+
     def test_get_changepoints_dask(self):
 
         input_dir = 'data/proc/'
@@ -153,6 +162,8 @@ class TestPCAUtils(TestCase):
             pca_components = f['components'][()]
 
         use_fft, clean_params, mask_params, missing_data = get_pca_yaml_data(f'{pca_path}.yaml')
+
+        missing_data = False
 
         h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
@@ -174,3 +185,29 @@ class TestPCAUtils(TestCase):
 
         assert os.path.exists(f'{save_file}.h5')
         os.remove(f'{save_file}.h5')
+
+        missing_data_save_file = 'data/_pca/dask_test_pca_scores'
+
+        missing_data = True
+
+        apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
+                       missing_data_save_file, chunk_size, mask_params, missing_data,
+                       client)
+
+        assert os.path.exists(f'{missing_data_save_file}.h5')
+
+        changepoint_params = {
+            'k': config_data['klags'],
+            'sigma': config_data['sigma'],
+            'peak_height': config_data['threshold'],
+            'peak_neighbors': config_data['neighbors'],
+            'rps': config_data['dims']
+        }
+
+        get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
+                              save_file, chunk_size, mask_params, missing_data,
+                              client, 30, pca_scores=f'{missing_data_save_file}.h5')
+
+        assert os.path.exists(f'{save_file}.h5')
+        os.remove(f'{save_file}.h5')
+        os.remove(f'{missing_data_save_file}.h5')

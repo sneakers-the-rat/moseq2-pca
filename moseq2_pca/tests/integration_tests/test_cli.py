@@ -1,6 +1,7 @@
 import os
 import shutil
 from pathlib import Path
+import ruamel.yaml as yaml
 from unittest import TestCase
 from click.testing import CliRunner
 from tempfile import TemporaryDirectory, NamedTemporaryFile
@@ -30,8 +31,9 @@ class TestCli(TestCase):
         out_dir = Path(data_dir).joinpath('tmp_pca')
 
         train_params_local = ['-i', data_dir,
-                        '--cluster-type', 'local',
-                        '-o', str(out_dir)]
+                              '--cluster-type', 'local',
+                              '--missing-data',
+                              '-o', str(out_dir)]
 
         # in case it asks for user input
         with TemporaryDirectory() as tmp:
@@ -51,15 +53,24 @@ class TestCli(TestCase):
 
         assert ('pca.h5' in outfiles and 'pca.yaml' in outfiles and \
                 'pca_components.pdf' in outfiles and 'pca_scree.pdf' in outfiles), \
-        'PCA files were not computed successfully'
+            'PCA files were not computed successfully'
 
         shutil.rmtree(str(out_dir))
 
-        assert(result.exit_code == 0), "CLI Command did not successfully complete"
+        assert (result.exit_code == 0), "CLI Command did not successfully complete"
 
 
     def test_apply_pca(self):
         data_dir = Path('data/')
+        pca_yaml = data_dir.joinpath('_pca/pca.yaml')
+
+        with open(str(pca_yaml), 'r') as f:
+            pca_meta = yaml.safe_load(f)
+
+        pca_meta['missing_data'] = True
+
+        with open(str(pca_yaml), 'w') as f:
+            yaml.safe_dump(pca_meta, f)
 
         outpath = Path('_pca')
 
@@ -71,12 +82,20 @@ class TestCli(TestCase):
         runner = CliRunner()
 
         result = runner.invoke(apply_pca,
-                          apply_params_local,
-                          catch_exceptions=False)
+                               apply_params_local,
+                               catch_exceptions=False)
 
         assert data_dir.joinpath(outpath).is_dir(), "pca directory does not exist"
         assert data_dir.joinpath(outpath, 'pca_scores1.h5').is_file(), "pca scores were not correctly saved"
         assert result.exit_code == 0, "CLI command did not successfully complete"
+
+        with open(str(pca_yaml), 'r') as f:
+            pca_meta = yaml.safe_load(f)
+
+        pca_meta['missing_data'] = False
+
+        with open(str(pca_yaml), 'w') as f:
+            yaml.safe_dump(pca_meta, f)
 
         os.remove(os.path.join('data', outpath, 'pca_scores1.h5'))
 
@@ -85,6 +104,7 @@ class TestCli(TestCase):
         outpath = Path('_pca')
         if not outpath.exists():
             outpath.mkdir()
+
 
         cc_params_local = ['-i', str(data_path),
                            '-o', str(outpath),
