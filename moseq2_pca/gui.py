@@ -165,7 +165,11 @@ def apply_pca_command(input_dir, index_file, config_file, output_dir, output_fil
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
     if output_directory is None:
-        output_dir = os.path.join(input_dir, output_dir)  # outputting pca folder in inputted base directory.
+        if 'aggregate_results' in input_dir:
+            outpath = '/'.join(input_dir.split('/')[:-2])
+            output_dir = os.path.join(outpath, output_dir)  # outputting pca folder in inputted base directory.
+        else:
+            output_dir = os.path.join(input_dir, output_dir)  # outputting pca folder in inputted base directory.
     else:
         output_dir = os.path.join(output_directory, output_dir)
 
