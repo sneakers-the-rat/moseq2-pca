@@ -71,7 +71,7 @@ def setup_cp_command(input_dir, config_data, output_dir, output_file, output_dir
 
 def load_pcs_for_cp(pca_file_components, config_data):
     '''
-    Load computed Principal Components.
+    Load computed Principal Components for Model-free Changepoint Analysis.
 
     Parameters
     ----------
