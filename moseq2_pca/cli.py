@@ -57,6 +57,8 @@ def clip_scores(pca_file, clip_samples, from_end):
 @click.option('--cluster-type', type=click.Choice(['local', 'slurm']),
               default='local', help='Cluster type')
 @click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store results')
+@click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')
+@click.option('--h5-mask-path', default='/frames_mask', type=str, help="Path to log-likelihood mask in h5 files")
 @click.option('--gaussfilter-space', default=(1.5, 1), type=(float, float), help="Spatial filter for data (Gaussian)")
 @click.option('--gaussfilter-time', default=0, type=float, help="Temporal filter for data (Gaussian)")
 @click.option('--medfilter-space', default=[0], type=int, help="Median spatial filter", multiple=True)
@@ -85,7 +87,7 @@ def clip_scores(pca_file, clip_samples, from_end):
 @click.option('-m', '--memory', type=str, default="15GB", help="Total RAM usage per worker")
 @click.option('-w', '--wall-time', type=str, default="06:00:00", help="Wall time for workers")
 @click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
-def train_pca(input_dir, cluster_type, output_dir, gaussfilter_space,
+def train_pca(input_dir, cluster_type, output_dir, h5_path, h5_mask_path, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold, mask_height_threshold, min_height, max_height, tailfilter_size,
               tailfilter_shape, use_fft, recon_pcs, rank, output_file, chunk_size,
               visualize_results, config_file, dask_cache_path, local_processes, queue, nworkers,

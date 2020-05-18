@@ -136,13 +136,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
                 mean = dask_array.mean(axis=0)
 
     total_var = dask_array.var(ddof=1, axis=0).sum()
-
-    # if cluster_type == 'local':
-    #     with ProgressBar():
-    #         s, v, mean, total_var = dask.compute(s, v, mean, total_var,
-    #                                              cache=cache)
-    # elif cluster_type == 'slurm':
-
     futures = client.compute([s, v, mean, total_var])
 
     with ProgressBar():
@@ -154,7 +147,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     print('\nCalculation complete...')
 
     # correct the sign of the singular vectors
-
     tmp = np.argmax(np.abs(v), axis=1)
     correction = np.sign(v[np.arange(v.shape[0]), tmp])
     v *= correction[:, None]
@@ -175,7 +167,8 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
 # todo: for applying pca, run once to impute missing data, then get scores
 def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
-                    save_file, chunk_size, mask_params, missing_data, fps=30):
+                    save_file, chunk_size, mask_params, missing_data, fps=30,
+                    h5_path='/frames', h5_mask_path='/frames_mask'):
     '''
     "Apply" trained PCA on input frame data to obtain PCA Scores
     using local cluster/platform.
@@ -192,6 +185,8 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
     mask_params (dict): dictionary of masking parameters (if missing data)
     missing_data (bool): indicates whether to use mask arrays.
     fps (int): frames per second
+    h5_path (str): path to frames within selected h5 file (default: '/frames')
+    h5_mask_path (str): path to masked frames within selected h5 file (default: '/frames_mask')
 
     Returns
     -------
@@ -207,10 +202,10 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
             with h5py.File(h5, 'r') as f:
 
-                frames = f['/frames'][...].astype('float32')
+                frames = f[h5_path].astype('float32')
 
                 if missing_data:
-                    mask = f['/frames_mask'][...]
+                    mask = f[h5_mask_path]
                     mask = np.logical_and(mask < mask_params['mask_threshold'],
                                           frames > mask_params['mask_height_threshold'])
                     frames[mask] = 0
@@ -225,10 +220,10 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
                 if '/timestamps' in f:
                     # h5 format post v0.1.3
-                    timestamps = f['/timestamps'][...] / 1000.0
+                    timestamps = f['/timestamps'] / 1000.0
                 elif '/metadata/timestamps' in f:
                     # h5 format pre v0.1.3
-                    timestamps = f['/metadata/timestamps'][...] / 1000.0
+                    timestamps = f['/metadata/timestamps'] / 1000.0
                 else:
                     timestamps = np.arange(frames.shape[0]) / fps
 
@@ -263,7 +258,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
 def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                    save_file, chunk_size, mask_params, missing_data,
-                   client, fps=30, gui=False):
+                   client, fps=30, h5_path='/frames', h5_mask_path='/frames_mask'):
     '''
     "Apply" trained PCA on input frame data to obtain PCA Scores using
     Distributed Dask cluster.
@@ -280,6 +275,8 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
     mask_params (dict): dictionary of masking parameters (if missing data)
     missing_data (bool): indicates whether to use mask arrays.
     fps (int): frames per second
+    h5_path (str): path to frames within selected h5 file (default: '/frames')
+    h5_mask_path (str): path to masked frames within selected h5 file (default: '/frames_mask')
 
     Returns
     -------
@@ -296,11 +293,11 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
         data = read_yaml(yml)
         uuid = data['uuid']
 
-        dset = h5py.File(h5, mode='r')['/frames']
+        dset = h5py.File(h5, mode='r')[h5_path]
         frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
 
         if missing_data:
-            mask_dset = h5py.File(h5, mode='r')['/frames_mask']
+            mask_dset = h5py.File(h5, mode='r')[h5_mask_path]
             mask = da.from_array(mask_dset, chunks=frames.chunks)
             mask = da.logical_and(mask < mask_params['mask_threshold'],
                                   frames > mask_params['mask_height_threshold'])
@@ -355,10 +352,10 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                 with h5py.File(h5s_batch[file_idx], mode='r') as f:
                     if '/timestamps' in f:
                         # h5 format post v0.1.3
-                        timestamps = f['/timestamps'][...] / 1000.0
+                        timestamps = f['/timestamps'] / 1000.0
                     elif '/metadata/timestamps' in f:
                         # h5 format pre v0.1.3
-                        timestamps = f['/metadata/timestamps'][...] / 1000.0
+                        timestamps = f['/metadata/timestamps'] / 1000.0
                     else:
                         timestamps = np.arange(frames.shape[0]) / fps
 
@@ -382,7 +379,8 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
 
 def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                           save_file, chunk_size, mask_params, missing_data,
-                          client, fps=30, pca_scores=None, progress_bar=False, gui=False):
+                          client, fps=30, pca_scores=None, progress_bar=False,
+                          h5_path='/frames', h5_mask_path='/frames_mask'):
     '''
     Computes model-free changepoints using PCs and PC Scores on distributed dask cluster.
 
@@ -400,7 +398,8 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
     fps (int): frames per second
     pca_scores (np.array): computed principal component scores
     progress_bar (bool): display progress bar
-    gui (bool): indicate GUI use
+    h5_path (str): path to frames within selected h5 file (default: '/frames')
+    h5_mask_path (str): path to masked frames within selected h5 file (default: '/frames_mask')
 
     Returns
     -------
@@ -419,22 +418,22 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
 
         with h5py.File(h5, 'r') as f:
 
-            dset = h5py.File(h5, mode='r')['/frames']
+            dset = h5py.File(h5, mode='r')[h5_path]
             frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
 
             if '/timestamps' in f:
                 # h5 format post v0.1.3
-                timestamps = f['/timestamps'][...] / 1000.0
+                timestamps = f['/timestamps'] / 1000.0
             elif '/metadata/timestamps' in f:
                 # h5 format pre v0.1.3
-                timestamps = f['/metadata/timestamps'][...] / 1000.0
+                timestamps = f['/metadata/timestamps'] / 1000.0
             else:
                 timestamps = np.arange(frames.shape[0]) / fps
 
         if missing_data and pca_scores is None:
             raise RuntimeError("Need to compute PC scores to impute missing data")
         elif missing_data:
-            mask_dset = h5py.File(h5, mode='r')['/frames_mask']
+            mask_dset = h5py.File(h5, mode='r')[h5_mask_path]
             mask = da.from_array(mask_dset, chunks=frames.chunks)
             mask = da.logical_and(mask < mask_params['mask_threshold'],
                                   frames > mask_params['mask_height_threshold'])
@@ -443,7 +442,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
 
             with h5py.File(pca_scores, 'r') as f:
                 scores = f['scores/{}'.format(uuid)]
-                scores_idx = f['scores_idx/{}'.format(uuid)][...]
+                scores_idx = f['scores_idx/{}'.format(uuid)]
                 scores = scores[~np.isnan(scores_idx), :]
 
             if np.sum(frames.chunks[0]) != scores.shape[0]:
