@@ -37,7 +37,7 @@ class TestCli(TestCase):
 
         # in case it asks for user input
         with TemporaryDirectory() as tmp:
-            stdin = NamedTemporaryFile(prefix=tmp, suffix=".txt")
+            stdin = NamedTemporaryFile(prefix=tmp+'/', suffix=".txt")
             with open(stdin.name, 'w') as f:
                 f.write('Y')
             f.close()

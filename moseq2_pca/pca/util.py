@@ -202,10 +202,10 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
             with h5py.File(h5, 'r') as f:
 
-                frames = f[h5_path].astype('float32')
+                frames = f[h5_path][()].astype('float32')
 
                 if missing_data:
-                    mask = f[h5_mask_path]
+                    mask = f[h5_mask_path][()]
                     mask = np.logical_and(mask < mask_params['mask_threshold'],
                                           frames > mask_params['mask_height_threshold'])
                     frames[mask] = 0
@@ -220,10 +220,10 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
                 if '/timestamps' in f:
                     # h5 format post v0.1.3
-                    timestamps = f['/timestamps'] / 1000.0
+                    timestamps = f['/timestamps'][()] / 1000.0
                 elif '/metadata/timestamps' in f:
                     # h5 format pre v0.1.3
-                    timestamps = f['/metadata/timestamps'] / 1000.0
+                    timestamps = f['/metadata/timestamps'][()] / 1000.0
                 else:
                     timestamps = np.arange(frames.shape[0]) / fps
 
@@ -352,10 +352,10 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                 with h5py.File(h5s_batch[file_idx], mode='r') as f:
                     if '/timestamps' in f:
                         # h5 format post v0.1.3
-                        timestamps = f['/timestamps'] / 1000.0
+                        timestamps = f['/timestamps'][()] / 1000.0
                     elif '/metadata/timestamps' in f:
                         # h5 format pre v0.1.3
-                        timestamps = f['/metadata/timestamps'] / 1000.0
+                        timestamps = f['/metadata/timestamps'][()] / 1000.0
                     else:
                         timestamps = np.arange(frames.shape[0]) / fps
 
@@ -423,10 +423,10 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
 
             if '/timestamps' in f:
                 # h5 format post v0.1.3
-                timestamps = f['/timestamps'] / 1000.0
+                timestamps = f['/timestamps'][()] / 1000.0
             elif '/metadata/timestamps' in f:
                 # h5 format pre v0.1.3
-                timestamps = f['/metadata/timestamps'] / 1000.0
+                timestamps = f['/metadata/timestamps'][()] / 1000.0
             else:
                 timestamps = np.arange(frames.shape[0]) / fps
 
@@ -441,8 +441,8 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
             mask = mask.reshape(-1, frames.shape[1] * frames.shape[2])
 
             with h5py.File(pca_scores, 'r') as f:
-                scores = f['scores/{}'.format(uuid)]
-                scores_idx = f['scores_idx/{}'.format(uuid)]
+                scores = f['scores/{}'.format(uuid)][()]
+                scores_idx = f['scores_idx/{}'.format(uuid)][()]
                 scores = scores[~np.isnan(scores_idx), :]
 
             if np.sum(frames.chunks[0]) != scores.shape[0]:
