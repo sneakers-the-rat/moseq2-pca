@@ -293,11 +293,11 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
         data = read_yaml(yml)
         uuid = data['uuid']
 
-        dset = h5py.File(h5, mode='r')[h5_path]
+        dset = h5py.File(h5, mode='r')[h5_path][()]
         frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
 
         if missing_data:
-            mask_dset = h5py.File(h5, mode='r')[h5_mask_path]
+            mask_dset = h5py.File(h5, mode='r')[h5_mask_path][()]
             mask = da.from_array(mask_dset, chunks=frames.chunks)
             mask = da.logical_and(mask < mask_params['mask_threshold'],
                                   frames > mask_params['mask_height_threshold'])
@@ -418,7 +418,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
 
         with h5py.File(h5, 'r') as f:
 
-            dset = h5py.File(h5, mode='r')[h5_path]
+            dset = h5py.File(h5, mode='r')[h5_path][()]
             frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
 
             if '/timestamps' in f:
@@ -433,7 +433,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
         if missing_data and pca_scores is None:
             raise RuntimeError("Need to compute PC scores to impute missing data")
         elif missing_data:
-            mask_dset = h5py.File(h5, mode='r')[h5_mask_path]
+            mask_dset = h5py.File(h5, mode='r')[h5_mask_path][()]
             mask = da.from_array(mask_dset, chunks=frames.chunks)
             mask = da.logical_and(mask < mask_params['mask_threshold'],
                                   frames > mask_params['mask_height_threshold'])
