@@ -96,7 +96,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     logger = logging.getLogger("distributed.utils_perf")
     logger.setLevel(logging.ERROR)
 
-    dsets = [h5py.File(h5, mode='r')[config_data['h5_path']] for h5 in h5s]
+    dsets = [h5py.File(h5, mode='r')[config_data['h5_path']][()] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=(config_data['chunk_size'], -1, -1)) for dset in dsets]
     stacked_array = da.concatenate(arrays, axis=0)
     stacked_array[stacked_array < config_data['min_height']] = 0
@@ -105,7 +105,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     print(f'Processing {len(stacked_array):d} total frames')
 
     if config_data['missing_data']:
-        mask_dsets = [h5py.File(h5, mode='r')[config_data['h5_mask_path']] for h5 in h5s]
+        mask_dsets = [h5py.File(h5, mode='r')[config_data['h5_mask_path']][()] for h5 in h5s]
         mask_arrays = [da.from_array(dset, chunks=(config_data['chunk_size'], -1, -1)) for dset in mask_dsets]
         stacked_array_mask = da.concatenate(mask_arrays, axis=0).astype('float32')
         stacked_array_mask = da.logical_and(stacked_array_mask < config_data['mask_threshold'],
