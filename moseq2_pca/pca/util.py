@@ -120,10 +120,10 @@ def get_timestamps(f, frames, fps=30):
 
     if '/timestamps' in f:
         # h5 format post v0.1.3
-        timestamps = f['/timestamps'] / 1000.0
+        timestamps = f['/timestamps'][()] / 1000.0
     elif '/metadata/timestamps' in f:
         # h5 format pre v0.1.3
-        timestamps = f['/metadata/timestamps'] / 1000.0
+        timestamps = f['/metadata/timestamps'][()] / 1000.0
     else:
         timestamps = np.arange(frames.shape[0]) / fps
 
@@ -311,10 +311,10 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
             with h5py.File(h5, 'r') as f:
 
-                frames = f[h5_path].astype('float32')
+                frames = f[h5_path][()].astype('float32')
 
                 if missing_data:
-                    mask = f[h5_mask_path]
+                    mask = f[h5_mask_path][()]
                     mask = np.logical_and(mask < mask_params['mask_threshold'],
                                           frames > mask_params['mask_height_threshold'])
                     frames[mask] = 0
