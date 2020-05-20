@@ -22,7 +22,6 @@ joblib = "*"
 cytoolz = "*"
 seaborn = '*'
 matplotlib = '*'
-imagecodecs = "*"
 statsmodels = "*"
 ruamel_yaml = '*'
 distributed = '*'
