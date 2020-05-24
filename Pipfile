@@ -21,6 +21,7 @@ awscli = "*"
 joblib = "*"
 cytoolz = "*"
 seaborn = '*'
+ipywidgets = '*'
 matplotlib = '*'
 statsmodels = "*"
 ruamel_yaml = '*'

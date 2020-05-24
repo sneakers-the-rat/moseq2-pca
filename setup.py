@@ -23,7 +23,7 @@ setup(
                       'tqdm==4.40.0', 'numpy==1.18.3', 'joblib==0.14.0',
                       'click==7.0', 'ruamel.yaml==0.16.5', 'dask==2.11.0',
                       'distributed==2.11.0', 'chest==0.2.3', 'seaborn==0.9.0', 'dask-jobqueue==0.7.0',
-                      'scikit-image==0.16.2', 'bokeh==1.4.0', 'psutil==5.6.7'],
+                      'scikit-image==0.16.2', 'bokeh==1.4.0', 'psutil==5.6.7', 'ipywidgets==7.5.1'],
     python_requires='>=3.6',
     entry_points={'console_scripts': ['moseq2-pca = moseq2_pca.cli:cli']}
 )
