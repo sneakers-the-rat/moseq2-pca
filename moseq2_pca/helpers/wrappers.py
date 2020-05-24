@@ -122,7 +122,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                        min_height=config_data['min_height'],
                        max_height=config_data['max_height'], client=client,
                        iters=config_data['missing_data_iters'], workers=workers, cache=cache,
-                       recon_pcs=config_data['recon_pcs'])
+                       recon_pcs=config_data['recon_pcs'], gui=gui)
 
     if cluster is not None:
         try:

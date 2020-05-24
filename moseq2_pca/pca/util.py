@@ -1,10 +1,10 @@
 import dask
 import h5py
-import tqdm
 import logging
 import warnings
 import numpy as np
 import dask.array as da
+from tqdm.auto import tqdm
 import dask.array.linalg as lng
 from dask.diagnostics import ProgressBar
 from dask.distributed import as_completed, wait, progress
@@ -32,7 +32,7 @@ def mask_data(original_data, mask, new_data):
 
     return output
 
-def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, min_height, max_height, client):
+def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, min_height, max_height, client, gui=False):
     '''
     Runs Singular Vector Decomposition on the inputted frames of shape (nframes, nfeatures).
     Data is centered by subtracting it by the mean value of the data. If missing_data == True,
@@ -51,6 +51,7 @@ def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, mi
     min_height (int): Minimum height of mouse above the ground, used to filter reconstructed PCs.
     max_height (int): Maximum height of mouse above the ground, used to filter reconstructed PCs.
     client (dask Client): Dask client to process batches.
+    gui (bool): Indicates to dask to show a progress bar in Jupyter
 
     Returns
     -------
@@ -76,7 +77,7 @@ def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, mi
     futures = client.compute([s, v, mean, total_var])
 
     with ProgressBar():
-        progress(futures)
+        progress(futures, notebook=gui)
         s, v, mean, total_var = client.gather(futures)
 
     return s, v, mean, total_var
@@ -156,7 +157,7 @@ def copy_metadatas_to_scores(f, f_scores, uuid):
 def train_pca_dask(dask_array, clean_params, use_fft, rank,
                    cluster_type, client, workers,
                    cache, mask=None, iters=10, recon_pcs=10,
-                   min_height=10, max_height=100):
+                   min_height=10, max_height=100, gui=False):
     '''
     Train PCA using dask arrays.
 
@@ -175,6 +176,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     recon_pcs (int): number of PCs to reconstruct. (if missing_data = True)
     min_height (int): minimum mouse height from floor in (mm)
     max_height (int): maximum mouse height from floor in (mm)
+    gui (bool): Indicates to dask to show a progress bar in Jupyter
 
     Returns
     -------
@@ -228,7 +230,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         if mask is not None:
             mask = client.persist(mask)
 
-    progress(dask_array)
+    progress(dask_array, notebook=gui)
     wait(dask_array)
     mean = dask_array.mean(axis=0)
 
@@ -303,7 +305,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
     '''
 
     with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
-        for h5, yml in tqdm.tqdm(zip(h5s, yamls), total=len(h5s),
+        for h5, yml in tqdm(zip(h5s, yamls), total=len(h5s),
                                  desc='Computing scores'):
 
             data = read_yaml(yml)
@@ -490,7 +492,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
     logger = logging.getLogger("distributed.utils_perf")
     logger.setLevel(logging.WARNING)
 
-    for h5, yml in tqdm.tqdm(zip(h5s, yamls), disable=progress_bar, desc='Setting up calculation', total=len(h5s)):
+    for h5, yml in tqdm(zip(h5s, yamls), disable=progress_bar, desc='Setting up calculation', total=len(h5s)):
         data = read_yaml(yml)
         uuid = data['uuid']
 
