@@ -233,8 +233,11 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
     # automatically get the correct timestamp path
-    h5_timestamp_path = get_timestamp_path(h5s[0])
-    h5_metadata_path = get_metadata_path(h5s[0])
+    try:
+        h5_timestamp_path = get_timestamp_path(h5s[0])
+        h5_metadata_path = get_metadata_path(h5s[0])
+    except:
+        print(f'could not find timestamps in h5 file {h5s[0]}')
 
     if pca_file is None:
         pca_file = os.path.join(output_dir, 'pca.h5')
@@ -364,7 +367,10 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
     params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
-    h5_timestamp_path = get_timestamp_path(h5s[0])
+    try:
+        h5_timestamp_path = get_timestamp_path(h5s[0])
+    except:
+        print(f'could not find timestamps in h5 file {h5s[0]}')
 
     if pca_file_components is None:
         pca_file_components = os.path.join(output_dir, 'pca.h5')
