@@ -41,6 +41,20 @@ It is also recommended to have also already generated a `moseq2-index.yaml` file
 file as well.
  - The index file is generated when aggregating the results in [moseq2-extract](https://github.com/dattalab/moseq2-extract/tree/release) 
 
+## Example Outputs
+
+### Mouse Principal Components
+<img src="https://drive.google.com/uc?export=view&id=1dX5Gpd3PKL4vfVviLeP0CqBrz9PW37Au" width=350 height=350>
+
+### Rat Principal Components
+<img src="https://drive.google.com/uc?export=view&id=1P1Yu4NbXn0m_UIB13uloXFEDEBSkXnRd" width=350 height=350>
+
+### Scree Plot
+<img src="https://drive.google.com/uc?export=view&id=12uqsBYuWCjpUQ6QrAjo35MnwYDzHqnge" width=450 height=350>
+
+### Model-free Changepoint Distribution
+<img src="https://drive.google.com/uc?export=view&id=1sMkSB34bGbOimumN6Gg1-zV2Hk98v2Zy" width=350 height=350> 
+
 ## Contributing
 
 If you would like to contribute, fork the repository and issue a pull request.
