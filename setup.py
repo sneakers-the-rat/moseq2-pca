@@ -1,5 +1,7 @@
 from setuptools import setup, find_packages
 import subprocess
+import os.path
+import codecs
 import sys
 
 def install(package):
@@ -11,12 +13,25 @@ try:
 except ImportError:
     install('opencv-python')
 
+def read(rel_path):
+    here = os.path.abspath(os.path.dirname(__file__))
+    with codecs.open(os.path.join(here, rel_path), 'r') as fp:
+        return fp.read()
+
+def get_version(rel_path):
+    for line in read(rel_path).splitlines():
+        if line.startswith('__version__'):
+            delim = '"' if '"' in line else "'"
+            return line.split(delim)[1]
+    else:
+        raise RuntimeError("Unable to find version string.")
+
 
 setup(
     name='moseq2-pca',
     author='Jeff Markowitz',
     description='To boldly go where no mouse has gone before',
-    version='0.2.2',
+    version=get_version('moseq2_pca/__init__.py'),
     platforms=['mac', 'unix'],
     packages=find_packages(),
     install_requires=['h5py==2.10.0', 'matplotlib==3.1.2', 'scipy==1.4.1', 'pathspec==0.5.3',

@@ -21,8 +21,12 @@ click.core.Option.__init__ = new_init
 def cli():
     pass
 
+@cli.command('version', help='Print version number')
+def version():
+    import moseq2_pca
+    click.echo(moseq2_pca.__version__)
 
-@cli.command('clip-scores')
+@cli.command('clip-scores',  help='Clips speficied number of frames from PCA scores at the beginning or end')
 @click.argument('pca_file', type=click.Path(exists=True, resolve_path=True))
 @click.argument('clip_samples', type=int)
 @click.option('--from-end', type=bool, is_flag=True)
@@ -52,7 +56,7 @@ def clip_scores(pca_file, clip_samples, from_end):
                     f2[f'/scores/{key}'] = f[f'/scores/{key}'][clip_samples:]
                     f2[f'/scores_idx/{key}'] = f[f'/scores_idx/{key}'][clip_samples:]
 
-@cli.command(name='train-pca', cls=command_with_config('config_file'))
+@cli.command(name='train-pca', cls=command_with_config('config_file'), help='Trains PCA on all extracted results (h5 files) in input directory')
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
 @click.option('--cluster-type', type=click.Choice(['local', 'slurm']),
               default='local', help='Cluster type')
@@ -97,7 +101,7 @@ def train_pca(input_dir, cluster_type, output_dir, h5_path, h5_mask_path, gaussf
     train_pca_wrapper(input_dir, click_data, output_dir, output_file)
 
 
-@cli.command(name='apply-pca', cls=command_with_config('config_file'))
+@cli.command(name='apply-pca', cls=command_with_config('config_file'), help='Computes PCA Scores of extraction data given a pre-trained PCA')
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
 @click.option('--cluster-type', type=click.Choice(['local', 'slurm', 'nodask']),
               default='local', help='Cluster type')
@@ -127,7 +131,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
     click_data = click.get_current_context().params
     apply_pca_wrapper(input_dir, click_data, output_dir, output_file)
 
-@cli.command('compute-changepoints', cls=command_with_config('config_file'))
+@cli.command('compute-changepoints', cls=command_with_config('config_file'), help='Computes the Model-Free Syllable Changepoints based on the PCA/PCA_Scores')
 @click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')
 @click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca/'), type=click.Path(exists=False), help='Directory to store results')
 @click.option('--output-file', default='changepoints', type=str, help='Name of h5 file for storing pca results')
