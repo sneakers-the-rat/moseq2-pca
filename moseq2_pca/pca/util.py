@@ -126,6 +126,7 @@ def get_timestamps(f, frames, fps=30):
         # h5 format pre v0.1.3
         timestamps = f['/metadata/timestamps'][()] / 1000.0
     else:
+        print('WARNING: timestamps were not found. Using default frame series-ordering.')
         timestamps = np.arange(frames.shape[0]) / fps
 
     return timestamps
