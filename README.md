@@ -44,16 +44,16 @@ file as well.
 ## Example Outputs
 
 ### Mouse Principal Components
-![[image | height=350px | width=350px]](media/Components_EX.png)
+<img src="https://github.com/dattalab/moseq2-pca/blob/test-suite/media/Components_Ex.png" width=350 height=350>
 
 ### Rat Principal Components
-![[image | height=350px | width=350px]](media/rat_components.png)
+<img src="https://github.com/dattalab/moseq2-pca/blob/test-suite/media/rat_components.png" width=350 height=350>
 
 ### Scree Plot
-![[image | height=350px | width=350px]](media/Scree_Ex.png)
+<img src="https://github.com/dattalab/moseq2-pca/blob/test-suite/media/Scree_Ex.png" width=350 height=350>
 
 ### Model-free Changepoint Distribution
-![[image | height=350px | width=350px]](media/CP_Ex.png)
+<img src="https://github.com/dattalab/moseq2-pca/blob/test-suite/media/CP_Ex.png" width=350 height=350>
 
 ## Contributing
 
