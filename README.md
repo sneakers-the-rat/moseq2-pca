@@ -44,16 +44,16 @@ file as well.
 ## Example Outputs
 
 ### Mouse Principal Components
-<img src="https://drive.google.com/uc?export=view&id=1dX5Gpd3PKL4vfVviLeP0CqBrz9PW37Au" width=350 height=350>
+![[image | height=350px | width=350px]](media/Components_EX.png)
 
 ### Rat Principal Components
-<img src="https://drive.google.com/uc?export=view&id=1P1Yu4NbXn0m_UIB13uloXFEDEBSkXnRd" width=350 height=350>
+![[image | height=350px | width=350px]](media/rat_components.png)
 
 ### Scree Plot
-<img src="https://drive.google.com/uc?export=view&id=12uqsBYuWCjpUQ6QrAjo35MnwYDzHqnge" width=450 height=350>
+![[image | height=350px | width=350px]](media/Scree_Ex.png)
 
 ### Model-free Changepoint Distribution
-<img src="https://drive.google.com/uc?export=view&id=1sMkSB34bGbOimumN6Gg1-zV2Hk98v2Zy" width=350 height=350> 
+![[image | height=350px | width=350px]](media/CP_EX.png)
 
 ## Contributing
 
