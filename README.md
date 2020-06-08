@@ -53,7 +53,7 @@ file as well.
 ![[image | height=350px | width=350px]](media/Scree_Ex.png)
 
 ### Model-free Changepoint Distribution
-![[image | height=350px | width=350px]](media/CP_EX.png)
+![[image | height=350px | width=350px]](media/CP_Ex.png)
 
 ## Contributing
 
