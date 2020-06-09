@@ -64,7 +64,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
             print('Deleting old pca.')
             os.remove(f'{save_file}.h5')
         else:
-            return "Did not overwrite"
+            return config_data
 
     config_store = '{}.yaml'.format(save_file)
     with open(config_store, 'w') as f:
