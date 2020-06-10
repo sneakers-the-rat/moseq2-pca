@@ -522,7 +522,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
 
 @gen.coroutine
-def shutdown_dask(scheduler):
+def shutdown_dask(scheduler, workers=None):
     '''
     Graceful shutdown dask scheduler.
     source: https://github.com/dask/distributed/issues/1703#issuecomment-361291492
@@ -536,7 +536,10 @@ def shutdown_dask(scheduler):
     None
     '''
 
-    yield scheduler.retire_workers(workers=scheduler.workers, close_workers=True)
+    if workers == None:
+        yield scheduler.retire_workers(workers=scheduler.workers, close_workers=True)
+    else:
+        yield scheduler.retire_workers(workers=workers, close_workers=True)
     yield scheduler.close()
 
 

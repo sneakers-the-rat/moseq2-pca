@@ -126,9 +126,17 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
 
     if cluster is not None:
         try:
-            shutdown_dask(cluster.scheduler)
+            shutdown_dask(cluster.scheduler, workers=workers)
         except:
+            print('Could not shutdown dask cluster')
             pass
+    if client is not None:
+        try:
+            client.close(timeout=0)
+        except:
+            print('Could not shutdown dask client')
+            pass
+
 
     try:
         plt, _ = display_components(output_dict['components'], headless=True)
@@ -261,8 +269,15 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
 
             if cluster is not None:
                 try:
-                    shutdown_dask(cluster.scheduler)
+                    shutdown_dask(cluster.scheduler, workers=workers)
                 except:
+                    print('Could not shutdown dask cluster')
+                    pass
+            if client is not None:
+                try:
+                    client.close(timeout=0)
+                except:
+                    print('Could not shutdown dask client')
                     pass
 
     if gui:
@@ -293,7 +308,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     config_data, pca_file_components, pca_file_scores, h5s, yamls, save_file = \
         setup_cp_command(input_dir, config_data, output_dir, output_file, output_directory)
 
-    pca_components, changepoint_params, cluster, client, missing_data, mask_params = \
+    pca_components, changepoint_params, cluster, client, workers, cache, missing_data, mask_params = \
         load_pcs_for_cp(pca_file_components, config_data)
 
     logger = logging.getLogger("distributed.utils_perf")
@@ -308,8 +323,15 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
 
     if cluster is not None:
         try:
-            shutdown_dask(cluster.scheduler)
+            shutdown_dask(cluster.scheduler, workers=workers)
         except:
+            print('Could not shutdown dask scheduler')
+            pass
+    if client is not None:
+        try:
+            client.close(timeout=0)
+        except:
+            print('Could not shutdown dask client')
             pass
 
     import numpy as np

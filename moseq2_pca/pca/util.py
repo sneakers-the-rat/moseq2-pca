@@ -306,8 +306,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
     '''
 
     with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
-        for h5, yml in tqdm(zip(h5s, yamls), total=len(h5s),
-                                 desc='Computing scores'):
+        for h5, yml in tqdm(zip(h5s, yamls), total=len(h5s), desc='Computing scores'):
 
             data = read_yaml(yml)
             uuid = data['uuid']
@@ -386,15 +385,15 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
     futures = []
     uuids = []
 
-    for h5, yml in zip(h5s, yamls):
+    for h5, yml in tqdm(zip(h5s, yamls), total=len(h5s), desc='Loading Data'):
         data = read_yaml(yml)
         uuid = data['uuid']
 
-        dset = h5py.File(h5, mode='r')[h5_path][()]
+        dset = h5py.File(h5, mode='r')[h5_path]
         frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
 
         if missing_data:
-            mask_dset = h5py.File(h5, mode='r')[h5_mask_path][()]
+            mask_dset = h5py.File(h5, mode='r')[h5_mask_path]
             mask = da.from_array(mask_dset, chunks=frames.chunks)
             mask = da.logical_and(mask < mask_params['mask_threshold'],
                                   frames > mask_params['mask_height_threshold'])
@@ -431,8 +430,8 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
     with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
 
         batch_count = 0
-
-        for i in range(0, len(futures), batch_size):
+        batches = range(0, len(futures), batch_size)
+        for i in tqdm(batches, total=len(batches), desc='Computing scores in batches'):
 
             futures_batch = client.compute(futures[i:i+batch_size])
             uuids_batch = uuids[i:i+batch_size]
@@ -547,7 +546,8 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
 
         batch_count = 0
 
-        for i in range(0, len(futures), batch_size):
+        batches = range(0, len(futures), batch_size)
+        for i in tqdm(batches, total=len(batches), desc='Computing changepoints in batches'):
 
             futures_batch = client.compute(futures[i:i+batch_size])
             uuids_batch = uuids[i:i+batch_size]
