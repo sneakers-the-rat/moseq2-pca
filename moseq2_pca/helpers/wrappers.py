@@ -60,10 +60,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     if os.path.exists(f'{save_file}.h5'):
         print(f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [Y -> yes, else -> exit]\n')
         ow = input()
-        if ow == 'Y':
-            print('Deleting old pca.')
-            os.remove(f'{save_file}.h5')
-        else:
+        if ow != 'Y':
             return config_data
 
     config_store = '{}.yaml'.format(save_file)
