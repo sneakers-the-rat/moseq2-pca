@@ -390,7 +390,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                     wall_time='01:00:00', queue='debug', local_processes=False,
                     cluster_type='local', scheduler='distributed', timeout=10,
                     cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca'),
-                    **kwargs):
+                    data_size=None, **kwargs):
     '''
     Initialize dask client, cluster, workers, etc.
 
@@ -433,32 +433,30 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
     elif cluster_type == 'local' and scheduler == 'distributed':
         warnings.simplefilter('ignore')
-        ncpus = psutil.cpu_count()
-        mem = psutil.virtual_memory().total
-        mem_per_worker = np.floor(((mem * .8) / nworkers) / 1e9)
-        cur_mem = float(re.search(r'\d+', memory).group(0))
+
+        ncpus = max(1, psutil.cpu_count() - 1)
+        cur_mem = psutil.virtual_memory().available
+
+        mem_per_worker = np.floor(((cur_mem * .8) / nworkers) / 1e9)
 
         # TODO: make a decision re: threads here (maybe leave as an option?)
-
         if cores * nworkers > ncpus or cur_mem > mem_per_worker:
 
             if cores * nworkers > ncpus:
-                cores = 1
+                cores = max(1, psutil.cpu_count() - 1)
                 nworkers = ncpus
+                mem_per_worker = np.floor(((cur_mem * .8) / nworkers) / 1e9)
 
-            if cur_mem > mem_per_worker:
-                mem_per_worker = np.round(((mem * .8) / nworkers) / 1e9)
+            if cur_mem / 1e9 < mem_per_worker * nworkers:
+                mem_per_worker = np.round(((cur_mem * .8) / nworkers) / 1e9)
                 memory = '{}GB'.format(mem_per_worker)
 
-            '''
-            warning_string = ("ncpus or memory out of range, setting to "
-                              "{} cores, {} workers, {} mem per worker "
-                              "\n!!!IF YOU ARE RUNNING ON A CLUSTER MAKE "
-                              "SURE THESE SETTINGS ARE CORRECT!!!"
-                              ).format(cores, nworkers, memory)
-            warnings.warn(warning_string)
-            input('Press ENTER to continue...')
-            '''
+            if data_size != None:
+                if (data_size / 1e9) * 2 > mem_per_worker:
+                    nworkers = max(1, int(np.floor((cur_mem / 1e9) / np.floor((data_size / 1e9) * 4))) - 1)
+
+                    mem_per_worker = np.round(((cur_mem * .8) / nworkers) / 1e9)
+                    memory = '{}GB'.format(mem_per_worker)
 
         cluster = LocalCluster(n_workers=nworkers,
                                threads_per_worker=cores,

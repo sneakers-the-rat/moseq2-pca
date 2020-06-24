@@ -90,8 +90,6 @@ def load_pcs_for_cp(pca_file_components, config_data):
     mask_params (dict): Mask parameters to use when computing CPs
     '''
 
-    dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
-
     print('Loading PCs from {}'.format(pca_file_components))
     with h5py.File(pca_file_components, 'r') as f:
         pca_components = f[config_data['pca_path']][...]
@@ -127,19 +125,7 @@ def load_pcs_for_cp(pca_file_components, config_data):
         'rps': config_data['dims']
     }
 
-    client, cluster, workers, cache = \
-        initialize_dask(cluster_type=config_data['cluster_type'],
-                        nworkers=config_data['nworkers'],
-                        cores=config_data['cores'],
-                        processes=config_data['processes'],
-                        memory=config_data['memory'],
-                        wall_time=config_data['wall_time'],
-                        queue=config_data['queue'],
-                        scheduler='distributed',
-                        timeout=config_data['timeout'],
-                        cache_path=dask_cache_path)
-
-    return pca_components, changepoint_params, cluster, client, workers, cache, missing_data, mask_params
+    return pca_components, changepoint_params, missing_data, mask_params
 
 def get_pca_yaml_data(pca_yaml):
     '''

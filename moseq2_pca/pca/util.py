@@ -390,7 +390,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
         uuid = data['uuid']
 
         dset = h5py.File(h5, mode='r')[h5_path]
-        frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
+        frames = da.from_array(dset, chunks=chunk_size).astype('float32')
 
         if missing_data:
             mask_dset = h5py.File(h5, mode='r')[h5_mask_path]
@@ -499,7 +499,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
         with h5py.File(h5, 'r') as f:
 
             dset = h5py.File(h5, mode='r')[h5_path]
-            frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
+            frames = da.from_array(dset, chunks=chunk_size).astype('float32')
 
             timestamps = get_timestamps(f, frames, fps)
 
