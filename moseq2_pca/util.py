@@ -450,9 +450,10 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                 mem_per_worker = np.round(((cur_mem * .8) / nworkers) / 1e9)
                 memory = '{}GB'.format(mem_per_worker)
 
-        if (data_size / 1e9) ** 3 > mem_per_worker:
-            mem_per_worker = np.round((data_size / 1e9) ** 3)
-            memory = '{}GB'.format(mem_per_worker)
+        if data_size != None:
+            if (data_size / 1e9) ** 3 > mem_per_worker:
+                mem_per_worker = np.round((data_size / 1e9) ** 3)
+                memory = '{}GB'.format(mem_per_worker)
 
         cluster = LocalCluster(n_workers=nworkers,
                                threads_per_worker=cores,
