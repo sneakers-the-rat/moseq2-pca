@@ -1,24 +1,22 @@
-from dask_jobqueue import SLURMCluster
-from dask.distributed import Client, LocalCluster
-import dask.array as da
-from chest import Chest
-from copy import deepcopy
-from tornado import gen
-from tqdm.auto import tqdm
-from tqdm import TqdmSynchronisationWarning
-import ruamel.yaml as yaml
 import os
 import cv2
 import h5py
-import numpy as np
-import click
-import scipy.signal
 import time
-import warnings
-import pathlib
+import click
 import psutil
+import pathlib
+import warnings
 import platform
-import re
+import numpy as np
+import scipy.signal
+from chest import Chest
+from tornado import gen
+from copy import deepcopy
+import ruamel.yaml as yaml
+from tqdm.auto import tqdm
+from dask_jobqueue import SLURMCluster
+from tqdm import TqdmSynchronisationWarning
+from dask.distributed import Client, LocalCluster
 
 
 # from https://stackoverflow.com/questions/46358797/
@@ -390,7 +388,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                     wall_time='01:00:00', queue='debug', local_processes=False,
                     cluster_type='local', scheduler='distributed', timeout=10,
                     cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca'),
-                    data_size=None, **kwargs):
+                    data_size=1000000, gui=False, **kwargs):
     '''
     Initialize dask client, cluster, workers, etc.
 
@@ -407,6 +405,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     scheduler (str): indicate what scheduler to use
     timeout (int): number of worker timeouts to allow
     cache_path (str or Pathlike): path to store cached data
+    data_size (float): size of the dask array in number of bytes.
     kwargs: extra keyward arguments
 
     Returns
@@ -440,7 +439,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         mem_per_worker = np.floor(((cur_mem * .8) / nworkers) / 1e9)
 
         # TODO: make a decision re: threads here (maybe leave as an option?)
-        if cores * nworkers > ncpus or cur_mem > mem_per_worker:
+        if cores * nworkers > ncpus or cur_mem / 1e9 < mem_per_worker:
 
             if cores * nworkers > ncpus:
                 cores = max(1, psutil.cpu_count() - 1)
@@ -451,12 +450,9 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                 mem_per_worker = np.round(((cur_mem * .8) / nworkers) / 1e9)
                 memory = '{}GB'.format(mem_per_worker)
 
-            if data_size != None:
-                if (data_size / 1e9) * 2 > mem_per_worker:
-                    nworkers = max(1, int(np.floor((cur_mem / 1e9) / np.floor((data_size / 1e9) * 4))) - 1)
-
-                    mem_per_worker = np.round(((cur_mem * .8) / nworkers) / 1e9)
-                    memory = '{}GB'.format(mem_per_worker)
+        if (data_size / 1e9) ** 3 > mem_per_worker:
+            mem_per_worker = np.round((data_size / 1e9) ** 3)
+            memory = '{}GB'.format(mem_per_worker)
 
         cluster = LocalCluster(n_workers=nworkers,
                                threads_per_worker=cores,

@@ -77,8 +77,8 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
         'medfilter_space': config_data['medfilter_space']
     }
 
+    logging.basicConfig(filename=f'{output_dir}/train.log', level=logging.ERROR)
     logger = logging.getLogger("distributed.utils_perf")
-    logger.setLevel(logging.ERROR)
 
     dsets = [h5py.File(h5, mode='r')[config_data['h5_path']] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=config_data['chunk_size']) for dset in dsets]
@@ -86,7 +86,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     stacked_array[stacked_array < config_data['min_height']] = 0
     stacked_array[stacked_array > config_data['max_height']] = 0
 
-    data_size = stacked_array.nbytes / len(h5s)
+    config_data['data_size'] = stacked_array.nbytes
 
     client, cluster, workers, cache = \
         initialize_dask(cluster_type=config_data['cluster_type'],
@@ -100,7 +100,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                         timeout=config_data['timeout'],
                         scheduler='distributed',
                         cache_path=dask_cache_path,
-                        data_size=data_size)
+                        data_size=config_data['data_size'])
 
     print(f'Processing {len(stacked_array):d} total frames')
 
@@ -145,19 +145,11 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
 
     config_data['pca_file'] = f'{save_file}.h5'
 
-    warnings.filterwarnings('ignore', module='distributed.nanny')
     if client is not None:
         try:
-            client.restart()
-            client.close(timeout=0)
+            client.restart(asynchronous=True, callback_timeout=config_data['timeout'])  # dumping all data
         except:
-            print('Could not shutdown dask client')
-            pass
-    if cluster is not None:
-        try:
-            shutdown_dask(cluster.scheduler, workers=workers)
-        except:
-            print('Could not shutdown dask scheduler')
+            print('Could not restart dask client')
             pass
 
     if gui:
@@ -257,10 +249,10 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                                 scheduler='distributed',
                                 timeout=config_data['timeout'],
                                 cache_path=dask_cache_path,
-                                data_size=None)
+                                data_size=config_data.get('data_size', None))
 
+            logging.basicConfig(filename=f'{output_dir}/scores.log', level=logging.ERROR)
             logger = logging.getLogger("distributed.utils_perf")
-            logger.setLevel(logging.ERROR)
 
             apply_pca_dask(pca_components=pca_components, h5s=h5s, yamls=yamls,
                            use_fft=use_fft, clean_params=clean_params,
@@ -269,21 +261,11 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                            mask_params=mask_params, h5_path=config_data['h5_path'],
                            h5_mask_path=config_data['h5_mask_path'])
 
-            warnings.filterwarnings('ignore', module='distributed.nanny')
-
             if client is not None:
                 try:
-                    # client.run_on_scheduler(sys.exit, 0)
-                    client.restart()
-                    client.close(timeout=0)
+                    client.restart(asynchronous=True, callback_timeout=config_data['timeout'])  # dumping all data
                 except:
-                    print('Could not shutdown dask client')
-                    pass
-            if cluster is not None:
-                try:
-                    shutdown_dask(cluster.scheduler, workers=workers)
-                except:
-                    print('Could not shutdown dask scheduler')
+                    print('Could not restart dask client')
                     pass
 
     if gui:
@@ -329,10 +311,11 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
                         queue=config_data['queue'],
                         scheduler='distributed',
                         timeout=config_data['timeout'],
-                        cache_path=dask_cache_path)
+                        cache_path=dask_cache_path,
+                        data_size=config_data.get('data_size', None))
 
+    logging.basicConfig(filename=f'{output_dir}/changepoints.log', level=logging.ERROR)
     logger = logging.getLogger("distributed.utils_perf")
-    logger.setLevel(logging.ERROR)
 
     get_changepoints_dask(pca_components=pca_components, pca_scores=pca_file_scores,
                           h5s=h5s, yamls=yamls, changepoint_params=changepoint_params,
@@ -341,21 +324,11 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
                           mask_params=mask_params, h5_path=config_data['h5_path'],
                           h5_mask_path=config_data['h5_mask_path'])
 
-    warnings.filterwarnings('ignore', module='distributed.nanny')
-
     if client is not None:
         try:
-            # client.run_on_scheduler(sys.exit, 0)
-            client.restart()
-            client.close(timeout=0)
+            client.restart(asynchronous=True, callback_timeout=config_data['timeout'])  # dumping all data
         except:
-            print('Could not shutdown dask client')
-            pass
-    if cluster is not None:
-        try:
-            shutdown_dask(cluster.scheduler, workers=workers)
-        except:
-            print('Could not shutdown dask scheduler')
+            print('Could not restart dask client')
             pass
 
     import numpy as np

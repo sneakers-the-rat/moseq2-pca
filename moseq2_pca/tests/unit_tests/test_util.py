@@ -200,6 +200,8 @@ class TestUtils(TestCase):
         assert isinstance(client, Client)
         assert isinstance(cluster, LocalCluster)
         assert workers == None
+        client.close()
+        cluster.close()
 
     def test_get_rps(self):
         rps = 600
