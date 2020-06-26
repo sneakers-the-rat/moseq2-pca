@@ -1,17 +1,18 @@
 import os
 import cv2
 import h5py
-import pathlib
 import numpy as np
 import dask.array as da
 import ruamel.yaml as yaml
 from unittest import TestCase
-from moseq2_pca.util import recursive_find_h5s
 from dask.distributed import Client
+from tempfile import TemporaryDirectory
+from moseq2_pca.util import recursive_find_h5s
 from moseq2_pca.helpers.data import get_pca_yaml_data
 from moseq2_pca.pca.util import mask_data, train_pca_dask, apply_pca_dask, apply_pca_local, get_changepoints_dask
 
 class TestPCAUtils(TestCase):
+
     def test_mask_data(self):
         nframes = 10
 
@@ -39,7 +40,7 @@ class TestPCAUtils(TestCase):
         assert (frames.any() > 0) == (init_frames.all() == 0)
         assert frames.all() == test_out.all()
 
-    def test_train_pca_dask(self):
+    def test__train_pca_dask(self):
 
         input_dir = 'data/proc/'
         config_file = 'data/config.yaml'
@@ -66,8 +67,8 @@ class TestPCAUtils(TestCase):
             'medfilter_space': config_data['medfilter_space']
         }
 
-        client = Client(processes=False)
-        cache = os.path.join(pathlib.Path.home(), 'moseq2_pca')
+        client = Client(processes=True)
+        cache = TemporaryDirectory()
 
         output_dict = \
             train_pca_dask(dask_array=stacked_array, mask=None,
@@ -77,6 +78,8 @@ class TestPCAUtils(TestCase):
                            max_height=config_data['max_height'], client=client,
                            iters=config_data['missing_data_iters'], workers=None, cache=cache,
                            recon_pcs=config_data['recon_pcs'])
+        client.restart()
+        client.close()
 
         assert 'components' in output_dict.keys()
         assert 'singular_values' in output_dict.keys()
@@ -130,11 +133,13 @@ class TestPCAUtils(TestCase):
         h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
         chunk_size = 100
-        client = Client(processes=False)
+        client = Client(processes=True)
 
         apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                        save_file, chunk_size, mask_params, missing_data,
                        client)
+
+        client.restart()
 
         assert os.path.exists(f'{save_file}.h5')
         os.remove(f'{save_file}.h5')
@@ -144,6 +149,9 @@ class TestPCAUtils(TestCase):
         apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                        save_file, chunk_size, mask_params, missing_data,
                        client)
+
+        client.restart()
+        client.close()
 
         assert os.path.exists(f'{save_file}.h5')
         os.remove(f'{save_file}.h5')
@@ -176,12 +184,14 @@ class TestPCAUtils(TestCase):
         }
 
         chunk_size = 100
-        client = Client(processes=False)
+        client = Client(processes=True)
 
         get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                               save_file, chunk_size, mask_params, missing_data,
                               client)
-
+        client.restart()
+        client.close()
+        client = Client(processes=True)
 
         assert os.path.exists(f'{save_file}.h5')
         os.remove(f'{save_file}.h5')
@@ -207,7 +217,10 @@ class TestPCAUtils(TestCase):
         get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                               save_file, chunk_size, mask_params, missing_data,
                               client, 30, pca_scores=f'{missing_data_save_file}.h5')
+        client.restart()
+        client.close()
 
         assert os.path.exists(f'{save_file}.h5')
+        assert os.path.exists(f'{missing_data_save_file}.h5')
         os.remove(f'{save_file}.h5')
         os.remove(f'{missing_data_save_file}.h5')

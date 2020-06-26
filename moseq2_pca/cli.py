@@ -77,13 +77,14 @@ def clip_scores(pca_file, clip_samples, from_end):
 @click.option('--tailfilter-shape', default='ellipse', type=str, help='Tail filter shape')
 @click.option('--use-fft', type=bool, is_flag=True, help='Use 2D fft')
 @click.option('--recon-pcs', type=int, default=10, help='Number of PCs to use for missing data reconstruction')
-@click.option('--rank', default=50, type=int, help="Rank for compressed SVD (generally>>nPCS)")
+@click.option('--rank', default=25, type=int, help="Rank for compressed SVD (generally>>nPCS)")
 @click.option('--output-file', default='pca', type=str, help='Name of h5 file for storing pca results')
-@click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
+@click.option('--chunk-size', default=3000, type=int, help='Number of frames per chunk')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', type=click.Path(), help="Path to configuration file")
 @click.option('--dask-cache-path', '-d', default=os.path.join(pathlib.Path.home(), 'moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
 @click.option('--local-processes', default=True, type=bool, help='Use processes with local scheduler')
+@click.option('--dask-port', default=':8787', type=str, help='Port to access dask dashboard server')
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
 @click.option('-n', '--nworkers', type=int, default=10, help="Number of workers")
 @click.option('-c', '--cores', type=int, default=1, help="Number of cores per worker")
@@ -92,10 +93,11 @@ def clip_scores(pca_file, clip_samples, from_end):
 @click.option('-w', '--wall-time', type=str, default="06:00:00", help="Wall time for workers")
 @click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
 def train_pca(input_dir, cluster_type, output_dir, h5_path, h5_mask_path, gaussfilter_space,
-              gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold, mask_height_threshold, min_height, max_height, tailfilter_size,
+              gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold,
+              mask_height_threshold, min_height, max_height, tailfilter_size,
               tailfilter_shape, use_fft, recon_pcs, rank, output_file, chunk_size,
-              visualize_results, config_file, dask_cache_path, local_processes, queue, nworkers,
-              cores, processes, memory, wall_time, timeout):
+              visualize_results, config_file, dask_cache_path, local_processes, dask_port,
+              queue, nworkers, cores, processes, memory, wall_time, timeout):
 
     click_data = click.get_current_context().params
     train_pca_wrapper(input_dir, click_data, output_dir, output_file)

@@ -7,7 +7,6 @@ from click.testing import CliRunner
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from moseq2_pca.cli import clip_scores, train_pca, apply_pca, compute_changepoints
 
-
 class TestCli(TestCase):
 
     def test_clip_scores(self):
@@ -32,6 +31,7 @@ class TestCli(TestCase):
 
         train_params_local = ['-i', data_dir,
                               '--cluster-type', 'local',
+                              '--local-processes', 'False',
                               '--missing-data',
                               '-o', str(out_dir)]
 
@@ -46,8 +46,9 @@ class TestCli(TestCase):
 
         result = runner.invoke(train_pca,
                                train_params_local,
-                               catch_exceptions=True)
+                               catch_exceptions=False)
 
+        assert (result.exit_code == 0), "CLI Command did not successfully complete"
         assert (out_dir.exists()), "pca directory was not successfully created"
         outfiles = [str(f.name) for f in list(out_dir.iterdir())]
 
@@ -56,9 +57,6 @@ class TestCli(TestCase):
             'PCA files were not computed successfully'
 
         shutil.rmtree(str(out_dir))
-
-        assert (result.exit_code == 0), "CLI Command did not successfully complete"
-
 
     def test_apply_pca(self):
         data_dir = Path('data/')
@@ -85,9 +83,9 @@ class TestCli(TestCase):
                                apply_params_local,
                                catch_exceptions=False)
 
+        assert result.exit_code == 0, "CLI command did not successfully complete"
         assert data_dir.joinpath(outpath).is_dir(), "pca directory does not exist"
         assert data_dir.joinpath(outpath, 'pca_scores1.h5').is_file(), "pca scores were not correctly saved"
-        assert result.exit_code == 0, "CLI command did not successfully complete"
 
         with open(str(pca_yaml), 'r') as f:
             pca_meta = yaml.safe_load(f)
@@ -102,9 +100,9 @@ class TestCli(TestCase):
     def test_compute_changepoints(self):
         data_path = Path('data/')
         outpath = Path('_pca')
+
         if not outpath.exists():
             outpath.mkdir()
-
 
         cc_params_local = ['-i', str(data_path),
                            '-o', str(outpath),
@@ -116,11 +114,11 @@ class TestCli(TestCase):
                           cc_params_local,
                           catch_exceptions=False)
 
+        assert result.exit_code == 0, "CLI command did not successfully complete"
         assert outpath.exists(), "simulated path was not generated"
         assert data_path.joinpath(outpath, 'changepoints1.h5').is_file(), "changepoints were not computed"
         assert data_path.joinpath(outpath, 'changepoints1_dist.pdf').is_file(), "changepoint pdf was not create"
         assert data_path.joinpath(outpath, 'changepoints1_dist.png').is_file(), "changepoint image was not create"
-        assert result.exit_code == 0, "CLI command did not successfully complete"
 
         data_path.joinpath(outpath, 'changepoints1.h5').unlink()
         data_path.joinpath(outpath, 'changepoints1_dist.pdf').unlink()

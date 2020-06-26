@@ -388,7 +388,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                     wall_time='01:00:00', queue='debug', local_processes=False,
                     cluster_type='local', scheduler='distributed', timeout=10,
                     cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca'),
-                    data_size=1000000, gui=False, **kwargs):
+                    dashboard_address=':8787', data_size=1000000, gui=False, **kwargs):
     '''
     Initialize dask client, cluster, workers, etc.
 
@@ -417,11 +417,17 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     '''
 
     # only use distributed if we need it
-
     client = None
     workers = None
     cache = None
     cluster = None
+
+    if isinstance(dashboard_address, str):
+        if ':' != dashboard_address[0]:
+            dashboard_address = f':{dashboard_address}'
+    else:
+        print('Using default dashboard address :8787')
+        dashboard_address = ':8787'
 
     if cluster_type == 'local' and scheduler == 'dask':
 
@@ -450,9 +456,12 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                 mem_per_worker = np.round(((cur_mem * .8) / nworkers) / 1e9)
                 memory = '{}GB'.format(mem_per_worker)
 
+        if nworkers > ncpus:
+            nworkers = ncpus
+
         if data_size != None:
-            if (data_size / 1e9) ** 3 > mem_per_worker:
-                mem_per_worker = np.round((data_size / 1e9) ** 3)
+            if (data_size / 1e9) ** 2 > mem_per_worker:
+                mem_per_worker = np.round((data_size / 1e9) ** 2)
                 memory = '{}GB'.format(mem_per_worker)
 
         cluster = LocalCluster(n_workers=nworkers,
@@ -460,6 +469,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                                processes=local_processes,
                                local_dir=cache_path,
                                memory_limit=memory,
+                               dashboard_address=dashboard_address,
                                **kwargs)
         client = Client(cluster)
 
@@ -471,6 +481,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                                queue=queue,
                                walltime=wall_time,
                                local_directory=cache_path,
+                               dashboard_address=dashboard_address,
                                **kwargs)
 
         try:

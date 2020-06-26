@@ -1,16 +1,25 @@
 import shutil
 from pathlib import Path
+import ruamel.yaml as yaml
 from unittest import TestCase
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from moseq2_pca.gui import train_pca_command, apply_pca_command, compute_changepoints_command
 
 class TestGUI(TestCase):
 
-    def test_train_pca_command(self):
+    def test__train_pca_command(self):
         data_dir = 'data/'
         config_file = 'data/config.yaml'
         output_dir = 'data/tmp_pca'
         output_file = 'pca'
+
+        with open(config_file, 'r') as f:
+            config_data = yaml.safe_load(f)
+
+        config_data['local_processes'] = False
+
+        with open(config_file, 'w') as f:
+            yaml.safe_dump(config_data, f)
 
         # in case it asks for user input
         with TemporaryDirectory() as tmp:

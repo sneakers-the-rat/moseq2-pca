@@ -62,10 +62,10 @@ def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, mi
     '''
 
     if not missing_data:
-        u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
+        _, s, v = lng.svd_compressed(dask_array-mean, rank, 0, compute=True)
     else:
         for iter in range(iters):
-            u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
+            u, s, v = lng.svd_compressed(dask_array-mean, rank, 0, compute=True)
             if iter < iters - 1:
                 recon = u[:, :recon_pcs].dot(da.diag(s[:recon_pcs]).dot(v[:recon_pcs, :])) + mean
                 recon[recon < min_height] = 0
@@ -211,7 +211,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
             dtype='float32', **clean_params)
     else:
         dask_array = dask_array.map_blocks(clean_frames, dtype='float32', **clean_params)
-        # dask_array = clean_frames(dask_array, **clean_params)
 
     if use_fft:
         print('Using FFT...')
@@ -223,6 +222,11 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         dask_array.rechunk(original_chunks, -1, -1)
 
     dask_array = dask_array.reshape(-1, nfeatures).astype('float32')
+    dask_array = dask_array.rechunk('auto')
+
+    if mask is not None:
+        mask = mask.rechunk(dask_array.shape)
+
     nsamples, nfeatures = dask_array.shape
 
     if cluster_type == 'slurm':
@@ -391,6 +395,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
 
         dset = h5py.File(h5, mode='r')[h5_path]
         frames = da.from_array(dset, chunks=chunk_size).astype('float32')
+
 
         if missing_data:
             mask_dset = h5py.File(h5, mode='r')[h5_mask_path]

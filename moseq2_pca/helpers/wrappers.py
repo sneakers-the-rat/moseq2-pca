@@ -1,5 +1,6 @@
 import os
 import h5py
+import dask
 import logging
 import pathlib
 import datetime
@@ -10,7 +11,13 @@ from moseq2_pca.viz import display_components, scree_plot, changepoint_dist
 from moseq2_pca.helpers.data import setup_cp_command, get_pca_yaml_data, load_pcs_for_cp
 from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local, train_pca_dask, get_changepoints_dask
 from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, \
-            recursively_load_dict_contents_from_group, get_timestamp_path, get_metadata_path, shutdown_dask
+            recursively_load_dict_contents_from_group, get_timestamp_path, get_metadata_path
+
+dask.config.set({"optimization.fuse.ave-width": 5})
+dask.config.set({"distributed.worker.memory.target": .9})
+dask.config.set({"distributed.worker.memory.spill": False})
+dask.config.set({"distributed.worker.memory.pause": False})
+dask.config.set({"distributed.worker.memory.terminate": .95})
 
 def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_directory=None, gui=False):
     '''
@@ -100,6 +107,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                         timeout=config_data['timeout'],
                         scheduler='distributed',
                         cache_path=dask_cache_path,
+                        dashboard_address=config_data.get('dask_port', ':8787'),
                         data_size=config_data['data_size'])
 
     print(f'Processing {len(stacked_array):d} total frames')
@@ -115,14 +123,20 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     else:
         stacked_array_mask = None
 
-    output_dict = \
-        train_pca_dask(dask_array=stacked_array, mask=stacked_array_mask,
-                       clean_params=clean_params, use_fft=config_data['use_fft'],
-                       rank=config_data['rank'], cluster_type=config_data['cluster_type'],
-                       min_height=config_data['min_height'],
-                       max_height=config_data['max_height'], client=client,
-                       iters=config_data['missing_data_iters'], workers=workers, cache=cache,
-                       recon_pcs=config_data['recon_pcs'], gui=gui)
+    try:
+        output_dict = \
+            train_pca_dask(dask_array=stacked_array, mask=stacked_array_mask,
+                           clean_params=clean_params, use_fft=config_data['use_fft'],
+                           rank=config_data['rank'], cluster_type=config_data['cluster_type'],
+                           min_height=config_data['min_height'],
+                           max_height=config_data['max_height'], client=client,
+                           iters=config_data['missing_data_iters'], workers=workers, cache=cache,
+                           recon_pcs=config_data['recon_pcs'], gui=gui)
+    except:
+        print('Training interrupted. Closing Dask Client.')
+        client.close(timeout=config_data['timeout'])
+        cluster.close(timeout=config_data['timeout'])
+
 
     try:
         plt, _ = display_components(output_dict['components'], headless=True)
@@ -147,7 +161,12 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
 
     if client is not None:
         try:
-            client.restart(asynchronous=True, callback_timeout=config_data['timeout'])  # dumping all data
+            if gui:
+                client.restart(asynchronous=False, callback_timeout=config_data['timeout'])  # dumping all data
+            else:
+                client.close(timeout=config_data['timeout'])
+                cluster.close(timeout=config_data['timeout'])
+                client.shutdown()
         except:
             print('Could not restart dask client')
             pass
@@ -249,21 +268,30 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                                 scheduler='distributed',
                                 timeout=config_data['timeout'],
                                 cache_path=dask_cache_path,
+                                dashboard_address=config_data.get('dask_port', ':8787'),
                                 data_size=config_data.get('data_size', None))
 
             logging.basicConfig(filename=f'{output_dir}/scores.log', level=logging.ERROR)
             logger = logging.getLogger("distributed.utils_perf")
-
-            apply_pca_dask(pca_components=pca_components, h5s=h5s, yamls=yamls,
-                           use_fft=use_fft, clean_params=clean_params,
-                           save_file=save_file, chunk_size=config_data['chunk_size'],
-                           fps=config_data['fps'], client=client, missing_data=missing_data,
-                           mask_params=mask_params, h5_path=config_data['h5_path'],
-                           h5_mask_path=config_data['h5_mask_path'])
+            try:
+                apply_pca_dask(pca_components=pca_components, h5s=h5s, yamls=yamls,
+                               use_fft=use_fft, clean_params=clean_params,
+                               save_file=save_file, chunk_size=config_data['chunk_size'],
+                               fps=config_data['fps'], client=client, missing_data=missing_data,
+                               mask_params=mask_params, h5_path=config_data['h5_path'],
+                               h5_mask_path=config_data['h5_mask_path'])
+            except:
+                print('Operation interrupted. Closing Dask Client.')
+                client.close(timeout=config_data['timeout'])
+                cluster.close(timeout=config_data['timeout'])
 
             if client is not None:
                 try:
-                    client.restart(asynchronous=True, callback_timeout=config_data['timeout'])  # dumping all data
+                    if gui:
+                        client.restart(asynchronous=False, callback_timeout=config_data['timeout'])  # dumping all data
+                    else:
+                        client.close(timeout=config_data['timeout'])
+                        cluster.close(timeout=config_data['timeout'])
                 except:
                     print('Could not restart dask client')
                     pass
@@ -312,21 +340,30 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
                         scheduler='distributed',
                         timeout=config_data['timeout'],
                         cache_path=dask_cache_path,
+                        dashboard_address=config_data.get('dask_port', ':8787'),
                         data_size=config_data.get('data_size', None))
 
     logging.basicConfig(filename=f'{output_dir}/changepoints.log', level=logging.ERROR)
     logger = logging.getLogger("distributed.utils_perf")
 
-    get_changepoints_dask(pca_components=pca_components, pca_scores=pca_file_scores,
-                          h5s=h5s, yamls=yamls, changepoint_params=changepoint_params,
-                          save_file=save_file, chunk_size=config_data['chunk_size'],
-                          fps=config_data['fps'], client=client, missing_data=missing_data,
-                          mask_params=mask_params, h5_path=config_data['h5_path'],
-                          h5_mask_path=config_data['h5_mask_path'])
+    try:
+        get_changepoints_dask(pca_components=pca_components, pca_scores=pca_file_scores,
+                              h5s=h5s, yamls=yamls, changepoint_params=changepoint_params,
+                              save_file=save_file, chunk_size=config_data['chunk_size'],
+                              fps=config_data['fps'], client=client, missing_data=missing_data,
+                              mask_params=mask_params, h5_path=config_data['h5_path'],
+                              h5_mask_path=config_data['h5_mask_path'])
+    except:
+        print('Operation interrupted. Closing Dask Client.')
+        client.close(timeout=config_data['timeout'])
 
     if client is not None:
         try:
-            client.restart(asynchronous=True, callback_timeout=config_data['timeout'])  # dumping all data
+            if gui:
+                client.restart(asynchronous=False, callback_timeout=config_data['timeout'])  # dumping all data
+            else:
+                client.close(timeout=config_data['timeout'])
+                cluster.close(timeout=config_data['timeout'])
         except:
             print('Could not restart dask client')
             pass
