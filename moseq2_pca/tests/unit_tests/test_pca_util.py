@@ -40,7 +40,7 @@ class TestPCAUtils(TestCase):
         assert (frames.any() > 0) == (init_frames.all() == 0)
         assert frames.all() == test_out.all()
 
-    def test__train_pca_dask(self):
+    def _test_train_pca_dask(self):
 
         input_dir = 'data/proc/'
         config_file = 'data/config.yaml'
