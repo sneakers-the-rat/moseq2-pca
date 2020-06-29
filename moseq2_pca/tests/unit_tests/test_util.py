@@ -196,7 +196,7 @@ class TestUtils(TestCase):
 
         assert isinstance(client, Client)
         assert isinstance(cluster, LocalCluster)
-        assert workers == None
+        assert isinstance(workers, dict)
         client.close()
         cluster.close()
 
