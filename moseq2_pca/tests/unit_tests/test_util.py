@@ -4,13 +4,12 @@ import h5py
 import pytest
 import pathlib
 import numpy as np
-import pandas as pd
 import scipy.signal
 import ruamel.yaml as yaml
 from unittest import TestCase
 from dask.distributed import Client, LocalCluster
 from moseq2_pca.util import gaussian_kernel1d, gauss_smooth, read_yaml, insert_nans, \
-    recursively_load_dict_contents_from_group, recursive_find_h5s, clean_frames, select_strel, \
+    h5_to_dict, recursive_find_h5s, clean_frames, select_strel, \
     get_timestamp_path, get_metadata_path, initialize_dask, get_rps, get_changepoints
 
 

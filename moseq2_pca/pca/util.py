@@ -62,10 +62,10 @@ def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, mi
     '''
 
     if not missing_data:
-        _, s, v = lng.svd_compressed(dask_array-mean, rank, 0, compute=True)
+        _, s, v = lng.svd_compressed(dask_array - mean, rank, 0, compute=True)
     else:
         for iter in range(iters):
-            u, s, v = lng.svd_compressed(dask_array-mean, rank, 0, compute=True)
+            u, s, v = lng.svd_compressed(dask_array - mean, rank, 0, compute=True)
             if iter < iters - 1:
                 recon = u[:, :recon_pcs].dot(da.diag(s[:recon_pcs]).dot(v[:recon_pcs, :])) + mean
                 recon[recon < min_height] = 0
@@ -76,9 +76,8 @@ def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, mi
     total_var = dask_array.var(ddof=1, axis=0).sum()
     futures = client.compute([s, v, mean, total_var])
 
-    with ProgressBar():
-        progress(futures, notebook=gui)
-        s, v, mean, total_var = client.gather(futures)
+    progress(futures, notebook=False)
+    s, v, mean, total_var = client.gather(futures)
 
     return s, v, mean, total_var
 
@@ -188,22 +187,13 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     logger.setLevel(logging.WARNING)
 
     missing_data = False
-    rechunked = False
-    _, r, c = dask_array.shape
-    nfeatures = r * c
-
-    original_chunks = dask_array.chunks[0][0]
-
-    if original_chunks > 100:
-        dask_array.rechunk(100, -1, -1)
-        rechunked = True
 
     smallest_chunk = np.min(dask_array.chunks[0])
 
     if mask is not None:
         missing_data = True
         dask_array[mask] = 0
-        mask = mask.reshape(-1, nfeatures)
+        mask = mask.reshape(len(mask), -1)
 
     if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
         dask_array = dask_array.map_overlap(
@@ -218,16 +208,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
             lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
             dtype='float32')
 
-    if rechunked:
-        dask_array.rechunk(original_chunks, -1, -1)
-
-    dask_array = dask_array.reshape(-1, nfeatures).astype('float32')
-    dask_array = dask_array.rechunk('auto')
-
-    if mask is not None:
-        mask = mask.rechunk(dask_array.shape)
-
-    nsamples, nfeatures = dask_array.shape
+    dask_array = dask_array.reshape(len(dask_array), -1).astype('float32')
 
     if cluster_type == 'slurm':
         print('Cleaning frames...')
@@ -235,8 +216,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         if mask is not None:
             mask = client.persist(mask)
 
-    progress(dask_array, notebook=gui)
-    wait(dask_array)
     mean = dask_array.mean(axis=0)
 
     if cluster_type == 'slurm':
@@ -259,7 +238,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     }
 
     s, v, mean, total_var = compute_svd(**svd_training_parameters, client=client)
-    # cluster.stop_workers(workers)
 
     print('\nCalculation complete...')
 
@@ -268,7 +246,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     correction = np.sign(v[np.arange(v.shape[0]), tmp])
     v *= correction[:, None]
 
-    explained_variance, explained_variance_ratio = compute_explained_variance(s, nsamples, total_var)
+    explained_variance, explained_variance_ratio = compute_explained_variance(s, len(dask_array), total_var)
 
     output_dict = {
         'components': v,
