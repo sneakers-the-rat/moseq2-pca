@@ -79,6 +79,7 @@ def clip_scores(pca_file, clip_samples, from_end):
 @click.option('--recon-pcs', type=int, default=10, help='Number of PCs to use for missing data reconstruction')
 @click.option('--rank', default=25, type=int, help="Rank for compressed SVD (generally>>nPCS)")
 @click.option('--output-file', default='pca', type=str, help='Name of h5 file for storing pca results')
+@click.option('--local-processes', default=False, type=bool, help='Used with a local cluster. If True: use processes, If False: use threads')
 @click.option('--chunk-size', default=3000, type=int, help='Number of frames per chunk')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', type=click.Path(), help="Path to configuration file")
@@ -93,7 +94,7 @@ def clip_scores(pca_file, clip_samples, from_end):
 @click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
 def train_pca(input_dir, cluster_type, output_dir, h5_path, h5_mask_path, gaussfilter_space,
               gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold,
-              mask_height_threshold, min_height, max_height, tailfilter_size,
+              mask_height_threshold, min_height, max_height, tailfilter_size, local_processes,
               tailfilter_shape, use_fft, recon_pcs, rank, output_file, chunk_size,
               visualize_results, config_file, dask_cache_path, dask_port,
               queue, nworkers, cores, processes, memory, wall_time, timeout):
@@ -118,6 +119,7 @@ def train_pca(input_dir, cluster_type, output_dir, h5_path, h5_mask_path, gaussf
 @click.option('--detrend-window', default=0, type=float, help="Length of detrend window (in seconds, 0 for no detrending)")
 @click.option('--config-file', type=click.Path(), help="Path to configuration file")
 @click.option('--dask-cache-path', '-d', default=os.path.join(pathlib.Path.home(), 'moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
+@click.option('--dask-port', default='8787', type=str, help="Port to access dask dashboard")
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
 @click.option('-n', '--nworkers', type=int, default=10, help="Number of workers")
 @click.option('-c', '--cores', type=int, default=1, help="Number of cores per worker")
@@ -126,7 +128,7 @@ def train_pca(input_dir, cluster_type, output_dir, h5_path, h5_mask_path, gaussf
 @click.option('-w', '--wall-time', type=str, default="06:00:00", help="Wall time for workers")
 @click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
 def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask_path,
-              pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window,
+              pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window, dask_port,
               config_file, dask_cache_path, queue, nworkers, cores, processes, memory, wall_time, timeout):
 
     click_data = click.get_current_context().params
@@ -151,6 +153,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--config-file', type=click.Path(), help="Path to configuration file")
 @click.option('--dask-cache-path', default=os.path.join(pathlib.Path.home(), 'moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
+@click.option('--dask-port', default='8787', type=str, help="Port to access dask dashboard")
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
 @click.option('-n', '--nworkers', type=int, default=10, help="Number of workers")
@@ -161,7 +164,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
 @click.option('--timeout', type=float, default=5, help="Time to wait for workers to initialize before proceeding (minutes)")
 def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_file_components,
                          pca_file_scores, pca_path, neighbors, threshold, klags, sigma, dims, fps, h5_path,
-                         h5_mask_path, chunk_size, config_file, dask_cache_path,
+                         h5_mask_path, chunk_size, config_file, dask_cache_path, dask_port,
                          visualize_results, queue, nworkers, cores, processes, memory, wall_time, timeout):
 
     click_data = click.get_current_context().params

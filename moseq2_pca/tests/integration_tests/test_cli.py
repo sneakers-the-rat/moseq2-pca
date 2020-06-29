@@ -31,6 +31,7 @@ class TestCli(TestCase):
 
         train_params_local = ['-i', data_dir,
                               '--cluster-type', 'local',
+                              '--local-processes', 'False',
                               '--missing-data',
                               '-o', str(out_dir)]
 

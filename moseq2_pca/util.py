@@ -407,7 +407,8 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     cores (int): number of cores to use.
     wall_time (str): amount of time to allow program to run
     queue (str): logging mode
-    cluster_type (str): indicate what cluster to use
+    local_processes (bool): flag to use processes or threads when using a local cluster
+    cluster_type (str): indicate what cluster to use (local or slurm)
     scheduler (str): indicate what scheduler to use
     timeout (int): how many minutes to wait for workers to initialize
     cache_path (str or Pathlike): path to store cached data
@@ -427,13 +428,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     workers = None
     cache = None
 
-    if isinstance(dashboard_port, str):
-        if ':' != dashboard_port[0]:
-            dashboard_port = f':{dashboard_port}'
-    else:
-        print('Using default dashboard address :8787')
-        dashboard_port = ':8787'
-
+    click.echo(f'Access dask dashboard at localhost:{dashboard_port}')
 
     if cluster_type == 'local':
         warnings.simplefilter('ignore')
