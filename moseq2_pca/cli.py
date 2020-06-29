@@ -21,10 +21,13 @@ click.core.Option.__init__ = new_init
 def cli():
     pass
 
-@cli.command('version', help='Print version number')
-def version():
-    import moseq2_pca
-    click.echo(moseq2_pca.__version__)
+
+@click.group()
+@click.version_option()
+@click.pass_context
+def cli(ctx):
+    pass
+
 
 @cli.command('clip-scores',  help='Clips speficied number of frames from PCA scores at the beginning or end')
 @click.argument('pca_file', type=click.Path(exists=True, resolve_path=True))
@@ -83,7 +86,7 @@ def clip_scores(pca_file, clip_samples, from_end):
 @click.option('--chunk-size', default=3000, type=int, help='Number of frames per chunk')
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', type=click.Path(), help="Path to configuration file")
-@click.option('--dask-cache-path', '-d', default=os.path.join(pathlib.Path.home(), 'moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
+@click.option('--dask-cache-path', '-d', default=os.path.expanduser('~/moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
 @click.option('--dask-port', default='8787', type=str, help='Port to access dask dashboard server')
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
 @click.option('-n', '--nworkers', type=int, default=10, help="Number of workers")
@@ -118,7 +121,7 @@ def train_pca(input_dir, cluster_type, output_dir, h5_path, h5_mask_path, gaussf
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
 @click.option('--detrend-window', default=0, type=float, help="Length of detrend window (in seconds, 0 for no detrending)")
 @click.option('--config-file', type=click.Path(), help="Path to configuration file")
-@click.option('--dask-cache-path', '-d', default=os.path.join(pathlib.Path.home(), 'moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
+@click.option('--dask-cache-path', '-d', default=os.path.expanduser('~/moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
 @click.option('--dask-port', default='8787', type=str, help="Port to access dask dashboard")
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
 @click.option('-n', '--nworkers', type=int, default=10, help="Number of workers")
@@ -152,7 +155,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
 @click.option('--h5-mask-path', default='/frames_mask', type=str, help="Path to log-likelihood mask in h5 files")
 @click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')
 @click.option('--config-file', type=click.Path(), help="Path to configuration file")
-@click.option('--dask-cache-path', default=os.path.join(pathlib.Path.home(), 'moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
+@click.option('--dask-cache-path', default=os.path.expanduser('~/moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
 @click.option('--dask-port', default='8787', type=str, help="Port to access dask dashboard")
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")

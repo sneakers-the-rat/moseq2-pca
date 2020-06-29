@@ -1,5 +1,6 @@
 import os
 import h5py
+import click
 import logging
 import pathlib
 import datetime
@@ -37,15 +38,13 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
         raise NotImplementedError("FFT and missing data not implemented yet")
 
     params = config_data
-    if output_directory is None:
-        h5s, dicts, yamls = recursive_find_h5s(input_dir)
-    else:
-        h5s, dicts, yamls = recursive_find_h5s(output_directory)
+    h5s, dicts, yamls = recursive_find_h5s(input_dir)
     timestamp = f'{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}'
 
     params['start_time'] = timestamp
     params['inputs'] = h5s
 
+    # output_dir = os.path.abspath(output_dir)
     if output_directory is None:
         # outputting pca folder in inputted base directory.
         output_dir = os.path.join(os.path.dirname(os.path.dirname(input_dir)), output_dir)
@@ -102,7 +101,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                         dashboard_port=config_data['dask_port'],
                         data_size=config_data['data_size'])
 
-    print(f'Processing {len(stacked_array)} total frames')
+    click.echo(f'Processing {len(stacked_array)} total frames')
 
     if config_data['missing_data']:
         mask_dsets = [h5py.File(h5, mode='r')[config_data['h5_mask_path']] for h5 in h5s]
@@ -110,7 +109,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
         stacked_array_mask = da.concatenate(mask_arrays, axis=0).astype('float32')
         stacked_array_mask = da.logical_and(stacked_array_mask < config_data['mask_threshold'],
                                             stacked_array > config_data['mask_height_threshold'])
-        print('Loaded mask...')
+        click.echo('Loaded mask for missing data')
 
     else:
         stacked_array_mask = None
