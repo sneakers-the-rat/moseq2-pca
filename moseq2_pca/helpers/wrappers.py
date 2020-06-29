@@ -24,7 +24,6 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
     output_directory (str): alternative output_dir
-    gui (bool): indicate GUI is running
 
     Returns
     -------
@@ -125,9 +124,12 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                            min_height=config_data['min_height'],
                            max_height=config_data['max_height'], client=client,
                            iters=config_data['missing_data_iters'], workers=workers, cache=cache,
-                           recon_pcs=config_data['recon_pcs'], gui=gui)
-    except:
-        print('Training interrupted. Closing Dask Client.')
+                           recon_pcs=config_data['recon_pcs'], geeg='ddd')
+    except Exception as e:
+        logging.error(e)
+        logging.error(e.__traceback__)
+        print('Training interrupted. Closing Dask Client. You may find logs of the error here:')
+        print('---- ', os.path.join(output_dir, 'train.log'))
         client.close(timeout=config_data['timeout'])
         cluster.close(timeout=config_data['timeout'])
 
@@ -137,15 +139,21 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
         plt.savefig(f'{save_file}_components.png')
         plt.savefig(f'{save_file}_components.pdf')
         plt.close()
-    except:
+    except Exception as e:
+        logging.error(e)
+        logging.error(e.__traceback__)
         print('could not plot components')
+        print('You may find error logs here:', os.path.join(output_dir, 'train.log'))
     try:
         plt = scree_plot(output_dict['explained_variance_ratio'], headless=True)
         plt.savefig(f'{save_file}_scree.png')
         plt.savefig(f'{save_file}_scree.pdf')
         plt.close()
-    except:
+    except Exception as e:
+        logging.error(e)
+        logging.error(e.__traceback__)
         print('could not plot scree')
+        print('You may find error logs here:', os.path.join(output_dir, 'train.log'))
 
     with h5py.File(f'{save_file}.h5', 'w') as f:
         for k, v in output_dict.items():
@@ -165,8 +173,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
             print('Could not restart dask client')
             pass
 
-    if gui:
-        return config_data
+    return config_data
 
 def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_directory=None, gui=False):
     '''
