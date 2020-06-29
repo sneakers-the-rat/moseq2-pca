@@ -24,7 +24,6 @@ class TestGUI(TestCase):
             stdin = NamedTemporaryFile(prefix=tmp, suffix=".txt")
             with open(stdin.name, 'w') as f:
                 f.write('Y')
-            f.close()
 
         train_pca_command(data_dir, config_file, output_dir, output_file)
 

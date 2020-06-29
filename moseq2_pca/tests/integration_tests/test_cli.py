@@ -40,7 +40,6 @@ class TestCli(TestCase):
             stdin = NamedTemporaryFile(prefix=tmp+'/', suffix=".txt")
             with open(stdin.name, 'w') as f:
                 f.write('Y')
-            f.close()
 
         runner = CliRunner()
 

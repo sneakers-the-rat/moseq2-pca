@@ -13,7 +13,7 @@ from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local, train_pca_dask,
 from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, set_dask_config, \
             h5_to_dict, get_timestamp_path, get_metadata_path
 
-def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_directory=None, gui=False):
+def train_pca_wrapper(input_dir, config_data, output_dir, output_file, gui=False):
     '''
     Wrapper function to train PCA.
 
@@ -23,7 +23,6 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
-    output_directory (str): alternative output_dir
 
     Returns
     -------
@@ -44,12 +43,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     params['start_time'] = timestamp
     params['inputs'] = h5s
 
-    # output_dir = os.path.abspath(output_dir)
-    if output_directory is None:
-        # outputting pca folder in inputted base directory.
-        output_dir = os.path.join(os.path.dirname(os.path.dirname(input_dir)), output_dir)
-    else:
-        output_dir = os.path.join(output_directory, output_dir)
+    output_dir = os.path.abspath(output_dir)
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -169,7 +163,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
 
     return config_data
 
-def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_directory=None, gui=False):
+def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, gui=False):
     '''
     Wrapper function to obtain PCA Scores.
 
@@ -179,7 +173,6 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
-    output_directory (str): alternative output_dir
     gui (bool): indicate GUI is running
 
     Returns
@@ -192,18 +185,14 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
 
     set_dask_config()
 
-    dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
-    params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
-    if output_directory is None:
-        if 'aggregate_results' in input_dir:
-            outpath = '/'.join(input_dir.split('/')[:-2])
-            output_dir = os.path.join(outpath, output_dir)  # outputting pca folder in inputted base directory.
-        else:
-            output_dir = os.path.join(input_dir, output_dir)  # outputting pca folder in inputted base directory.
-    else:
-        output_dir = os.path.join(output_directory, output_dir)
+    output_dir = os.path.abspath(output_dir)
+    # if 'aggregate_results' in input_dir:
+    #     outpath = '/'.join(input_dir.split('/')[:-2])
+    #     output_dir = os.path.join(outpath, output_dir)  # outputting pca folder in inputted base directory.
+    # else:
+    #     output_dir = os.path.join(input_dir, output_dir)  # outputting pca folder in inputted base directory.
 
     # automatically get the correct timestamp path
     try:
@@ -262,7 +251,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                                 wall_time=config_data['wall_time'],
                                 queue=config_data['queue'],
                                 timeout=config_data['timeout'],
-                                cache_path=dask_cache_path,
+                                cache_path=config_data['dask_cache_path'],
                                 dashboard_port=config_data['dask_port'],
                                 data_size=config_data.get('data_size', None))
 
@@ -292,7 +281,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
         config_data['pca_file_scores'] = save_file + '.h5'
         return config_data
 
-def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file, gui=False, output_directory=None):
+def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file, gui=False):
     '''
     Wrapper function to compute model-free (PCA based) Changepoints.
 
@@ -302,7 +291,6 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
-    output_directory (str): alternative output_dir
     gui (bool): indicate GUI is running
 
     Returns
@@ -316,7 +304,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     dask_cache_path = os.path.expanduser('~/moseq2_pca')
 
     config_data, pca_file_components, pca_file_scores, h5s, yamls, save_file = \
-        setup_cp_command(input_dir, config_data, output_dir, output_file, output_directory)
+        setup_cp_command(input_dir, config_data, output_dir, output_file)
 
     pca_components, changepoint_params, missing_data, mask_params = \
         load_pcs_for_cp(pca_file_components, config_data)
