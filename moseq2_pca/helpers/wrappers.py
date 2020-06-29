@@ -269,7 +269,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                                 queue=config_data['queue'],
                                 timeout=config_data['timeout'],
                                 cache_path=dask_cache_path,
-                                dashboard_port=config_data.get('dask_port', ':8787'),
+                                dashboard_port=config_data.get('dask_port', '8787'),
                                 data_size=config_data.get('data_size', None))
 
             logging.basicConfig(filename=f'{output_dir}/scores.log', level=logging.ERROR)
@@ -340,7 +340,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
                         queue=config_data['queue'],
                         timeout=config_data['timeout'],
                         cache_path=dask_cache_path,
-                        dashboard_port=config_data.get('dask_port', ':8787'),
+                        dashboard_port=config_data.get('dask_port', '8787'),
                         data_size=config_data.get('data_size', None))
 
     logging.basicConfig(filename=f'{output_dir}/changepoints.log', level=logging.ERROR)
