@@ -16,8 +16,6 @@ class TestGUI(TestCase):
         with open(config_file, 'r') as f:
             config_data = yaml.safe_load(f)
 
-        config_data['local_processes'] = False
-
         with open(config_file, 'w') as f:
             yaml.safe_dump(config_data, f)
 

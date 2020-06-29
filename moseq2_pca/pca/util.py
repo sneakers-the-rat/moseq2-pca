@@ -32,7 +32,7 @@ def mask_data(original_data, mask, new_data):
 
     return output
 
-def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, min_height, max_height, client, gui=False):
+def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, min_height, max_height, client):
     '''
     Runs Singular Vector Decomposition on the inputted frames of shape (nframes, nfeatures).
     Data is centered by subtracting it by the mean value of the data. If missing_data == True,
@@ -51,7 +51,6 @@ def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, mi
     min_height (int): Minimum height of mouse above the ground, used to filter reconstructed PCs.
     max_height (int): Maximum height of mouse above the ground, used to filter reconstructed PCs.
     client (dask Client): Dask client to process batches.
-    gui (bool): Indicates to dask to show a progress bar in Jupyter
 
     Returns
     -------
@@ -62,10 +61,10 @@ def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, mi
     '''
 
     if not missing_data:
-        _, s, v = lng.svd_compressed(dask_array-mean, rank, 0, compute=True)
+        _, s, v = lng.svd_compressed(dask_array - mean, rank, 0, compute=True)
     else:
         for iter in range(iters):
-            u, s, v = lng.svd_compressed(dask_array-mean, rank, 0, compute=True)
+            u, s, v = lng.svd_compressed(dask_array - mean, rank, 0, compute=True)
             if iter < iters - 1:
                 recon = u[:, :recon_pcs].dot(da.diag(s[:recon_pcs]).dot(v[:recon_pcs, :])) + mean
                 recon[recon < min_height] = 0
@@ -74,12 +73,12 @@ def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, mi
                 mean = dask_array.mean(axis=0)
 
     total_var = dask_array.var(ddof=1, axis=0).sum()
-    futures = client.compute([s, v, mean, total_var])
+    futures = client.compute((s, v, mean, total_var))
 
-    with ProgressBar():
-        progress(futures, notebook=gui)
-        s, v, mean, total_var = client.gather(futures)
+    # set notebook=False because progress bar doesn't show up otherwise
+    progress(futures, notebook=False)
 
+    s, v, mean, total_var = client.gather(futures)
     return s, v, mean, total_var
 
 def compute_explained_variance(s, nsamples, total_var):
@@ -158,7 +157,7 @@ def copy_metadatas_to_scores(f, f_scores, uuid):
 def train_pca_dask(dask_array, clean_params, use_fft, rank,
                    cluster_type, client, workers,
                    cache, mask=None, iters=10, recon_pcs=10,
-                   min_height=10, max_height=100, gui=False):
+                   min_height=10, max_height=100):
     '''
     Train PCA using dask arrays.
 
@@ -177,7 +176,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     recon_pcs (int): number of PCs to reconstruct. (if missing_data = True)
     min_height (int): minimum mouse height from floor in (mm)
     max_height (int): maximum mouse height from floor in (mm)
-    gui (bool): Indicates to dask to show a progress bar in Jupyter
 
     Returns
     -------
@@ -235,7 +233,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         if mask is not None:
             mask = client.persist(mask)
 
-    progress(dask_array, notebook=gui)
+    progress(dask_array, notebook=False)
     wait(dask_array)
     mean = dask_array.mean(axis=0)
 
@@ -265,7 +263,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     # correct the sign of the singular vectors
     tmp = np.argmax(np.abs(v), axis=1)
-    correction = np.sign(v[np.arange(v.shape[0]), tmp])
+    correction = np.sign(v[np.arange(len(v)), tmp])
     v *= correction[:, None]
 
     explained_variance, explained_variance_ratio = compute_explained_variance(s, nsamples, total_var)

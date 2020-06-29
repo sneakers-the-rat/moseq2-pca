@@ -1,7 +1,7 @@
 import h5py
 import numpy as np
 from unittest import TestCase
-from moseq2_pca.util import recursively_load_dict_contents_from_group
+from moseq2_pca.util import h5_to_dict
 from moseq2_pca.viz import display_components, scree_plot, changepoint_dist
 
 class TestViz(TestCase):
@@ -27,7 +27,7 @@ class TestViz(TestCase):
         save_file = 'data/_pca/changepoints'
 
         with h5py.File(f'{save_file}.h5', 'r') as f:
-            cps = recursively_load_dict_contents_from_group(f, 'cps')
+            cps = h5_to_dict(f, 'cps')
         block_durs = np.concatenate([np.diff(cp, axis=0) for k, cp in cps.items()])
 
         assert block_durs.shape == (51,1)

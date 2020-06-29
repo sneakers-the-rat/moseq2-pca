@@ -2,6 +2,7 @@ import os
 import cv2
 import h5py
 import time
+import dask
 import click
 import psutil
 import pathlib
@@ -354,7 +355,7 @@ def get_metadata_path(h5file):
             raise KeyError('acquisition metadata not found')
 
 
-def recursively_load_dict_contents_from_group(h5file, path):
+def h5_to_dict(h5file, path):
     '''
     Reads all contents from h5 and returns them in a nested dict object.
 
@@ -372,23 +373,27 @@ def recursively_load_dict_contents_from_group(h5file, path):
 
     if type(h5file) is str:
         with h5py.File(h5file, 'r') as f:
-            ans = recursively_load_dict_contents_from_group(f, path)
+            ans = h5_to_dict(f, path)
             return ans
 
     for key, item in h5file[path].items():
         if isinstance(item, h5py._hl.dataset.Dataset):
             ans[key] = item[...]
         elif isinstance(item, h5py._hl.group.Group):
-            ans[key] = recursively_load_dict_contents_from_group(
-                h5file, path + key + '/')
+            ans[key] = h5_to_dict(h5file, path + key + '/')
     return ans
 
 
+def set_dask_config(memory={'target': 0.8, 'spill': 0.9, 'pause': False, 'terminate': False}):
+    memory = {f'distributed.worker.memory.{k}': v for k, v in memory.items()}
+    dask.config.set(memory)
+
+
 def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
-                    wall_time='01:00:00', queue='debug', local_processes=False,
-                    cluster_type='local', scheduler='distributed', timeout=10,
-                    cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca'),
-                    dashboard_address=':8787', data_size=1000000, gui=False, **kwargs):
+                    wall_time='01:00:00', queue='debug',
+                    cluster_type='local', timeout=10,
+                    cache_path=os.path.expanduser('~/moseq2_pca'),
+                    dashboard_port='8787', data_size=None, **kwargs):
     '''
     Initialize dask client, cluster, workers, etc.
 
@@ -400,11 +405,11 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     cores (int): number of cores to use.
     wall_time (str): amount of time to allow program to run
     queue (str): logging mode
-    local_processes (bool): indicate whether the processes are local
     cluster_type (str): indicate what cluster to use
     scheduler (str): indicate what scheduler to use
-    timeout (int): number of worker timeouts to allow
+    timeout (int): how many minutes to wait for workers to initialize
     cache_path (str or Pathlike): path to store cached data
+    dashboard_port (str): port number to find dask statistics
     data_size (float): size of the dask array in number of bytes.
     kwargs: extra keyward arguments
 
@@ -422,73 +427,51 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     cache = None
     cluster = None
 
-    if isinstance(dashboard_address, str):
-        if ':' != dashboard_address[0]:
-            dashboard_address = f':{dashboard_address}'
-    else:
-        print('Using default dashboard address :8787')
-        dashboard_address = ':8787'
+    if cluster_type == 'local':
+        cur_mem = psutil.virtual_memory().available * 0.8
+        overhead = 1e9  # memory overhead for each worker; approximate
 
-    if cluster_type == 'local' and scheduler == 'dask':
+        # if we don't know the size of the dataset, fall back onto this
+        if data_size is None:
+            optimal_workers = (cur_mem // overhead) - 1
+        else:
+            # set optimal workers to handle incoming data
+            optimal_workers = ((cur_mem - data_size) // overhead) - 1
+        optimal_workers = max(1, optimal_workers)
 
-        if not os.path.exists(cache_path):
-            os.makedirs(cache_path)
+        # set number of workers to optimal workers, or total number of CPUs
+        # if there are fewer CPUs present than optimal workers
+        nworkers = min(max(1, psutil.cpu_count() - 1), optimal_workers)
+        memory = cur_mem / nworkers
 
-        cache = Chest(path=cache_path)
+        # display some diagnostic info
+        click.echo(f'Setting number of workers to: {nworkers}')
+        click.echo(f'Overriding memory per worker to {round(memory / 1e9, 2)}GB')
 
-    elif cluster_type == 'local' and scheduler == 'distributed':
-        warnings.simplefilter('ignore')
-
-        ncpus = max(1, psutil.cpu_count() - 1)
-        cur_mem = psutil.virtual_memory().available
-
-        mem_per_worker = np.floor(((cur_mem * .8) / nworkers) / 1e9)
-
-        # TODO: make a decision re: threads here (maybe leave as an option?)
-        if cores * nworkers > ncpus or cur_mem / 1e9 < mem_per_worker:
-
-            if cores * nworkers > ncpus:
-                cores = max(1, psutil.cpu_count() - 1)
-                nworkers = ncpus
-                mem_per_worker = np.floor(((cur_mem * .8) / nworkers) / 1e9)
-
-            if cur_mem / 1e9 < mem_per_worker * nworkers:
-                mem_per_worker = np.round(((cur_mem * .8) / nworkers) / 1e9)
-                memory = '{}GB'.format(mem_per_worker)
-
-        if nworkers > ncpus:
-            nworkers = ncpus
-
-        if data_size != None:
-            if (data_size / 1e9) ** 2 > mem_per_worker:
-                mem_per_worker = np.round((data_size / 1e9) ** 2)
-                memory = '{}GB'.format(mem_per_worker)
-
-        cluster = LocalCluster(n_workers=nworkers,
-                               threads_per_worker=cores,
-                               processes=local_processes,
-                               local_dir=cache_path,
-                               memory_limit=memory,
-                               dashboard_address=dashboard_address,
-                               **kwargs)
-        client = Client(cluster)
+        client = Client(processes=True,
+                        threads_per_worker=1,
+                        memory_limit=memory,
+                        n_workers=nworkers,
+                        dashboard_address=dashboard_port,
+                        local_dir=cache_path,
+                        **kwargs)
+        cluster = client.cluster
 
     elif cluster_type == 'slurm':
 
         cluster = SLURMCluster(processes=processes,
+                               n_workers=nworkers,
                                cores=cores,
                                memory=memory,
                                queue=queue,
                                walltime=wall_time,
                                local_directory=cache_path,
-                               dashboard_address=dashboard_address,
+                               dashboard_address=dashboard_port,
                                **kwargs)
-
-        try:
-            workers = cluster.start_workers(nworkers)
-        except AttributeError:
-            workers = cluster.scale(nworkers)
         client = Client(cluster)
+
+    else:
+        raise NotImplementedError('Specified cluster not supported. Supported types are: "slurm", "local"')
 
     if client is not None:
 
@@ -497,30 +480,27 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
             ip = client_info['address'].split('://')[1].split(':')[0]
             port = client_info['services']['bokeh']
             hostname = platform.node()
-            print('Web UI served at {}:{} (if port forwarding use internal IP not localhost)'
-                  .format(ip, port))
-            print('Tunnel command:\n ssh -NL {}:{}:{} {}'.format(port, ip, port, hostname))
-            print('Tunnel command (gcloud):\n gcloud compute ssh {} -- -NL {}:{}:{}'.format(hostname, port, ip, port))
+            click.echo(f'Web UI served at {ip}:{port} (if port forwarding use internal IP not localhost)')
+            click.echo(f'Tunnel command:\n ssh -NL {port}:{ip}:{port} {hostname}')
+            click.echo(f'Tunnel command (gcloud):\n gcloud compute ssh {hostname} -- -NL {port}:{ip}:{port}')
 
     if cluster_type == 'slurm':
 
         active_workers = len(client.scheduler_info()['workers'])
         start_time = time.time()
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", TqdmSynchronisationWarning)
             warnings.simplefilter('ignore')
-            pbar = tqdm(total=nworkers,
-                        desc="Intializing workers")
+            pbar = tqdm(total=nworkers, desc="Intializing workers")
 
-            elapsed_time = (time.time() - start_time) / 60.0
+            elapsed_time = (time.time() - start_time) / 60
 
             while active_workers < nworkers and elapsed_time < timeout:
                 tmp = len(client.scheduler_info()['workers'])
                 if tmp - active_workers > 0:
                     pbar.update(tmp - active_workers)
-                active_workers += tmp - active_workers
-                time.sleep(5)
-                elapsed_time = (time.time() - start_time) / 60.0
+                active_workers = tmp
+                time.sleep(1)
+                elapsed_time = (time.time() - start_time) / 60
 
             pbar.close()
 
