@@ -469,13 +469,9 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
     elif cluster_type == 'slurm':
 
-        slurm_ncpus = os.environ.get('SLURM_CPUS_PER_TASK')
-        slurm_mem = os.environ.get('SLURM_MEM_PER_CPU')
-        slurm_nnodes = os.environ.get('SLURM_JOB_NUM_NODES')
-
         cluster = SLURMCluster(processes=processes,
-                               cores=slurm_ncpus,
-                               memory=slurm_mem,
+                               cores=cores,
+                               memory=memory,
                                queue=queue,
                                walltime=wall_time,
                                local_directory=cache_path,
@@ -483,8 +479,6 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                                **kwargs)
 
         client = Client(cluster)
-
-        workers = cluster.scale(slurm_nnodes)
     else:
         raise NotImplementedError('Specified cluster not supported. Supported types are: "slurm", "local"')
 
