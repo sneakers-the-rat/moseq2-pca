@@ -396,6 +396,7 @@ def get_env_cpu_and_mem():
     is_slurm = os.environ.get('SLURM_JOBID', False)
 
     if is_slurm:
+        click.echo('Detected slurm environment, using "sacct" to detect cpu and memory requirements')
         cmd = f'sacct -j {is_slurm} --format AllocCPUS,ReqMem -X -n -p'
         output = subprocess.check_output(cmd.split(' '))
         output = output.decode('utf-8').strip().split('|')
@@ -456,6 +457,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         if data_size is None:
             optimal_workers = (max_mem // overhead) - 1
         else:
+            click.echo(f'Using dataset size ({round(data_size / 1e9, 2)}) to set optimal parameters')
             # set optimal workers to handle incoming data
             optimal_workers = ((max_mem - data_size) // overhead) - 1
 
