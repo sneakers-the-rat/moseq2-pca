@@ -83,8 +83,7 @@ def clip_scores(pca_file, clip_samples, from_end):
 @click.option('--visualize-results', default=True, type=bool, help='Visualize results')
 @click.option('--config-file', type=click.Path(), help="Path to configuration file")
 @click.option('--dask-cache-path', '-d', default=os.path.join(pathlib.Path.home(), 'moseq2_pca'), type=click.Path(), help='Path to spill data to disk for dask local scheduler')
-@click.option('--local-processes', default=True, type=bool, help='Use processes with local scheduler')
-@click.option('--dask-port', default=':8787', type=str, help='Port to access dask dashboard server')
+@click.option('--dask-port', default='8787', type=str, help='Port to access dask dashboard server')
 @click.option('-q', '--queue', type=str, default='debug', help="Cluster queue/partition for submitting jobs")
 @click.option('-n', '--nworkers', type=int, default=10, help="Number of workers")
 @click.option('-c', '--cores', type=int, default=1, help="Number of cores per worker")
@@ -96,7 +95,7 @@ def train_pca(input_dir, cluster_type, output_dir, h5_path, h5_mask_path, gaussf
               gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold,
               mask_height_threshold, min_height, max_height, tailfilter_size,
               tailfilter_shape, use_fft, recon_pcs, rank, output_file, chunk_size,
-              visualize_results, config_file, dask_cache_path, local_processes, dask_port,
+              visualize_results, config_file, dask_cache_path, dask_port,
               queue, nworkers, cores, processes, memory, wall_time, timeout):
 
     click_data = click.get_current_context().params

@@ -3,6 +3,7 @@ import cv2
 import h5py
 import dask
 import time
+import dask
 import click
 import psutil
 import pathlib
@@ -380,20 +381,21 @@ def h5_to_dict(h5file, path):
         if isinstance(item, h5py._hl.dataset.Dataset):
             ans[key] = item[...]
         elif isinstance(item, h5py._hl.group.Group):
-            ans[key] = h5_to_dict(
-                h5file, path + key + '/')
+            ans[key] = h5_to_dict(h5file, path + key + '/')
     return ans
 
-def set_dask_config(memory={'target': 0.8, 'spill': 0.9, 'pause': False, 'terminate': False}):
+
+def set_dask_config(memory={'target': 0.85, 'spill': False, 'pause': False, 'terminate': 0.95}):
     memory = {f'distributed.worker.memory.{k}': v for k, v in memory.items()}
     dask.config.set(memory)
+    dask.config.set({'optimization.fuse.ave-width': 5})
 
 
 def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                     wall_time='01:00:00', queue='debug', local_processes=False,
-                    cluster_type='local', scheduler='distributed', timeout=10,
-                    cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca'),
-                    dashboard_port=':8787', data_size=1000000, gui=False, **kwargs):
+                    cluster_type='local', timeout=10,
+                    cache_path=os.path.expanduser('~/moseq2_pca'),
+                    dashboard_port='8787', data_size=None, **kwargs):
     '''
     Initialize dask client, cluster, workers, etc.
 
@@ -405,11 +407,11 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     cores (int): number of cores to use.
     wall_time (str): amount of time to allow program to run
     queue (str): logging mode
-    local_processes (bool): indicate whether the processes are local
     cluster_type (str): indicate what cluster to use
     scheduler (str): indicate what scheduler to use
     timeout (int): how many minutes to wait for workers to initialize
     cache_path (str or Pathlike): path to store cached data
+    dashboard_port (str): port number to find dask statistics
     data_size (float): size of the dask array in number of bytes.
     kwargs: extra keyward arguments
 
@@ -446,7 +448,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
             # set optimal workers to handle incoming data
             optimal_workers = ((cur_mem - data_size) // overhead) - 1
 
-        optimal_workers = int(max(1, optimal_workers))
+        optimal_workers = max(1, optimal_workers)
 
         # set number of workers to optimal workers, or total number of CPUs
         # if there are fewer CPUs present than optimal workers
@@ -462,14 +464,14 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                         memory_limit=memory,
                         n_workers=nworkers,
                         dashboard_address=dashboard_port,
-                        local_dir=cache_path,
+                        local_directory=cache_path,
                         **kwargs)
-
         cluster = client.cluster
 
     elif cluster_type == 'slurm':
 
         cluster = SLURMCluster(processes=processes,
+                               n_workers=nworkers,
                                cores=cores,
                                memory=memory,
                                queue=queue,
@@ -477,7 +479,6 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                                local_directory=cache_path,
                                dashboard_address=dashboard_port,
                                **kwargs)
-
         client = Client(cluster)
     else:
         raise NotImplementedError('Specified cluster not supported. Supported types are: "slurm", "local"')
@@ -498,7 +499,6 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         active_workers = len(client.scheduler_info()['workers'])
         start_time = time.time()
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", TqdmSynchronisationWarning)
             warnings.simplefilter('ignore')
             pbar = tqdm(total=nworkers, desc="Intializing workers")
 

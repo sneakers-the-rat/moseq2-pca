@@ -23,7 +23,6 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
     output_directory (str): alternative output_dir
-    gui (bool): indicate GUI is running
 
     Returns
     -------
@@ -94,17 +93,15 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                         nworkers=config_data['nworkers'],
                         cores=config_data['cores'],
                         processes=config_data['processes'],
-                        local_processes=config_data['local_processes'],
                         memory=config_data['memory'],
                         wall_time=config_data['wall_time'],
                         queue=config_data['queue'],
                         timeout=config_data['timeout'],
-                        scheduler='distributed',
                         cache_path=dask_cache_path,
-                        dashboard_port=config_data.get('dask_port', ':8787'),
+                        dashboard_port=config_data['dask_port'],
                         data_size=config_data['data_size'])
 
-    print(f'Processing {len(stacked_array):d} total frames')
+    print(f'Processing {len(stacked_array)} total frames')
 
     if config_data['missing_data']:
         mask_dsets = [h5py.File(h5, mode='r')[config_data['h5_mask_path']] for h5 in h5s]
@@ -125,7 +122,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                            min_height=config_data['min_height'],
                            max_height=config_data['max_height'], client=client,
                            iters=config_data['missing_data_iters'], workers=workers, cache=cache,
-                           recon_pcs=config_data['recon_pcs'], gui=gui)
+                           recon_pcs=config_data['recon_pcs'])
     except Exception as e:
         logging.error(e)
         logging.error(e.__traceback__)
@@ -170,8 +167,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
             print('Could not restart dask client')
             pass
 
-    if gui:
-        return config_data
+    return config_data
 
 def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_directory=None, gui=False):
     '''
@@ -194,6 +190,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
 
+    set_dask_config()
 
     dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
     params = locals()
@@ -264,10 +261,9 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                                 memory=config_data['memory'],
                                 wall_time=config_data['wall_time'],
                                 queue=config_data['queue'],
-                                scheduler='distributed',
                                 timeout=config_data['timeout'],
                                 cache_path=dask_cache_path,
-                                dashboard_port=config_data.get('dask_port', ':8787'),
+                                dashboard_port=config_data['dask_port'],
                                 data_size=config_data.get('data_size', None))
 
             logging.basicConfig(filename=f'{output_dir}/scores.log', level=logging.ERROR)
@@ -333,10 +329,9 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
                         memory=config_data['memory'],
                         wall_time=config_data['wall_time'],
                         queue=config_data['queue'],
-                        scheduler='distributed',
                         timeout=config_data['timeout'],
                         cache_path=dask_cache_path,
-                        dashboard_port=config_data.get('dask_port', ':8787'),
+                        dashboard_port=config_data['dask_port'],
                         data_size=config_data.get('data_size', None))
 
     logging.basicConfig(filename=f'{output_dir}/changepoints.log', level=logging.ERROR)
