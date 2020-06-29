@@ -124,7 +124,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                            min_height=config_data['min_height'],
                            max_height=config_data['max_height'], client=client,
                            iters=config_data['missing_data_iters'], workers=workers, cache=cache,
-                           recon_pcs=config_data['recon_pcs'], geeg='ddd')
+                           recon_pcs=config_data['recon_pcs'])
     except Exception as e:
         logging.error(e)
         logging.error(e.__traceback__)
