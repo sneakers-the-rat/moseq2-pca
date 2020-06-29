@@ -189,10 +189,10 @@ class TestUtils(TestCase):
         timeout = 10
         cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
 
-        client, cluster, workers, cache = initialize_dask(nworkers=nworkers, processes=processes, memory=memory,
-                                                          cores=cores, wall_time=wall_time, queue=queue,
-                                                          cluster_type=cluster_type,
-                                                          timeout=timeout, cache_path=cache_path)
+        client, cluster, workers = initialize_dask(nworkers=nworkers, processes=processes, memory=memory,
+                                                   cores=cores, wall_time=wall_time, queue=queue,
+                                                   cluster_type=cluster_type,
+                                                   timeout=timeout, cache_path=cache_path)
 
         assert isinstance(client, Client)
         assert isinstance(cluster, LocalCluster)

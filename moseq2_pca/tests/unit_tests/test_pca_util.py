@@ -68,7 +68,6 @@ class TestPCAUtils(TestCase):
         }
 
         client = Client(processes=True)
-        cache = TemporaryDirectory()
 
         output_dict = \
             train_pca_dask(dask_array=stacked_array, mask=None,
@@ -76,7 +75,7 @@ class TestPCAUtils(TestCase):
                            rank=config_data['rank'], cluster_type=config_data['cluster_type'],
                            min_height=config_data['min_height'],
                            max_height=config_data['max_height'], client=client,
-                           iters=config_data['missing_data_iters'], workers=None, cache=cache,
+                           iters=config_data['missing_data_iters'], workers=None,
                            recon_pcs=config_data['recon_pcs'])
         client.restart()
         client.close()

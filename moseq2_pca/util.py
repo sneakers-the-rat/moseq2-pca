@@ -421,12 +421,10 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     client (dask Client): initialized Client
     cluster (dask Cluster): initialized Cluster
     workers (dask Workers): intialized workers or None if cluster_type = 'local'
-    cache (dask Chest): initialized Chest (cache) object pointing to given cache path
     '''
 
     # only use distributed if we need it
     workers = None
-    cache = None
 
     click.echo(f'Access dask dashboard at localhost:{dashboard_port}')
 
@@ -448,15 +446,14 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         # set number of workers to optimal workers, or total number of CPUs
         # if there are fewer CPUs present than optimal workers
         nworkers = int(min(max(1, psutil.cpu_count() - 1), optimal_workers))
-        memory = cur_mem
 
         # display some diagnostic info
         click.echo(f'Setting number of workers to: {nworkers}')
-        click.echo(f'Overriding memory per worker to {round(memory / 1e9, 2)}GB')
+        click.echo(f'Overriding memory per worker to {round(cur_mem / 1e9, 2)}GB')
 
         client = Client(processes=local_processes,
                         threads_per_worker=1,
-                        memory_limit=memory,
+                        memory_limit=cur_mem,
                         n_workers=nworkers,
                         dashboard_address=dashboard_port,
                         local_directory=cache_path,
@@ -509,7 +506,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
             pbar.close()
 
-    return client, cluster, workers, cache
+    return client, cluster, workers
 
 
 @gen.coroutine

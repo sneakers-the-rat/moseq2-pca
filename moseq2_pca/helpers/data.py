@@ -85,7 +85,6 @@ def load_pcs_for_cp(pca_file_components, config_data):
     cluster (dask Cluster): Dask Cluster object.
     client (dask Client): Dask Client Object
     workers (dask Workers): intialized workers or None if cluster_type = 'local'
-    cache (dask Chest): initialized Chest (cache) object pointing to given cache path
     missing_data (bool): Indicates whether to use mask_params
     mask_params (dict): Mask parameters to use when computing CPs
     '''

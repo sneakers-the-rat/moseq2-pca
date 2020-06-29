@@ -156,7 +156,7 @@ def copy_metadatas_to_scores(f, f_scores, uuid):
 
 def train_pca_dask(dask_array, clean_params, use_fft, rank,
                    cluster_type, client, workers,
-                   cache, mask=None, iters=10, recon_pcs=10,
+                   mask=None, iters=10, recon_pcs=10,
                    min_height=10, max_height=100):
     '''
     Train PCA using dask arrays.
@@ -170,7 +170,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     cluster_type (str): indicates which cluster to use.
     client (Dask.Client): client object to execute dask operations
     workers (int): number of dask workers
-    cache (str): path to cache directory
     mask (dask array): dask array of masked data if missing_data parameter==True
     iters (int): number of SVD iterations
     recon_pcs (int): number of PCs to reconstruct. (if missing_data = True)

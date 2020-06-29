@@ -88,7 +88,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
 
     config_data['data_size'] = stacked_array.nbytes
 
-    client, cluster, workers, cache = \
+    client, cluster, workers = \
         initialize_dask(cluster_type=config_data['cluster_type'],
                         nworkers=config_data['nworkers'],
                         cores=config_data['cores'],
@@ -98,6 +98,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                         queue=config_data['queue'],
                         timeout=config_data['timeout'],
                         cache_path=dask_cache_path,
+                        local_processes=config_data['local_processes'],
                         dashboard_port=config_data['dask_port'],
                         data_size=config_data['data_size'])
 
@@ -121,7 +122,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                            rank=config_data['rank'], cluster_type=config_data['cluster_type'],
                            min_height=config_data['min_height'],
                            max_height=config_data['max_height'], client=client,
-                           iters=config_data['missing_data_iters'], workers=workers, cache=cache,
+                           iters=config_data['missing_data_iters'], workers=workers,
                            recon_pcs=config_data['recon_pcs'])
     except Exception as e:
         logging.error(e)
@@ -253,7 +254,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                             h5_mask_path=config_data['h5_mask_path'])
 
         else:
-            client, cluster, workers, cache = \
+            client, cluster, workers = \
                 initialize_dask(cluster_type=config_data['cluster_type'],
                                 nworkers=config_data['nworkers'],
                                 cores=config_data['cores'],
@@ -313,7 +314,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
 
-    dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
+    dask_cache_path = os.path.expanduser('~/moseq2_pca')
 
     config_data, pca_file_components, pca_file_scores, h5s, yamls, save_file = \
         setup_cp_command(input_dir, config_data, output_dir, output_file, output_directory)
@@ -321,7 +322,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     pca_components, changepoint_params, missing_data, mask_params = \
         load_pcs_for_cp(pca_file_components, config_data)
 
-    client, cluster, workers, cache = \
+    client, cluster, workers = \
         initialize_dask(cluster_type=config_data['cluster_type'],
                         nworkers=config_data['nworkers'],
                         cores=config_data['cores'],
