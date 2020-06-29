@@ -384,9 +384,10 @@ def h5_to_dict(h5file, path):
     return ans
 
 
-def set_dask_config(memory={'target': 0.8, 'spill': 0.9, 'pause': False, 'terminate': False}):
+def set_dask_config(memory={'target': 0.85, 'spill': False, 'pause': False, 'terminate': 0.95}):
     memory = {f'distributed.worker.memory.{k}': v for k, v in memory.items()}
     dask.config.set(memory)
+    dask.config.set({'optimization.fuse.ave-width': 5})
 
 
 def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
@@ -433,10 +434,10 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
         # if we don't know the size of the dataset, fall back onto this
         if data_size is None:
-            optimal_workers = (cur_mem // overhead) - 1
+            optimal_workers = int((cur_mem // overhead) - 1)
         else:
             # set optimal workers to handle incoming data
-            optimal_workers = ((cur_mem - data_size) // overhead) - 1
+            optimal_workers = int(((cur_mem - data_size) // overhead) - 1)
         optimal_workers = max(1, optimal_workers)
 
         # set number of workers to optimal workers, or total number of CPUs
@@ -453,7 +454,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                         memory_limit=memory,
                         n_workers=nworkers,
                         dashboard_address=dashboard_port,
-                        local_dir=cache_path,
+                        local_directory=cache_path,
                         **kwargs)
         cluster = client.cluster
 
