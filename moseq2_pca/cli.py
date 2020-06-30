@@ -18,11 +18,6 @@ click.core.Option.__init__ = new_init
 
 
 @click.group()
-def cli():
-    pass
-
-
-@click.group()
 @click.version_option()
 @click.pass_context
 def cli(ctx):
