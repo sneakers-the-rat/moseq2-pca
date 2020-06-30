@@ -30,13 +30,12 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, gui=False
     '''
 
     set_dask_config()
-    dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
-    # find directories with .dat files that either have incomplete or no extractions
 
     if config_data['missing_data'] and config_data['use_fft']:
         raise NotImplementedError("FFT and missing data not implemented yet")
 
     params = config_data
+    # find directories with .dat files that either have incomplete or no extractions
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
     timestamp = f'{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}'
 
@@ -90,7 +89,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, gui=False
                         wall_time=config_data['wall_time'],
                         queue=config_data['queue'],
                         timeout=config_data['timeout'],
-                        cache_path=dask_cache_path,
+                        cache_path=config_data['dask_cache_path'],
                         local_processes=config_data['local_processes'],
                         dashboard_port=config_data['dask_port'],
                         data_size=config_data['data_size'])

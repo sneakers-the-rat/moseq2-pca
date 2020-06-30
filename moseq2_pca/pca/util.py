@@ -214,7 +214,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         if mask is not None:
             mask = client.persist(mask)
 
-    # wait(dask_array)
     mean = dask_array.mean(axis=0)
 
     if cluster_type == 'slurm':
