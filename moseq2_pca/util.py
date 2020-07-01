@@ -1,24 +1,25 @@
-from dask_jobqueue import SLURMCluster
-from dask.distributed import Client, LocalCluster
-import dask.array as da
-from chest import Chest
-from copy import deepcopy
-from tornado import gen
-from tqdm.auto import tqdm
-from tqdm import TqdmSynchronisationWarning
-import ruamel.yaml as yaml
 import os
 import cv2
 import h5py
-import numpy as np
-import click
-import scipy.signal
+import dask
 import time
-import warnings
-import pathlib
+import dask
+import click
 import psutil
+import pathlib
+import warnings
 import platform
-import re
+import subprocess
+import numpy as np
+import scipy.signal
+from chest import Chest
+from tornado import gen
+from copy import deepcopy
+import ruamel.yaml as yaml
+from tqdm.auto import tqdm
+from dask_jobqueue import SLURMCluster
+from tqdm import TqdmSynchronisationWarning
+from dask.distributed import Client, LocalCluster
 
 
 # from https://stackoverflow.com/questions/46358797/
@@ -269,15 +270,15 @@ def insert_nans(timestamps, data, fps=30):
     nframes, nfeatures = filled_data.shape
 
     for idx in fill_idx[::-1]:
-        if idx >= len(missing_frames)-1: continue # ensures ninserts value remains an int
-        ninserts = int(missing_frames[idx] - 1)
-        data_idx = np.insert(data_idx, idx, [np.nan] * ninserts)
-        insert_timestamps = timestamps[idx - 1] + \
-            np.cumsum(np.ones(ninserts,) * 1.0 / fps)
-        filled_data = np.insert(filled_data, idx,
-                                np.ones((ninserts, nfeatures)) * np.nan, axis=0)
-        filled_timestamps = np.insert(
-            filled_timestamps, idx, insert_timestamps)
+        if idx < len(missing_frames): # ensures ninserts value remains an int
+            ninserts = int(missing_frames[idx] - 1)
+            data_idx = np.insert(data_idx, idx, [np.nan] * ninserts)
+            insert_timestamps = timestamps[idx - 1] + \
+                np.cumsum(np.ones(ninserts,) * 1.0 / fps)
+            filled_data = np.insert(filled_data, idx,
+                                    np.ones((ninserts, nfeatures)) * np.nan, axis=0)
+            filled_timestamps = np.insert(
+                filled_timestamps, idx, insert_timestamps)
 
     if isvec:
         filled_data = np.squeeze(filled_data)
@@ -356,7 +357,7 @@ def get_metadata_path(h5file):
             raise KeyError('acquisition metadata not found')
 
 
-def recursively_load_dict_contents_from_group(h5file, path):
+def h5_to_dict(h5file, path):
     '''
     Reads all contents from h5 and returns them in a nested dict object.
 
@@ -374,23 +375,49 @@ def recursively_load_dict_contents_from_group(h5file, path):
 
     if type(h5file) is str:
         with h5py.File(h5file, 'r') as f:
-            ans = recursively_load_dict_contents_from_group(f, path)
+            ans = h5_to_dict(f, path)
             return ans
 
     for key, item in h5file[path].items():
         if isinstance(item, h5py._hl.dataset.Dataset):
             ans[key] = item[...]
         elif isinstance(item, h5py._hl.group.Group):
-            ans[key] = recursively_load_dict_contents_from_group(
-                h5file, path + key + '/')
+            ans[key] = h5_to_dict(h5file, path + key + '/')
     return ans
+
+
+def set_dask_config(memory={'target': 0.85, 'spill': False, 'pause': False, 'terminate': 0.95}):
+    memory = {f'distributed.worker.memory.{k}': v for k, v in memory.items()}
+    dask.config.set(memory)
+    dask.config.set({'optimization.fuse.ave-width': 5})
+
+
+def get_env_cpu_and_mem():
+    is_slurm = os.environ.get('SLURM_JOBID', False)
+
+    if is_slurm:
+        click.echo('Detected slurm environment, using "sacct" to detect cpu and memory requirements')
+        cmd = f'sacct -j {is_slurm} --format AllocCPUS,ReqMem -X -n -p'
+        output = subprocess.check_output(cmd.split(' '))
+        output = output.decode('utf-8').strip().split('|')
+        cpu, mem, _ = output
+        cpu = int(cpu)
+        if 'G' in mem:
+            mem = float(mem[:mem.index('G')]) * 1e9
+        elif 'M' in mem:
+            mem = float(mem[:mem.index('M')]) * 1e6
+    else:
+        mem = psutil.virtual_memory().available * 0.8
+        cpu = max(1, psutil.cpu_count() - 1)
+
+    return mem, cpu
 
 
 def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                     wall_time='01:00:00', queue='debug', local_processes=False,
-                    cluster_type='local', scheduler='distributed', timeout=10,
-                    cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca'),
-                    **kwargs):
+                    cluster_type='local', timeout=10,
+                    cache_path=os.path.expanduser('~/moseq2_pca'),
+                    dashboard_port='8787', data_size=None, **kwargs):
     '''
     Initialize dask client, cluster, workers, etc.
 
@@ -402,87 +429,71 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     cores (int): number of cores to use.
     wall_time (str): amount of time to allow program to run
     queue (str): logging mode
-    local_processes (bool): indicate whether the processes are local
-    cluster_type (str): indicate what cluster to use
+    local_processes (bool): flag to use processes or threads when using a local cluster
+    cluster_type (str): indicate what cluster to use (local or slurm)
     scheduler (str): indicate what scheduler to use
-    timeout (int): number of worker timeouts to allow
+    timeout (int): how many minutes to wait for workers to initialize
     cache_path (str or Pathlike): path to store cached data
+    dashboard_port (str): port number to find dask statistics
+    data_size (float): size of the dask array in number of bytes.
     kwargs: extra keyward arguments
 
     Returns
     -------
     client (dask Client): initialized Client
     cluster (dask Cluster): initialized Cluster
-    workers (dask Workers): intialized workers or None if cluster_type = 'local'
-    cache (dask Chest): initialized Chest (cache) object pointing to given cache path
+    workers (dask Workers): intialized workers
     '''
 
-    # only use distributed if we need it
+    click.echo(f'Access dask dashboard at localhost:{dashboard_port}')
 
-    client = None
-    workers = None
-    cache = None
-    cluster = None
-
-    if cluster_type == 'local' and scheduler == 'dask':
-
-        if not os.path.exists(cache_path):
-            os.makedirs(cache_path)
-
-        cache = Chest(path=cache_path)
-
-    elif cluster_type == 'local' and scheduler == 'distributed':
+    if cluster_type == 'local':
         warnings.simplefilter('ignore')
-        ncpus = psutil.cpu_count()
-        mem = psutil.virtual_memory().total
-        mem_per_worker = np.floor(((mem * .8) / nworkers) / 1e9)
-        cur_mem = float(re.search(r'\d+', memory).group(0))
 
-        # TODO: make a decision re: threads here (maybe leave as an option?)
+        max_mem, max_cpu = get_env_cpu_and_mem()
+        overhead = 0.8e9  # memory overhead for each worker; approximate
 
-        if cores * nworkers > ncpus or cur_mem > mem_per_worker:
+        # if we don't know the size of the dataset, fall back onto this
+        if data_size is None:
+            optimal_workers = (max_mem // overhead) - 1
+        else:
+            click.echo(f'Using dataset size ({round(data_size / 1e9, 2)}GB) to set optimal parameters')
+            # set optimal workers to handle incoming data
+            optimal_workers = ((max_mem - data_size) // overhead) - 1
 
-            if cores * nworkers > ncpus:
-                cores = 1
-                nworkers = ncpus
+        optimal_workers = max(1, optimal_workers)
 
-            if cur_mem > mem_per_worker:
-                mem_per_worker = np.round(((mem * .8) / nworkers) / 1e9)
-                memory = '{}GB'.format(mem_per_worker)
+        # set number of workers to optimal workers, or total number of CPUs
+        # if there are fewer CPUs present than optimal workers
+        nworkers = int(min(max(1, max_cpu - 1), optimal_workers))
 
-            '''
-            warning_string = ("ncpus or memory out of range, setting to "
-                              "{} cores, {} workers, {} mem per worker "
-                              "\n!!!IF YOU ARE RUNNING ON A CLUSTER MAKE "
-                              "SURE THESE SETTINGS ARE CORRECT!!!"
-                              ).format(cores, nworkers, memory)
-            warnings.warn(warning_string)
-            input('Press ENTER to continue...')
-            '''
+        # display some diagnostic info
+        click.echo(f'Setting number of workers to: {nworkers}')
+        click.echo(f'Overriding memory per worker to {round(max_mem / 1e9, 2)}GB')
 
-        cluster = LocalCluster(n_workers=nworkers,
-                               threads_per_worker=cores,
-                               processes=local_processes,
-                               local_dir=cache_path,
-                               memory_limit=memory,
-                               **kwargs)
-        client = Client(cluster)
+        client = Client(processes=local_processes,
+                        threads_per_worker=1,
+                        memory_limit=max_mem,
+                        n_workers=nworkers,
+                        dashboard_address=dashboard_port,
+                        local_directory=cache_path,
+                        **kwargs)
+        cluster = client.cluster
 
     elif cluster_type == 'slurm':
 
         cluster = SLURMCluster(processes=processes,
+                               n_workers=nworkers,
                                cores=cores,
                                memory=memory,
                                queue=queue,
                                walltime=wall_time,
                                local_directory=cache_path,
+                               dashboard_address=dashboard_port,
                                **kwargs)
-
-        try:
-            workers = cluster.start_workers(nworkers)
-        except AttributeError:
-            workers = cluster.scale(nworkers)
         client = Client(cluster)
+    else:
+        raise NotImplementedError('Specified cluster not supported. Supported types are: "slurm", "local"')
 
     if client is not None:
 
@@ -491,38 +502,37 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
             ip = client_info['address'].split('://')[1].split(':')[0]
             port = client_info['services']['bokeh']
             hostname = platform.node()
-            print('Web UI served at {}:{} (if port forwarding use internal IP not localhost)'
-                  .format(ip, port))
-            print('Tunnel command:\n ssh -NL {}:{}:{} {}'.format(port, ip, port, hostname))
-            print('Tunnel command (gcloud):\n gcloud compute ssh {} -- -NL {}:{}:{}'.format(hostname, port, ip, port))
+            click.echo(f'Web UI served at {ip}:{port} (if port forwarding use internal IP not localhost)')
+            click.echo(f'Tunnel command:\n ssh -NL {port}:{ip}:{port} {hostname}')
+            click.echo(f'Tunnel command (gcloud):\n gcloud compute ssh {hostname} -- -NL {port}:{ip}:{port}')
 
     if cluster_type == 'slurm':
 
         active_workers = len(client.scheduler_info()['workers'])
         start_time = time.time()
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", TqdmSynchronisationWarning)
             warnings.simplefilter('ignore')
-            pbar = tqdm(total=nworkers,
-                        desc="Intializing workers")
+            pbar = tqdm(total=nworkers, desc="Intializing workers")
 
-            elapsed_time = (time.time() - start_time) / 60.0
+            elapsed_time = (time.time() - start_time) / 60
 
             while active_workers < nworkers and elapsed_time < timeout:
                 tmp = len(client.scheduler_info()['workers'])
                 if tmp - active_workers > 0:
                     pbar.update(tmp - active_workers)
-                active_workers += tmp - active_workers
-                time.sleep(5)
-                elapsed_time = (time.time() - start_time) / 60.0
+                active_workers = tmp
+                time.sleep(1)
+                elapsed_time = (time.time() - start_time) / 60
 
             pbar.close()
 
-    return client, cluster, workers, cache
+    workers = cluster.workers
+
+    return client, cluster, workers
 
 
 @gen.coroutine
-def shutdown_dask(scheduler):
+def shutdown_dask(scheduler, workers=None):
     '''
     Graceful shutdown dask scheduler.
     source: https://github.com/dask/distributed/issues/1703#issuecomment-361291492
@@ -536,7 +546,10 @@ def shutdown_dask(scheduler):
     None
     '''
 
-    yield scheduler.retire_workers(workers=scheduler.workers, close_workers=True)
+    if workers == None:
+        yield scheduler.retire_workers(workers=scheduler.workers, close_workers=True)
+    else:
+        yield scheduler.retire_workers(workers=workers, close_workers=True)
     yield scheduler.close()
 
 
@@ -566,20 +579,6 @@ def get_rps(frames, rps=600, normalize=True):
         rproj = scipy.stats.zscore(scipy.stats.zscore(rproj).T)
 
     return rproj
-
-
-# JM: commented out 9/4/2019, wasn't being used for anything!
-# def get_rps_dask(frames, client=None, rps=600, chunk_size=5000, normalize=True):
-#
-#     rps = frames.dot(da.random.normal(0, 1,
-#                                       size=(frames.shape[1], rps),
-#                                       chunks=(chunk_size, -1)))
-#     rps = scipy.stats.zscore(scipy.stats.zscore(rps).T)
-#
-#     if client is not None:
-#         rps = client.scatter(rps)
-#
-#     return rps
 
 
 def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, baseline=True, timestamps=None):

@@ -1,563 +1,299 @@
-import unittest
-import pytest
 import os
-import h5py
-import numpy as np
 import cv2
-from copy import deepcopy
-import ruamel.yaml as yaml
-import platform
+import h5py
+import pytest
 import pathlib
-import psutil
-import re
+import numpy as np
 import scipy.signal
-from chest import Chest
-import dask.array as da
+import ruamel.yaml as yaml
+from unittest import TestCase
 from dask.distributed import Client, LocalCluster
-from dask_jobqueue import SLURMCluster
-import time
-import tqdm
-import warnings
-from moseq2_pca.util import gaussian_kernel1d, gauss_smooth, read_yaml, insert_nans, recursively_load_dict_contents_from_group
-
-def test_recursive_find_h5s():
-    # original params: root_dir=os.getcwd(), ext='.h5', yaml_string='{}.yaml'
-    dicts = []
-    h5s = []
-    yamls = []
-    uuids = []
-    ext = '.h5'
-    yaml_string = '{}.yaml'
-    root_dir = os.getcwd()
-    for root, dirs, files in os.walk(root_dir):
-        for file in files:
-            yaml_file = yaml_string.format(os.path.splitext(file)[0])
-            try:
-                if file.endswith(ext):
-                    with h5py.File(os.path.join(root, file), 'r') as f:
-                        if 'frames' not in f.keys():
-                            continue
-                    dct = read_yaml(os.path.join(root, yaml_file))
-                    if 'uuid' in dct.keys() and dct['uuid'] not in uuids:
-                        h5s.append(os.path.join(root, file))
-                        yamls.append(os.path.join(root, yaml_file))
-                        dicts.append(dct)
-                        uuids.append(dct['uuid'])
-                    elif 'uuid' not in dct.keys():
-                        warnings.warn('No uuid for file {}, skipping...'.format(os.path.join(root, file)))
-                        # h5s.append(os.path.join(root, file))
-                        # yamls.append(os.path.join(root, yaml_file))
-                        # dicts.append(dct)
-                    else:
-                        warnings.warn('Already found uuid {}, file {} is likely a dupe, skipping...'.format(dct['uuid'], os.path.join(root, file)))
-
-            except OSError:
-                print('Error loading {}'.format(os.path.join(root, file)))
-                #pytest.fail('could not load file')
+from moseq2_pca.util import gaussian_kernel1d, gauss_smooth, read_yaml, insert_nans, \
+    h5_to_dict, recursive_find_h5s, clean_frames, select_strel, \
+    get_timestamp_path, get_metadata_path, initialize_dask, get_rps, get_changepoints
 
 
-def test_gauss_smooth():
-    # original params: signal, win_length=None, sig=1.5, kernel=None
+class TestUtils(TestCase):
 
-    sig = 1.5
-    win_length = None
-    kernel = None
-    if kernel is None:
-        kernel = gaussian_kernel1d(n=win_length, sig=sig)
+    def test_recursive_find_h5s(self):
+        # original params: root_dir=os.getcwd(), ext='.h5', yaml_string='{}.yaml'
+        input_dir = 'data/'
+        h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
-    try:
-        result = scipy.signal.convolve([sig], kernel, mode='same', method='direct')
-    except:
-        pytest.fail('scipy convolve failed due to signal != kernel dimensionality')
+        print(h5s)
+        print(dicts)
+        print(yamls)
+        assert len(h5s) == len(dicts) == len(yamls)
 
-def test_gaussian_kernel1d():
-    # original params: n = None, sig=3
-    n = None
-    sig = 3
+        input_dir1 = 'data/proc/'
+        h5s1, dicts1, yamls1 = recursive_find_h5s(input_dir1)
+        assert len(h5s1) == len(dicts1) == len(yamls1)
+        assert len(h5s) == len(h5s1)
 
-    if n is None:
-        n = np.ceil(sig * 4)
-        assert(n == 12)
+        input_dir2 = 'data/_pca/'
+        h5s2, dicts2, yamls2 = recursive_find_h5s(input_dir2)
+        assert len(h5s2) == len(dicts2) == len(yamls2)
+        assert len(h5s1) != len(h5s2)
 
-    points = np.arange(-n, n)
+    def test_gauss_smooth(self):
+        # original params: signal, win_length=None, sig=1.5, kernel=None
+        sig = 1.5
+        win_length = None
+        kernel = None
+        if kernel is None:
+            kernel = gaussian_kernel1d(n=win_length, sig=sig)
 
-    kernel = np.exp(-(points ** 2.0) / (2.0 * sig ** 2.0))
-    kernel /= np.sum(kernel)
+        truth_result = scipy.signal.convolve([sig], kernel, mode='same', method='direct')
+        self.assertListEqual(list(truth_result), [0.3194797971506902])
 
-    mock_res = [4.46133330e-05, 1.60101908e-04, 5.14130542e-04, 1.47739069e-03,
-     3.79893942e-03, 8.74126801e-03, 1.79983031e-02, 3.31614678e-02,
-     5.46740173e-02, 8.06627984e-02, 1.06490445e-01, 1.25803596e-01,
-     1.32990471e-01, 1.25803596e-01, 1.06490445e-01, 8.06627984e-02,
-     5.46740173e-02, 3.31614678e-02, 1.79983031e-02, 8.74126801e-03,
-     3.79893942e-03, 1.47739069e-03, 5.14130542e-04, 1.60101908e-04]
+        test_result1 = gauss_smooth([sig], win_length=win_length, kernel=kernel, sig=sig)
+        assert truth_result == test_result1
 
-    pytest.approx(all([a == b for a, b in zip(mock_res, kernel)]))
+        test_result2 = gauss_smooth([sig], win_length=None, kernel=None, sig=sig)
+        assert truth_result == test_result2
 
+    def test_gaussian_kernel1d(self):
+        # original params: n = None, sig=3
+        n = None
+        sig = 3
 
-# TODO: Implement dask scheduler to properly test
-def test_clean_frames():
-    # original params: frames, medfilter_space=None, gaussfilter_space=None,
-#                  medfilter_time=None, gaussfilter_time=None, detrend_time=None,
-#                  tailfilter=None, tail_threshold=5
-    #pytest.fail('dask must be implemented to pass test')
-    nframes = 100
+        if n is None:
+            n = np.ceil(sig * 4)
+            assert (n == 12)
 
-    fake_mouse = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (80, 80))
-    tmp_image = np.zeros((80, 80), dtype='int8')
-    center = np.array(tmp_image.shape) // 2
+        points = np.arange(-n, n)
 
-    mouse_dims = np.array(fake_mouse.shape) // 2
+        kernel = np.exp(-(points ** 2.0) / (2.0 * sig ** 2.0))
+        kernel /= np.sum(kernel)
 
-    tmp_image[center[0] - mouse_dims[0]:center[0] + mouse_dims[0],
-    center[1] - mouse_dims[1]:center[1] + mouse_dims[1]] = fake_mouse
+        mock_res = [4.46133330e-05, 1.60101908e-04, 5.14130542e-04, 1.47739069e-03,
+                    3.79893942e-03, 8.74126801e-03, 1.79983031e-02, 3.31614678e-02,
+                    5.46740173e-02, 8.06627984e-02, 1.06490445e-01, 1.25803596e-01,
+                    1.32990471e-01, 1.25803596e-01, 1.06490445e-01, 8.06627984e-02,
+                    5.46740173e-02, 3.31614678e-02, 1.79983031e-02, 8.74126801e-03,
+                    3.79893942e-03, 1.47739069e-03, 5.14130542e-04, 1.60101908e-04]
 
-    frames = np.tile(tmp_image, (nframes, 1, 1))
+        pytest.approx(all([a == b for a, b in zip(mock_res, kernel)]))
 
-    medfilter_space = [1]
-    gaussfilter_space = [1.5, 1.0]
-    medfilter_time = [1.5]
-    gaussfilter_time = 1.0
-    detrend_time = 1
-    tailfilter = None
-    tailfilter_shape = 'ellipse'
-    tailfilter_size = [9, 9]
-    tail_threshold = 5
+        test_kernel = gaussian_kernel1d(n, sig)
 
-    print('to be implemented with smaller sample data')
-    '''
-    out = np.copy(frames)
-    
-    if tailfilter is not None:
-        for i in range(frames.shape[0]):
-            mask = cv2.morphologyEx(out[i], cv2.MORPH_OPEN, tailfilter) > tail_threshold
-            out[i] = out[i] * mask.astype(frames.dtype)
+        pytest.approx(all([a == b for a, b in zip(test_kernel, kernel)]))
 
-    if medfilter_space is not None and np.all(np.array(medfilter_space) > 0):
-        for i in range(frames.shape[0]):
-            for medfilt in medfilter_space:
-                out[i] = cv2.medianBlur(out[i], medfilt)
-    else:
-        pytest.fail('unable to perform cv2.medianBlur')
+    def test_clean_frames(self):
+        nframes = 20
 
-    if gaussfilter_space is not None and np.all(np.array(gaussfilter_space) > 0):
-        for i in range(frames.shape[0]):
-            out[i] = cv2.GaussianBlur(out[i], (21, 21),
-                                      gaussfilter_space[0], gaussfilter_space[1])
-    else:
-        pytest.fail('unable to perform gaussian space filter: space size is invalid')
+        fake_mouse = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (80, 80))
+        tmp_image = np.zeros((80, 80), dtype='int8')
+        center = np.array(tmp_image.shape) // 2
 
-    if medfilter_time is not None and np.all(np.array(medfilter_time) > 0):
-        for idx, i in np.ndenumerate(frames[0]):
-            for medfilt in medfilter_time:
-                out[:, idx[0], idx[1]] = \
-                    scipy.signal.medfilt(out[:, idx[0], idx[1]], medfilt)
-    else:
-        pytest.fail('unable to perform medfilter: time is invalid')
+        mouse_dims = np.array(fake_mouse.shape) // 2
 
-    if gaussfilter_time is not None and gaussfilter_time > 0:
-        kernel = gaussian_kernel1d(sig=gaussfilter_time)
-        for idx, i in np.ndenumerate(frames[0]):
-            out[:, idx[0], idx[1]] = \
-                np.convolve(out[:, idx[0], idx[1]], kernel, mode='same')
-    else:
-        pytest.fail('unable to convolve: gauss_kernel1d')
+        tmp_image[center[0] - mouse_dims[0]:center[0] + mouse_dims[0],
+        center[1] - mouse_dims[1]:center[1] + mouse_dims[1]] = fake_mouse
 
-    if detrend_time is not None and detrend_time > 0:
-        kernel = gaussian_kernel1d(sig=detrend_time)
-        for idx, i in np.ndenumerate(frames[0]):
-            out[:, idx[0], idx[1]] = \
-                out[:, idx[0], idx[1]] - gauss_smooth(out[:, idx[0], idx[1]], kernel=kernel)
-    else:
-        pytest.fail('unsucessful cleaning @ gauss smooth')
-    '''
+        frames = np.tile(tmp_image, (nframes, 1, 1))
 
-def test_select_strel():
-    # original params: string='e', size=(10,10)
-    string0 = ''
-    string1 = 'e'
-    string2 = 'r'
-    size = (10,10)
-    strel = None
-    mock_strel0 = None
-    mock_strel1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, size)
-    mock_strel2 = cv2.getStructuringElement(cv2.MORPH_RECT, size)
+        medfilter_space = [1, 1]
+        gaussfilter_space = None
+        medfilter_time = [3]
+        gaussfilter_time = None
+        detrend_time = 1
+        tailfilter = None
 
+        test_output = clean_frames(frames, medfilter_space=medfilter_space, gaussfilter_space=gaussfilter_space,
+                     medfilter_time=medfilter_time, gaussfilter_time=gaussfilter_time, detrend_time=detrend_time,
+                     tailfilter=tailfilter, tail_threshold=5)
 
-    if string0 is None or 'none' in string0 or np.all(np.array(size) == 0):
+        np.testing.assert_equal(np.any(np.not_equal(frames, test_output)), True)
+
+    def test_select_strel(self):
+        # original params: string='e', size=(10,10)
+        string0 = ''
+        string1 = 'e'
+        string2 = 'r'
+        size = (10, 10)
         strel = None
-        assert (strel == mock_strel0)
-
-    if string1[0].lower() == 'e':
-        strel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, size)
-        assert all([c == d for a, b in zip(strel, mock_strel1) for c, d in zip(a,b)])
-
-    if string2[0].lower() == 'r':
-        strel = cv2.getStructuringElement(cv2.MORPH_RECT, size)
-        assert all([c == d for a, b in zip(strel, mock_strel2) for c, d in zip(a,b)])
-    else:
-        strel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, size)
-        assert all([c == d for a, b in zip(strel, mock_strel1) for c, d in zip(a,b)])
-
-
-def test_insert_nans():
-    # original params: timestamps, data, fps
-
-    # generate mock timestamps from test h5 file
-    h5file = 'data/testh5.h5'
-    fps = 30
-    chunk_size = 5000
-    print('to be implemented with simpler test data file')
-    '''
-    with h5py.File(h5file, 'r') as f:
-
-        dset = h5py.File(h5file, mode='r')['/frames']
-        frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
-
-        if '/timestamps' in f:
-            # h5 format post v0.1.3
-            timestamps = f['/timestamps'][...] / 1000.0
-        elif '/metadata/timestamps' in f:
-            # h5 format pre v0.1.3
-            timestamps = f['/metadata/timestamps'][...] / 1000.0
-        else:
-            timestamps = np.arange(frames.shape[0]) / fps
-
-    df_timestamps = np.diff(
-        np.insert(timestamps, 0, timestamps[0] - 1.0 / fps))
-    missing_frames = np.floor(df_timestamps / (1.0 / fps))
-    fill_idx = np.where(missing_frames > 1)[0]
-    data_idx = np.arange(len(timestamps)).astype('float64')
-
-    filled_data = deepcopy(timestamps)
-    filled_timestamps = deepcopy(timestamps)
-
-    if filled_data.ndim == 1:
-        isvec = True
-        filled_data = filled_data[:, None]
-    else:
-        isvec = False
-
-    nframes, nfeatures = filled_data.shape
-
-    for idx in fill_idx[::-1]:
-        ninserts = int(missing_frames[idx] - 1)
-        data_idx = np.insert(data_idx, idx, [np.nan] * ninserts)
-        insert_timestamps = timestamps[idx - 1] + \
-                            np.cumsum(np.ones(ninserts, ) * 1.0 / fps)
-        filled_data = np.insert(filled_data, idx,
-                                np.ones((ninserts, nfeatures)) * np.nan, axis=0)
-        filled_timestamps = np.insert(
-            filled_timestamps, idx, insert_timestamps)
-
-    if isvec:
-        filled_data = np.squeeze(filled_data)
-
-    if missing_frames.all() > 0:
-        if np.nan not in filled_data:
-            print('failed')
-            #pytest.fail('data not filled properly.')
-    '''
-
-def test_read_yaml():
-    # original param: yaml_file
-    yaml_file = 'data/test_conf.yaml'
-    try:
-        with open(yaml_file, 'r') as f:
-            dat = f.read()
-            try:
-                return_dict = yaml.safe_load(dat)
-            except yaml.constructor.ConstructorError:
-                return_dict = yaml.safe_load(dat)
-                pytest.fail('yaml exception thrown')
-    except IOError:
-        return_dict = {}
-        pytest.fail('IOERROR')
-
-    if return_dict == {}:
-        if dat != None:
-            pytest.fail('no data read.')
-
-
-def test_get_timestamp_path():
-    # original param: h5file path
-    h5file = 'data/testh5.h5'
-    with h5py.File(h5file, 'r') as f:
-        if '/timestamps' in f:
-            return '/timestamps'
-        elif '/metadata/timestamps' in f:
-            return '/metadata/timestamps'
-        else:
-            #pytest.fail('no timestamp found')
-            print('no timestamp found')
-
-
-def test_get_metadata_path():
-    # original param: h5file path
-    h5file = 'data/testh5.h5'
-    with h5py.File(h5file, 'r') as f:
-        if '/metadata/acquisition' in f:
-            return '/metadata/acquisition'
-        elif '/metadata/extraction' in f:
-            return '/metadata/extraction'
-        else:
-            #pytest.fail('KeyError')
-            print('acquisition metadata not found')
-            #raise KeyError('acquisition metadata not found')
-
-
-# TODO: possibly implement some kwargs edge cases
-def test_initialize_dask():
-    #original params: nworkers=50, processes=1, memory='4GB', cores=1,
-#                     wall_time='01:00:00', queue='debug', local_processes=False,
-#                     cluster_type='local', scheduler='distributed', timeout=10,
-#                     cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca'),
-#                     **kwargs
-
-    nworkers = 50
-    processes = 1
-    memory = '4GB'
-    cores = 1
-    wall_time = '01:00:00'
-    queue = 'debug'
-    local_processes = False,
-    cluster_type='local'
-    scheduler='distributed'
-    timeout=10
-    cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca')
-
-    client = None
-    workers = None
-    cache = None
-    cluster = None
-
-    if cluster_type == 'local' and scheduler == 'dask':
-
-        if not os.path.exists(cache_path):
-            os.makedirs(cache_path)
-
-        # check if directory exists
-    elif cluster_type == 'local' and scheduler == 'distributed':
-
-        ncpus = psutil.cpu_count()
-        mem = psutil.virtual_memory().total
-        mem_per_worker = np.floor(((mem * .8) / nworkers) / 1e9)
-        cur_mem = float(re.search(r'\d+', memory).group(0))
-
-        if cores * nworkers > ncpus or cur_mem > mem_per_worker:
-
-            if cores * nworkers > ncpus:
-                cores = 1
-                nworkers = ncpus
-            else:
-                pytest.fail('insufficent core amount')
-
-            if cur_mem > mem_per_worker:
-                mem_per_worker = np.round(((mem * .8) / nworkers) / 1e9)
-                memory = '{}GB'.format(mem_per_worker)
-            else:
-                pytest.fail('insufficient memory available')
-
-        cluster = LocalCluster(n_workers=nworkers,
-                               threads_per_worker=cores,
-                               processes=local_processes,
-                               local_dir=cache_path,
-                               memory_limit=memory)
-        client = Client(cluster)
-
-    elif cluster_type == 'slurm':
-
-        cluster = SLURMCluster(processes=processes,
-                               cores=cores,
-                               memory=memory,
-                               queue=queue,
-                               walltime=wall_time,
-                               local_directory=cache_path)
-
-        workers = cluster.start_workers(nworkers)
-        client = Client(cluster)
-
-    if client is not None:
-
-        client_info = client.scheduler_info()
-        if 'services' in client_info.keys() and 'bokeh' in client_info['services'].keys():
-            ip = client_info['address'].split('://')[1].split(':')[0]
-            port = client_info['services']['bokeh']
-            hostname = platform.node()
-            print('Web UI served at {}:{} (if port forwarding use internal IP not localhost)'
-                  .format(ip, port))
-            print('Tunnel command:\n ssh -NL {}:{}:{} {}'.format(port, ip, port, hostname))
-            print('Tunnel command (gcloud):\n gcloud compute ssh {} -- -NL {}:{}:{}'.format(hostname, port, ip, port))
-        #else:
-        #   pytest.fail('services key in client info and/or bokeh are not found')
-    else:
-        pytest.fail('client is none')
-
-    if cluster_type == 'slurm':
-
-        active_workers = len(client.scheduler_info()['workers'])
-        start_time = time.time()
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", tqdm.TqdmSynchronisationWarning)
-            pbar = tqdm.tqdm(total=nworkers * processes,
-                             desc="Intializing workers")
-
-            elapsed_time = (time.time() - start_time) / 60.0
-
-            while active_workers < nworkers * processes and elapsed_time < timeout:
-                tmp = len(client.scheduler_info()['workers'])
-                if tmp - active_workers > 0:
-                    pbar.update(tmp - active_workers)
-                active_workers += tmp - active_workers
-                time.sleep(5)
-                elapsed_time = (time.time() - start_time) / 60.0
-
-            pbar.close()
-
-def test_get_rps():
-    # original params: frames, rps=600, normalize=True
-    rps = 600
-    nframes = 100
-
-    fake_mouse = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (80, 80))
-    tmp_image = np.zeros((80, 80), dtype='int8')
-    center = np.array(tmp_image.shape) // 2
-
-    mouse_dims = np.array(fake_mouse.shape) // 2
-
-    tmp_image[center[0] - mouse_dims[0]:center[0] + mouse_dims[0],
-    center[1] - mouse_dims[1]:center[1] + mouse_dims[1]] = fake_mouse
-
-    frames = np.tile(tmp_image, (nframes, 1, 1))
-
-    if frames.ndim == 3:
-        use_frames = frames.reshape(-1, np.prod(frames.shape[1:]))
-    elif frames.ndim == 2:
-        use_frames = frames
-
-    rproj = use_frames.dot(np.random.randn(use_frames.shape[1], rps).astype('float32'))
-
-    if rproj.shape != (nframes, rps):
-        pytest.fail('incorrect shape')
-    # normalizing
-    rproj = scipy.stats.zscore(scipy.stats.zscore(rproj).T)
-
-    if rproj.shape != (rps, nframes):
-        pytest.fail('incorrect shape most normalize-transpose')
-
-
-# TODO: add dask scheduler to perform scatter
-def test_get_rsp_dask():
-    # original params: frames, client=None, rps=600, chunk_size=5000, normalize=True
-    rps = 600
-    chunk_size = 5000
-    client = None
-
-    nframes = 100
-
-    fake_mouse = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (80, 80))
-    tmp_image = np.zeros((80, 80), dtype='int8')
-    center = np.array(tmp_image.shape) // 2
-
-    mouse_dims = np.array(fake_mouse.shape) // 2
-
-    tmp_image[center[0] - mouse_dims[0]:center[0] + mouse_dims[0],
-    center[1] - mouse_dims[1]:center[1] + mouse_dims[1]] = fake_mouse
-
-    frames = np.tile(tmp_image, (nframes, 1, 1))
-
-    rps = frames.dot(da.random.normal(0, 1,
-                                      size=(frames.shape[1], 600),
-                                      chunks=(chunk_size, -1)))
-    rps = scipy.stats.zscore(scipy.stats.zscore(rps).T)
-
-    if client is not None:
-        rps = client.scatter(rps)
-
-def test_get_changepoints():
-    # original params: scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, baseline=True, timestamps=None
-    k = 5
-    sigma = 3
-    peak_height = .5
-    peak_neighbors = 1
-    baseline = True
-    timestamps = None
-
-    h5file = 'test_files/testh5.h5'
-    pca_scores = 'test_files/test_scores.h5'
-    yml = 'test_files/test_index.yaml'
-    fps = 30
-    chunk_size = 5000
-
-    # getting uuid
-    data = read_yaml(yml)
-    uuid = '5c72bf30-9596-4d4d-ae38-db9a7a28e912'
-
-    print('added soft fail until sample test file is included')
-    '''
-    # getting sample timestamps from test h5
-    with h5py.File(h5file, 'r') as f:
-
-        dset = h5py.File(h5file, mode='r')['/frames']
-        frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
-
-        if '/timestamps' in f:
-            # h5 format post v0.1.3
-            timestamps = f['/timestamps'][...] / 1000.0
-        elif '/metadata/timestamps' in f:
-            # h5 format pre v0.1.3
-            timestamps = f['/metadata/timestamps'][...] / 1000.0
-        else:
-            timestamps = np.arange(frames.shape[0]) / fps
-
-    # getting sample pca scores from test h5
-    with h5py.File(pca_scores, 'r') as f:
-        scores = f['scores/{}'.format(uuid)]
-        scores_idx = f['scores_idx/{}'.format(uuid)][...]
-        scores = scores[~np.isnan(scores_idx), :]
-
-    if np.sum(frames.chunks[0]) != scores.shape[0]:
-        warnings.warn('Chunks do not add up to scores shape in file {}'.format(h5file))
-        pytest.fail('Chunks do not add up to scores.')
-
-    ##THIS IS AN ALTERATION WITHOUT USING DASK DUE TO INABILITY TO ASSIGN THEM TO TUPLES IN GAUSS SMOOTH
-    #scores = da.from_array(scores, chunks=(frames.chunks[0], scores.shape[1]))
-
-    if type(k) is not int:
-        k = int(k)
-
-    if type(peak_neighbors) is not int:
-        peak_neighbors = int(peak_neighbors)
-
-    normed_df = deepcopy(scores)
-    nanidx = np.isnan(normed_df)
-    normed_df[nanidx] = 0
-
-    if sigma is not None and sigma > 0:
-        for i in range(scores.shape[0]):
-            normed_df[i, :] = gauss_smooth(normed_df[i, :], sig=sigma)
-    else:
-        pytest.fail('sigma is invalid')
-
-    normed_df[:, k // 2:-k // 2] = (normed_df[:, k:] - normed_df[:, :-k])**2
-
-    normed_df[nanidx] = np.nan
-    normed_df[:, :int(6 * sigma)] = np.nan
-    normed_df[:, -int(6 * sigma):] = np.nan
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=RuntimeWarning)
-        normed_df = np.nanmean(normed_df, axis=0)
-
-        if baseline:
-            normed_df -= np.nanmin(normed_df)
-
-        if timestamps is not None:
-            normed_df, _, _ = insert_nans(
-                timestamps, normed_df, fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
-
-        normed_df = np.squeeze(normed_df)
-        cps = scipy.signal.argrelextrema(
-            normed_df, np.greater, order=peak_neighbors)[0]
-        cps = cps[np.argwhere(normed_df[cps] > peak_height)]
-        
-    '''
+        mock_strel0 = None
+        mock_strel1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, size)
+        mock_strel2 = cv2.getStructuringElement(cv2.MORPH_RECT, size)
+
+        test0 = select_strel(strel, size)
+        test01 = select_strel(string0, size)
+        test1 = select_strel(string1, size)
+        test2 = select_strel(string2, size)
+
+        assert test0 == test01 == mock_strel0
+        assert test1.all() == mock_strel1.all()
+        assert test2.all() == mock_strel2.all()
+
+    def test_read_yaml(self):
+        # original param: yaml_file
+        yaml_file = 'data/config.yaml'
+        try:
+            with open(yaml_file, 'r') as f:
+                dat = f.read()
+                try:
+                    truth_dict = yaml.safe_load(dat)
+                except yaml.constructor.ConstructorError:
+                    truth_dict = yaml.safe_load(dat)
+                    pytest.fail('yaml exception thrown')
+        except IOError:
+            truth_dict = {}
+            pytest.fail('IOERROR')
+
+        if truth_dict == {}:
+            if dat != None:
+                pytest.fail('no data read.')
+
+        test_dict = read_yaml(yaml_file)
+        assert test_dict == truth_dict
+
+    def test_get_timestamp_path(self):
+        # original param: h5file path
+        h5file = 'data/proc/results_00.h5'
+        test_path = get_timestamp_path(h5file)
+
+        true_path = []
+        with h5py.File(h5file, 'r') as f:
+            if '/timestamps' in f:
+                true_path.append('/timestamps')
+            elif '/metadata/timestamps' in f:
+                true_path.append('/metadata/timestamps')
+
+        assert test_path in true_path
+
+    def test_get_metadata_path(self):
+        # original param: h5file path
+        h5file = 'data/proc/results_00.h5'
+        test_path = get_metadata_path(h5file)
+
+        true_path = []
+        with h5py.File(h5file, 'r') as f:
+            if '/metadata/acquisition' in f:
+                true_path.append('/metadata/acquisition')
+            elif '/metadata/extraction' in f:
+                true_path.append('/metadata/extraction')
+
+        assert test_path in true_path
+
+    # TODO: possibly implement some kwargs edge cases
+    def test_initialize_dask(self):
+
+        nworkers = 50
+        processes = 1
+        memory = '4GB'
+        cores = 1
+        wall_time = '01:00:00'
+        queue = 'debug'
+        cluster_type = 'local'
+        timeout = 10
+        cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
+
+        client, cluster, workers = initialize_dask(nworkers=nworkers, processes=processes, memory=memory,
+                                                   cores=cores, wall_time=wall_time, queue=queue,
+                                                   cluster_type=cluster_type,
+                                                   timeout=timeout, cache_path=cache_path)
+
+        assert isinstance(client, Client)
+        assert isinstance(cluster, LocalCluster)
+        assert isinstance(workers, dict)
+        client.close()
+        cluster.close()
+
+    def test_get_rps(self):
+        rps = 600
+        nframes = 20
+
+        fake_mouse = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (80, 80))
+        tmp_image = np.zeros((80, 80), dtype='int8')
+        center = np.array(tmp_image.shape) // 2
+
+        mouse_dims = np.array(fake_mouse.shape) // 2
+
+        tmp_image[center[0] - mouse_dims[0]:center[0] + mouse_dims[0],
+        center[1] - mouse_dims[1]:center[1] + mouse_dims[1]] = fake_mouse
+
+        frames = np.tile(tmp_image, (nframes, 1, 1))
+
+        if frames.ndim == 3:
+            use_frames = frames.reshape(-1, np.prod(frames.shape[1:]))
+        elif frames.ndim == 2:
+            use_frames = frames
+
+        truth_rproj = use_frames.dot(np.random.randn(use_frames.shape[1], rps).astype('float32'))
+
+        if truth_rproj.shape != (nframes, rps):
+            pytest.fail('incorrect shape')
+
+        # normalizing
+        truth_norm_rproj = scipy.stats.zscore(scipy.stats.zscore(truth_rproj).T)
+
+        if truth_norm_rproj.shape != (rps, nframes):
+            pytest.fail('incorrect shape most normalize-transpose')
+
+        test_norm_rproj = get_rps(frames, rps=rps, normalize=True)
+
+        assert truth_norm_rproj.all() == test_norm_rproj.all()
+
+        test_rproj = get_rps(frames, rps=rps, normalize=False)
+        assert test_rproj.all() == truth_rproj.all()
+
+    def test_get_changepoints(self):
+
+        input_dir = 'data/'
+        pca_scores = 'data/test_scores.h5'
+
+        h5s, dicts, yamls = recursive_find_h5s(input_dir)
+
+        for h5, yml in zip(h5s, yamls):
+            data = read_yaml(yml)
+            uuid = data['uuid']
+            with h5py.File(pca_scores, 'r') as f:
+                scores = f['scores/{}'.format(uuid)]
+                scores_idx = f['scores_idx/{}'.format(uuid)]
+                scores = scores[~np.isnan(scores_idx), :]
+
+        k = 5
+        sigma = 3
+        peak_height = .5
+        peak_neighbors = 1
+        baseline = True
+        timestamps = None
+
+        cps, normed_df = get_changepoints(scores, k=k,
+                         sigma=sigma,
+                         peak_height=peak_height,
+                         peak_neighbors=peak_neighbors,
+                         baseline=baseline,
+                         timestamps=timestamps)
+
+        np.testing.assert_equal(cps, [[25], [27]])
+        assert isinstance(normed_df, np.ndarray)
+        assert len(normed_df) > 0
+
+
+    def test_insert_nans(self):
+        input_dir = 'data/'
+        pca_scores = 'data/test_scores.h5'
+
+        h5s, dicts, yamls = recursive_find_h5s(input_dir)
+
+        for h5, yml in zip(h5s, yamls):
+            data = read_yaml(yml)
+            uuid = data['uuid']
+            with h5py.File(pca_scores, 'r') as f:
+                truth_scores = f['scores/{}'.format(uuid)][()]
+                truth_scores_idx = f['scores_idx/{}'.format(uuid)][()]
+                truth_scores = truth_scores[~np.isnan(truth_scores_idx), :]
+
+        h5file = 'data/proc/results_00.h5'
+        ts_path = get_timestamp_path(h5file)
+        with h5py.File(h5file, 'r') as f:
+            timestamps = f[ts_path][...] / 1000.0
+
+        test_scores, test_score_idx, filled_timestamps = insert_nans(data=truth_scores, timestamps=timestamps,
+                                           fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
+
+        assert len(timestamps) < len(filled_timestamps)
+        assert len(truth_scores) < len(test_scores)
+        assert truth_scores_idx.all() == test_score_idx.all()

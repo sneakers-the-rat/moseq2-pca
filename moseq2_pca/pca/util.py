@@ -1,15 +1,14 @@
-from moseq2_pca.util import (clean_frames, insert_nans,
-                             read_yaml, get_changepoints, get_rps)
-from dask.distributed import as_completed, wait, progress
-import dask.array.linalg as lng
-import dask.array as da
 import dask
-from dask.diagnostics import ProgressBar
-import numpy as np
 import h5py
-import tqdm
-import warnings
 import logging
+import warnings
+import numpy as np
+import dask.array as da
+from tqdm.auto import tqdm
+import dask.array.linalg as lng
+from dask.diagnostics import ProgressBar
+from dask.distributed import as_completed, wait, progress
+from moseq2_pca.util import (clean_frames, insert_nans, read_yaml, get_changepoints, get_rps)
 
 
 def mask_data(original_data, mask, new_data):
@@ -33,10 +32,131 @@ def mask_data(original_data, mask, new_data):
 
     return output
 
+def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, min_height, max_height, client):
+    '''
+    Runs Singular Vector Decomposition on the inputted frames of shape (nframes, nfeatures).
+    Data is centered by subtracting it by the mean value of the data. If missing_data == True,
+    It will iteratively recompute the svd on the mean-centered data to reconstruct the PCs from
+    the missing data until it converges.
+
+    Parameters
+    ----------
+    dask_array (dask 2d-array): Reshaped input data array of shape (nframes x nfeatures)
+    mean (1d array): Means of each row in dask_array.
+    rank (int): Rank of the desired thin SVD decomposition.
+    iters (int): Number of SVD iterations
+    missing_data (bool): Indicates whether to compute SVD with a masked array
+    mask (dask 2d-array): None if missing_data == False, else mask array of shape dask_array
+    recon_pcs (int): Number of PCs to reconstruct for missing data.
+    min_height (int): Minimum height of mouse above the ground, used to filter reconstructed PCs.
+    max_height (int): Maximum height of mouse above the ground, used to filter reconstructed PCs.
+    client (dask Client): Dask client to process batches.
+
+    Returns
+    -------
+    s (1d array): computed singular values (eigen-values).
+    v (2d array): computed principal components (eigen-vectors).
+    mean (1d array): updated mean of dask array if missing_data == True.
+    total_var (float): total variance captured by principal components.
+    '''
+
+    if not missing_data:
+        _, s, v = lng.svd_compressed(dask_array - mean, rank, 0, compute=True)
+    else:
+        for iter in range(iters):
+            u, s, v = lng.svd_compressed(dask_array - mean, rank, 0, compute=True)
+            if iter < iters - 1:
+                recon = u[:, :recon_pcs].dot(da.diag(s[:recon_pcs]).dot(v[:recon_pcs, :])) + mean
+                recon[recon < min_height] = 0
+                recon[recon > max_height] = 0
+                dask_array = da.map_blocks(mask_data, dask_array, mask, recon, dtype=dask_array.dtype)
+                mean = dask_array.mean(axis=0)
+
+    total_var = dask_array.var(ddof=1, axis=0).sum()
+    futures = client.compute([s, v, mean, total_var])
+
+    # set notebook=False because progress bar doesn't show up otherwise
+    progress(futures, notebook=False)
+
+    s, v, mean, total_var = client.gather(futures)
+    return s, v, mean, total_var
+
+def compute_explained_variance(s, nsamples, total_var):
+    '''
+    Computes the explained variance and explained variance ratio contributed
+    by each computed Principal Component.
+
+    Parameters
+    ----------
+    s (1d array): computed singular values.
+    nsamples (int): number of included samples.
+    total_var (float): total variance captured by principal components.
+
+    Returns
+    -------
+    explained_variance (1d-array): list of floats denoting the explained variance per PC.
+    explained_variance_ratio (1d-array): list of floats denoting the explained variance ratios per PC.
+    '''
+
+    explained_variance = s ** 2 / (nsamples - 1)
+    explained_variance_ratio = explained_variance / total_var
+
+    return explained_variance, explained_variance_ratio
+
+def get_timestamps(f, frames, fps=30):
+    '''
+    Reads the timestamps from a given h5 file.
+
+    Parameters
+    ----------
+    f (read-open h5py File): open "results_00.h5" h5py.File object in read-mode
+    frames (3d-array): list of 2d frames contained in opened h5 File.
+    fps (int): frames per second.
+
+    Returns
+    -------
+    timestamps (1d array): array of timestamps for inputted frames variable
+    '''
+
+    if '/timestamps' in f:
+        # h5 format post v0.1.3
+        timestamps = f['/timestamps'][()] / 1000.0
+    elif '/metadata/timestamps' in f:
+        # h5 format pre v0.1.3
+        timestamps = f['/metadata/timestamps'][()] / 1000.0
+    else:
+        print('WARNING: timestamps were not found. Using default frame series-ordering.')
+        timestamps = np.arange(frames.shape[0]) / fps
+
+    return timestamps
+
+def copy_metadatas_to_scores(f, f_scores, uuid):
+    '''
+    Copies metadata from individual session extract h5 files to the PCA scores h5 file.
+
+    Parameters
+    ----------
+    f (read-open h5py File): open "results_00.h5" h5py.File object in read-mode
+    f_scores (read-open h5py File): open "pca_scores.h5" h5py.File object in read-mode
+    uuid (str): uuid of inputted session h5 "f".
+
+    Returns
+    -------
+    None
+    '''
+
+    if '/metadata/acquisition' in f:
+        # h5 format post v0.1.3
+        metadata_name = 'metadata/{}'.format(uuid)
+        f.copy('/metadata/acquisition', f_scores, name=metadata_name)
+    elif '/metadata/extraction' in f:
+        # h5 format pre v0.1.3
+        metadata_name = 'metadata/{}'.format(uuid)
+        f.copy('/metadata/extraction', f_scores, name=metadata_name)
 
 def train_pca_dask(dask_array, clean_params, use_fft, rank,
                    cluster_type, client, workers,
-                   cache, mask=None, iters=10, recon_pcs=10,
+                   mask=None, iters=10, recon_pcs=10,
                    min_height=10, max_height=100):
     '''
     Train PCA using dask arrays.
@@ -50,7 +170,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     cluster_type (str): indicates which cluster to use.
     client (Dask.Client): client object to execute dask operations
     workers (int): number of dask workers
-    cache (str): path to cache directory
     mask (dask array): dask array of masked data if missing_data parameter==True
     iters (int): number of SVD iterations
     recon_pcs (int): number of PCs to reconstruct. (if missing_data = True)
@@ -66,22 +185,13 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     logger.setLevel(logging.WARNING)
 
     missing_data = False
-    rechunked = False
-    _, r, c = dask_array.shape
-    nfeatures = r * c
-
-    original_chunks = dask_array.chunks[0][0]
-
-    if original_chunks > 100:
-        dask_array.rechunk(100, -1, -1)
-        rechunked = True
 
     smallest_chunk = np.min(dask_array.chunks[0])
 
     if mask is not None:
         missing_data = True
         dask_array[mask] = 0
-        mask = mask.reshape(-1, nfeatures)
+        mask = mask.reshape(len(mask), -1)
 
     if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
         dask_array = dask_array.map_overlap(
@@ -89,7 +199,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
             dtype='float32', **clean_params)
     else:
         dask_array = dask_array.map_blocks(clean_frames, dtype='float32', **clean_params)
-        # dask_array = clean_frames(dask_array, **clean_params)
 
     if use_fft:
         print('Using FFT...')
@@ -97,14 +206,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
             lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
             dtype='float32')
 
-    if rechunked:
-        dask_array.rechunk(original_chunks, -1, -1)
-
-    # todo, abstract this into another function, add support for missing data
-    # (should be simple, just need a mask array, then repeat calculation to convergence)
-
-    dask_array = dask_array.reshape(-1, nfeatures).astype('float32')
-    nsamples, nfeatures = dask_array.shape
+    dask_array = dask_array.reshape(len(dask_array), -1).astype('float32')
 
     if cluster_type == 'slurm':
         print('Cleaning frames...')
@@ -112,8 +214,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
         if mask is not None:
             mask = client.persist(mask)
 
-    progress(dask_array)
-    wait(dask_array)
     mean = dask_array.mean(axis=0)
 
     if cluster_type == 'slurm':
@@ -123,36 +223,28 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
 
     print('\nComputing SVD...')
 
-    if not missing_data:
-        u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
-    else:
-        for iter in range(iters):
-            u, s, v = lng.svd_compressed(dask_array-mean, rank, 0)
-            if iter < iters - 1:
-                recon = u[:, :recon_pcs].dot(da.diag(s[:recon_pcs]).dot(v[:recon_pcs, :])) + mean
-                recon[recon < min_height] = 0
-                recon[recon > max_height] = 0
-                dask_array = da.map_blocks(mask_data, dask_array, mask, recon, dtype=dask_array.dtype)
-                mean = dask_array.mean(axis=0)
+    svd_training_parameters = {
+        'dask_array': dask_array,
+        'mask': mask,
+        'mean': mean,
+        'rank': rank,
+        'iters': iters,
+        'missing_data': missing_data,
+        'recon_pcs': recon_pcs,
+        'min_height': min_height,
+        'max_height': max_height
+    }
 
-    total_var = dask_array.var(ddof=1, axis=0).sum()
-    futures = client.compute([s, v, mean, total_var])
-
-    with ProgressBar():
-        progress(futures)
-        s, v, mean, total_var = client.gather(futures)
-
-    # cluster.stop_workers(workers)
+    s, v, mean, total_var = compute_svd(**svd_training_parameters, client=client)
 
     print('\nCalculation complete...')
 
     # correct the sign of the singular vectors
     tmp = np.argmax(np.abs(v), axis=1)
-    correction = np.sign(v[np.arange(v.shape[0]), tmp])
+    correction = np.sign(v[np.arange(len(v)), tmp])
     v *= correction[:, None]
 
-    explained_variance = s ** 2 / (nsamples-1)
-    explained_variance_ratio = explained_variance / total_var
+    explained_variance, explained_variance_ratio = compute_explained_variance(s, len(dask_array), total_var)
 
     output_dict = {
         'components': v,
@@ -194,8 +286,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
     '''
 
     with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
-        for h5, yml in tqdm.tqdm(zip(h5s, yamls), total=len(h5s),
-                                 desc='Computing scores'):
+        for h5, yml in tqdm(zip(h5s, yamls), total=len(h5s), desc='Computing scores'):
 
             data = read_yaml(yml)
             uuid = data['uuid']
@@ -218,23 +309,8 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
                 frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
 
-                if '/timestamps' in f:
-                    # h5 format post v0.1.3
-                    timestamps = f['/timestamps'][()] / 1000.0
-                elif '/metadata/timestamps' in f:
-                    # h5 format pre v0.1.3
-                    timestamps = f['/metadata/timestamps'][()] / 1000.0
-                else:
-                    timestamps = np.arange(frames.shape[0]) / fps
-
-                if '/metadata/acquisition' in f:
-                    # h5 format post v0.1.3
-                    metadata_name = 'metadata/{}'.format(uuid)
-                    f.copy('/metadata/acquisition', f_scores, name=metadata_name)
-                elif '/metadata/extraction' in f:
-                    # h5 format pre v0.1.3
-                    metadata_name = 'metadata/{}'.format(uuid)
-                    f.copy('/metadata/extraction', f_scores, name=metadata_name)
+                timestamps = get_timestamps(f, frames, fps)
+                copy_metadatas_to_scores(f, f_scores, uuid)
 
             scores = frames.dot(pca_components.T)
 
@@ -289,15 +365,16 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
     futures = []
     uuids = []
 
-    for h5, yml in zip(h5s, yamls):
+    for h5, yml in tqdm(zip(h5s, yamls), total=len(h5s), desc='Loading Data'):
         data = read_yaml(yml)
         uuid = data['uuid']
 
-        dset = h5py.File(h5, mode='r')[h5_path][()]
-        frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
+        dset = h5py.File(h5, mode='r')[h5_path]
+        frames = da.from_array(dset, chunks=chunk_size).astype('float32')
+
 
         if missing_data:
-            mask_dset = h5py.File(h5, mode='r')[h5_mask_path][()]
+            mask_dset = h5py.File(h5, mode='r')[h5_mask_path]
             mask = da.from_array(mask_dset, chunks=frames.chunks)
             mask = da.logical_and(mask < mask_params['mask_threshold'],
                                   frames > mask_params['mask_height_threshold'])
@@ -334,9 +411,8 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
     with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
 
         batch_count = 0
-        total_batches = len(range(0, len(futures), batch_size))
-
-        for i in range(0, len(futures), batch_size):
+        batches = range(0, len(futures), batch_size)
+        for i in tqdm(batches, total=len(batches), desc='Computing scores in batches'):
 
             futures_batch = client.compute(futures[i:i+batch_size])
             uuids_batch = uuids[i:i+batch_size]
@@ -350,23 +426,8 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                 file_idx = keys.index(future.key)
 
                 with h5py.File(h5s_batch[file_idx], mode='r') as f:
-                    if '/timestamps' in f:
-                        # h5 format post v0.1.3
-                        timestamps = f['/timestamps'][()] / 1000.0
-                    elif '/metadata/timestamps' in f:
-                        # h5 format pre v0.1.3
-                        timestamps = f['/metadata/timestamps'][()] / 1000.0
-                    else:
-                        timestamps = np.arange(frames.shape[0]) / fps
-
-                    if '/metadata/acquisition' in f:
-                        # h5 format post v0.1.3
-                        metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
-                        f.copy('/metadata/acquisition', f_scores, name=metadata_name)
-                    elif '/metadata/extraction' in f:
-                        # h5 format pre v0.1.3
-                        metadata_name = 'metadata/{}'.format(uuids_batch[file_idx])
-                        f.copy('/metadata/extraction', f_scores, name=metadata_name)
+                    timestamps = get_timestamps(f, frames, fps)
+                    copy_metadatas_to_scores(f, f_scores, uuids_batch[file_idx])
 
                 scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
                                                    fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
@@ -412,28 +473,21 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
     logger = logging.getLogger("distributed.utils_perf")
     logger.setLevel(logging.WARNING)
 
-    for h5, yml in tqdm.tqdm(zip(h5s, yamls), disable=progress_bar, desc='Setting up calculation', total=len(h5s)):
+    for h5, yml in tqdm(zip(h5s, yamls), disable=progress_bar, desc='Setting up calculation', total=len(h5s)):
         data = read_yaml(yml)
         uuid = data['uuid']
 
         with h5py.File(h5, 'r') as f:
 
-            dset = h5py.File(h5, mode='r')[h5_path][()]
-            frames = da.from_array(dset, chunks=(chunk_size, -1, -1)).astype('float32')
+            dset = h5py.File(h5, mode='r')[h5_path]
+            frames = da.from_array(dset, chunks=chunk_size).astype('float32')
 
-            if '/timestamps' in f:
-                # h5 format post v0.1.3
-                timestamps = f['/timestamps'][()] / 1000.0
-            elif '/metadata/timestamps' in f:
-                # h5 format pre v0.1.3
-                timestamps = f['/metadata/timestamps'][()] / 1000.0
-            else:
-                timestamps = np.arange(frames.shape[0]) / fps
+            timestamps = get_timestamps(f, frames, fps)
 
         if missing_data and pca_scores is None:
             raise RuntimeError("Need to compute PC scores to impute missing data")
         elif missing_data:
-            mask_dset = h5py.File(h5, mode='r')[h5_mask_path][()]
+            mask_dset = h5py.File(h5, mode='r')[h5_mask_path]
             mask = da.from_array(mask_dset, chunks=frames.chunks)
             mask = da.logical_and(mask < mask_params['mask_threshold'],
                                   frames > mask_params['mask_height_threshold'])
@@ -441,8 +495,8 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
             mask = mask.reshape(-1, frames.shape[1] * frames.shape[2])
 
             with h5py.File(pca_scores, 'r') as f:
-                scores = f['scores/{}'.format(uuid)][()]
-                scores_idx = f['scores_idx/{}'.format(uuid)][()]
+                scores = f['scores/{}'.format(uuid)]
+                scores_idx = f['scores_idx/{}'.format(uuid)]
                 scores = scores[~np.isnan(scores_idx), :]
 
             if np.sum(frames.chunks[0]) != scores.shape[0]:
@@ -472,9 +526,9 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
         f_cps.create_dataset('metadata/fps', data=fps, dtype='float32')
 
         batch_count = 0
-        total_batches = len(range(0, len(futures), batch_size))
 
-        for i in range(0, len(futures), batch_size):
+        batches = range(0, len(futures), batch_size)
+        for i in tqdm(batches, total=len(batches), desc='Computing changepoints in batches'):
 
             futures_batch = client.compute(futures[i:i+batch_size])
             uuids_batch = uuids[i:i+batch_size]

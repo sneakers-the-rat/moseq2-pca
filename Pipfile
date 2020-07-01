@@ -1,0 +1,32 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+pytest = "*"
+pytest-cov = "*"
+
+[packages]
+h5py = '*'
+dask = '*'
+tqdm = "*"
+bokeh = '*'
+chest = '*'
+scipy = "*"
+numpy = "*"
+click = "*"
+psutil = '*'
+awscli = "*"
+joblib = "*"
+cytoolz = "*"
+seaborn = '*'
+ipywidgets = '*'
+matplotlib = '*'
+statsmodels = "*"
+ruamel_yaml = '*'
+distributed = '*'
+scikit-image = "*"
+scikit-learn = "*"
+dask_jobqueue = '*'
+opencv-python = '*'

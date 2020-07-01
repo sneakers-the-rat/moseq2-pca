@@ -1,38 +1,37 @@
-import warnings
-import skimage.util
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from scipy.stats import mode
-import pytest
 import h5py
-import tqdm
+import numpy as np
+from unittest import TestCase
+from moseq2_pca.util import h5_to_dict
+from moseq2_pca.viz import display_components, scree_plot, changepoint_dist
 
-def test_display_components():
-    # original params: components, cmap='gray', headless=False
-    '''
-    cmap = 'gray'
-    im_size = int(np.sqrt(components.shape[1]))
-    plotv = components.reshape((-1, im_size, im_size))
-    plotv = skimage.util.montage(plotv)
+class TestViz(TestCase):
 
-    plt.switch_backend('agg')
+    def test_display_components(self):
+        # get components
+        pca_path = 'data/_pca/pca.h5'
+        with h5py.File(pca_path, 'r') as f:
+            components = f['components'][()]
+            plt, ax = display_components(components)
+            assert (plt != None and ax != None)
 
-    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    plt.imshow(plotv, cmap=cmap)
-    plt.xticks([])
-    plt.yticks([])
-    '''
-    print('not implemented')
+    def test_scree_plot(self):
+        # get explained_variance_ratio
+        pca_path = 'data/_pca/pca.h5'
+        with h5py.File(pca_path, 'r') as f:
+            components = f['explained_variance_ratio'][()]
+            plt = scree_plot(components)
+            assert (plt != None)
 
+    def test_changepoint_dist(self):
+        # original params: cps, headless=False
+        save_file = 'data/_pca/changepoints'
 
+        with h5py.File(f'{save_file}.h5', 'r') as f:
+            cps = h5_to_dict(f, 'cps')
+        block_durs = np.concatenate([np.diff(cp, axis=0) for k, cp in cps.items()])
 
-def test_scree_plot():
-    # original params: explained_variance_ratio, headless=False
-    #pytest.fail('not implemented')
-    print('not implemented')
+        assert block_durs.shape == (51,1)
 
-def changepoint_dist():
-    # original params: cps, headless=False
-    #pytest.fail('not implemented')
-    print('not implemented')
+        out = changepoint_dist(block_durs, headless=True)
+
+        assert out != None
