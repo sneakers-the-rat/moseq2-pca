@@ -1,5 +1,6 @@
 import os
 import h5py
+import click
 import logging
 import pathlib
 import datetime
@@ -12,7 +13,7 @@ from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local, train_pca_dask,
 from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, set_dask_config, \
             h5_to_dict, get_timestamp_path, get_metadata_path
 
-def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_directory=None, gui=False):
+def train_pca_wrapper(input_dir, config_data, output_dir, output_file, gui=False):
     '''
     Wrapper function to train PCA.
 
@@ -22,8 +23,6 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
-    output_directory (str): alternative output_dir
-    gui (bool): indicate GUI is running
 
     Returns
     -------
@@ -31,27 +30,19 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     '''
 
     set_dask_config()
-    dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
-    # find directories with .dat files that either have incomplete or no extractions
 
     if config_data['missing_data'] and config_data['use_fft']:
         raise NotImplementedError("FFT and missing data not implemented yet")
 
     params = config_data
-    if output_directory is None:
-        h5s, dicts, yamls = recursive_find_h5s(input_dir)
-    else:
-        h5s, dicts, yamls = recursive_find_h5s(output_directory)
+    # find directories with .dat files that either have incomplete or no extractions
+    h5s, dicts, yamls = recursive_find_h5s(input_dir)
     timestamp = f'{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}'
 
     params['start_time'] = timestamp
     params['inputs'] = h5s
 
-    if output_directory is None:
-        # outputting pca folder in inputted base directory.
-        output_dir = os.path.join(os.path.dirname(os.path.dirname(input_dir)), output_dir)
-    else:
-        output_dir = os.path.join(output_directory, output_dir)
+    output_dir = os.path.abspath(output_dir)
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -89,22 +80,21 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
 
     config_data['data_size'] = stacked_array.nbytes
 
-    client, cluster, workers, cache = \
+    client, cluster, workers = \
         initialize_dask(cluster_type=config_data['cluster_type'],
                         nworkers=config_data['nworkers'],
                         cores=config_data['cores'],
                         processes=config_data['processes'],
-                        local_processes=config_data['local_processes'],
                         memory=config_data['memory'],
                         wall_time=config_data['wall_time'],
                         queue=config_data['queue'],
                         timeout=config_data['timeout'],
-                        scheduler='distributed',
-                        cache_path=dask_cache_path,
-                        dashboard_port=config_data.get('dask_port', ':8787'),
+                        cache_path=config_data['dask_cache_path'],
+                        local_processes=config_data['local_processes'],
+                        dashboard_port=config_data['dask_port'],
                         data_size=config_data['data_size'])
 
-    print(f'Processing {len(stacked_array):d} total frames')
+    click.echo(f'Processing {len(stacked_array)} total frames')
 
     if config_data['missing_data']:
         mask_dsets = [h5py.File(h5, mode='r')[config_data['h5_mask_path']] for h5 in h5s]
@@ -112,7 +102,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
         stacked_array_mask = da.concatenate(mask_arrays, axis=0).astype('float32')
         stacked_array_mask = da.logical_and(stacked_array_mask < config_data['mask_threshold'],
                                             stacked_array > config_data['mask_height_threshold'])
-        print('Loaded mask...')
+        click.echo('Loaded mask for missing data')
 
     else:
         stacked_array_mask = None
@@ -124,8 +114,8 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                            rank=config_data['rank'], cluster_type=config_data['cluster_type'],
                            min_height=config_data['min_height'],
                            max_height=config_data['max_height'], client=client,
-                           iters=config_data['missing_data_iters'], workers=workers, cache=cache,
-                           recon_pcs=config_data['recon_pcs'], gui=gui)
+                           iters=config_data['missing_data_iters'], workers=workers,
+                           recon_pcs=config_data['recon_pcs'])
     except Exception as e:
         logging.error(e)
         logging.error(e.__traceback__)
@@ -170,10 +160,9 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
             print('Could not restart dask client')
             pass
 
-    if gui:
-        return config_data
+    return config_data
 
-def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_directory=None, gui=False):
+def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, gui=False):
     '''
     Wrapper function to obtain PCA Scores.
 
@@ -183,7 +172,6 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
-    output_directory (str): alternative output_dir
     gui (bool): indicate GUI is running
 
     Returns
@@ -194,19 +182,16 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
 
+    set_dask_config()
 
-    dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
-    params = locals()
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
-    if output_directory is None:
-        if 'aggregate_results' in input_dir:
-            outpath = '/'.join(input_dir.split('/')[:-2])
-            output_dir = os.path.join(outpath, output_dir)  # outputting pca folder in inputted base directory.
-        else:
-            output_dir = os.path.join(input_dir, output_dir)  # outputting pca folder in inputted base directory.
-    else:
-        output_dir = os.path.join(output_directory, output_dir)
+    output_dir = os.path.abspath(output_dir)
+    # if 'aggregate_results' in input_dir:
+    #     outpath = '/'.join(input_dir.split('/')[:-2])
+    #     output_dir = os.path.join(outpath, output_dir)  # outputting pca folder in inputted base directory.
+    # else:
+    #     output_dir = os.path.join(input_dir, output_dir)  # outputting pca folder in inputted base directory.
 
     # automatically get the correct timestamp path
     try:
@@ -256,7 +241,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                             h5_mask_path=config_data['h5_mask_path'])
 
         else:
-            client, cluster, workers, cache = \
+            client, cluster, workers = \
                 initialize_dask(cluster_type=config_data['cluster_type'],
                                 nworkers=config_data['nworkers'],
                                 cores=config_data['cores'],
@@ -264,10 +249,9 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
                                 memory=config_data['memory'],
                                 wall_time=config_data['wall_time'],
                                 queue=config_data['queue'],
-                                scheduler='distributed',
                                 timeout=config_data['timeout'],
-                                cache_path=dask_cache_path,
-                                dashboard_port=config_data.get('dask_port', ':8787'),
+                                cache_path=config_data['dask_cache_path'],
+                                dashboard_port=config_data['dask_port'],
                                 data_size=config_data.get('data_size', None))
 
             logging.basicConfig(filename=f'{output_dir}/scores.log', level=logging.ERROR)
@@ -296,7 +280,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, output_di
         config_data['pca_file_scores'] = save_file + '.h5'
         return config_data
 
-def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file, gui=False, output_directory=None):
+def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file, gui=False):
     '''
     Wrapper function to compute model-free (PCA based) Changepoints.
 
@@ -306,7 +290,6 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
-    output_directory (str): alternative output_dir
     gui (bool): indicate GUI is running
 
     Returns
@@ -317,15 +300,15 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
 
-    dask_cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
+    dask_cache_path = os.path.expanduser('~/moseq2_pca')
 
     config_data, pca_file_components, pca_file_scores, h5s, yamls, save_file = \
-        setup_cp_command(input_dir, config_data, output_dir, output_file, output_directory)
+        setup_cp_command(input_dir, config_data, output_dir, output_file)
 
     pca_components, changepoint_params, missing_data, mask_params = \
         load_pcs_for_cp(pca_file_components, config_data)
 
-    client, cluster, workers, cache = \
+    client, cluster, workers = \
         initialize_dask(cluster_type=config_data['cluster_type'],
                         nworkers=config_data['nworkers'],
                         cores=config_data['cores'],
@@ -333,10 +316,9 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
                         memory=config_data['memory'],
                         wall_time=config_data['wall_time'],
                         queue=config_data['queue'],
-                        scheduler='distributed',
                         timeout=config_data['timeout'],
                         cache_path=dask_cache_path,
-                        dashboard_port=config_data.get('dask_port', ':8787'),
+                        dashboard_port=config_data['dask_port'],
                         data_size=config_data.get('data_size', None))
 
     logging.basicConfig(filename=f'{output_dir}/changepoints.log', level=logging.ERROR)

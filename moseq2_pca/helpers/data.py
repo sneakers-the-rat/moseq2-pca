@@ -4,7 +4,7 @@ import pathlib
 import ruamel.yaml as yaml
 from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, get_timestamp_path
 
-def setup_cp_command(input_dir, config_data, output_dir, output_file, output_directory=None):
+def setup_cp_command(input_dir, config_data, output_dir, output_file):
     '''
     Helper function for changepoints_wrapper to perform data-path existence checks.
 
@@ -14,7 +14,6 @@ def setup_cp_command(input_dir, config_data, output_dir, output_file, output_dir
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
-    output_directory (str): alternative output_dir
 
     Returns
     -------
@@ -26,8 +25,6 @@ def setup_cp_command(input_dir, config_data, output_dir, output_file, output_dir
     save_file (str): path to save changepoints
     '''
 
-    params = locals()
-
     if os.path.exists(os.path.join(input_dir, 'aggregate_results/')):
         h5s, dicts, yamls = recursive_find_h5s(os.path.join(input_dir, 'aggregate_results/'))
     else:
@@ -38,10 +35,7 @@ def setup_cp_command(input_dir, config_data, output_dir, output_file, output_dir
     except:
         pass
 
-    if output_directory is None:
-        output_dir = os.path.join(input_dir, output_dir)  # outputting pca folder in inputted base directory.
-    else:
-        output_dir = os.path.join(output_directory, output_dir)
+    output_dir = os.path.abspath(output_dir)
 
     if config_data.get('pca_file_components') is None:
         pca_file_components = os.path.join(output_dir, 'pca.h5')
@@ -85,7 +79,6 @@ def load_pcs_for_cp(pca_file_components, config_data):
     cluster (dask Cluster): Dask Cluster object.
     client (dask Client): Dask Client Object
     workers (dask Workers): intialized workers or None if cluster_type = 'local'
-    cache (dask Chest): initialized Chest (cache) object pointing to given cache path
     missing_data (bool): Indicates whether to use mask_params
     mask_params (dict): Mask parameters to use when computing CPs
     '''

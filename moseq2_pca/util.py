@@ -3,11 +3,13 @@ import cv2
 import h5py
 import dask
 import time
+import dask
 import click
 import psutil
 import pathlib
 import warnings
 import platform
+import subprocess
 import numpy as np
 import scipy.signal
 from chest import Chest
@@ -380,20 +382,42 @@ def h5_to_dict(h5file, path):
         if isinstance(item, h5py._hl.dataset.Dataset):
             ans[key] = item[...]
         elif isinstance(item, h5py._hl.group.Group):
-            ans[key] = h5_to_dict(
-                h5file, path + key + '/')
+            ans[key] = h5_to_dict(h5file, path + key + '/')
     return ans
 
-def set_dask_config(memory={'target': 0.8, 'spill': 0.9, 'pause': False, 'terminate': False}):
+
+def set_dask_config(memory={'target': 0.85, 'spill': False, 'pause': False, 'terminate': 0.95}):
     memory = {f'distributed.worker.memory.{k}': v for k, v in memory.items()}
     dask.config.set(memory)
+    dask.config.set({'optimization.fuse.ave-width': 5})
+
+
+def get_env_cpu_and_mem():
+    is_slurm = os.environ.get('SLURM_JOBID', False)
+
+    if is_slurm:
+        click.echo('Detected slurm environment, using "sacct" to detect cpu and memory requirements')
+        cmd = f'sacct -j {is_slurm} --format AllocCPUS,ReqMem -X -n -p'
+        output = subprocess.check_output(cmd.split(' '))
+        output = output.decode('utf-8').strip().split('|')
+        cpu, mem, _ = output
+        cpu = int(cpu)
+        if 'G' in mem:
+            mem = float(mem[:mem.index('G')]) * 1e9
+        elif 'M' in mem:
+            mem = float(mem[:mem.index('M')]) * 1e6
+    else:
+        mem = psutil.virtual_memory().available * 0.8
+        cpu = max(1, psutil.cpu_count() - 1)
+
+    return mem, cpu
 
 
 def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                     wall_time='01:00:00', queue='debug', local_processes=False,
-                    cluster_type='local', scheduler='distributed', timeout=10,
-                    cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca'),
-                    dashboard_port=':8787', data_size=1000000, gui=False, **kwargs):
+                    cluster_type='local', timeout=10,
+                    cache_path=os.path.expanduser('~/moseq2_pca'),
+                    dashboard_port='8787', data_size=None, **kwargs):
     '''
     Initialize dask client, cluster, workers, etc.
 
@@ -405,11 +429,12 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     cores (int): number of cores to use.
     wall_time (str): amount of time to allow program to run
     queue (str): logging mode
-    local_processes (bool): indicate whether the processes are local
-    cluster_type (str): indicate what cluster to use
+    local_processes (bool): flag to use processes or threads when using a local cluster
+    cluster_type (str): indicate what cluster to use (local or slurm)
     scheduler (str): indicate what scheduler to use
     timeout (int): how many minutes to wait for workers to initialize
     cache_path (str or Pathlike): path to store cached data
+    dashboard_port (str): port number to find dask statistics
     data_size (float): size of the dask array in number of bytes.
     kwargs: extra keyward arguments
 
@@ -417,59 +442,48 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     -------
     client (dask Client): initialized Client
     cluster (dask Cluster): initialized Cluster
-    workers (dask Workers): intialized workers or None if cluster_type = 'local'
-    cache (dask Chest): initialized Chest (cache) object pointing to given cache path
+    workers (dask Workers): intialized workers
     '''
 
-    # only use distributed if we need it
-    workers = None
-    cache = None
-
-    if isinstance(dashboard_port, str):
-        if ':' != dashboard_port[0]:
-            dashboard_port = f':{dashboard_port}'
-    else:
-        print('Using default dashboard address :8787')
-        dashboard_port = ':8787'
-
+    click.echo(f'Access dask dashboard at localhost:{dashboard_port}')
 
     if cluster_type == 'local':
         warnings.simplefilter('ignore')
 
-        cur_mem = psutil.virtual_memory().available * 0.8
-        overhead = 1e9  # memory overhead for each worker; approximate
+        max_mem, max_cpu = get_env_cpu_and_mem()
+        overhead = 0.8e9  # memory overhead for each worker; approximate
 
         # if we don't know the size of the dataset, fall back onto this
         if data_size is None:
-            optimal_workers = (cur_mem // overhead) - 1
+            optimal_workers = (max_mem // overhead) - 1
         else:
+            click.echo(f'Using dataset size ({round(data_size / 1e9, 2)}GB) to set optimal parameters')
             # set optimal workers to handle incoming data
-            optimal_workers = ((cur_mem - data_size) // overhead) - 1
+            optimal_workers = ((max_mem - data_size) // overhead) - 1
 
-        optimal_workers = int(max(1, optimal_workers))
+        optimal_workers = max(1, optimal_workers)
 
         # set number of workers to optimal workers, or total number of CPUs
         # if there are fewer CPUs present than optimal workers
-        nworkers = int(min(max(1, psutil.cpu_count() - 1), optimal_workers))
-        memory = cur_mem
+        nworkers = int(min(max(1, max_cpu - 1), optimal_workers))
 
         # display some diagnostic info
         click.echo(f'Setting number of workers to: {nworkers}')
-        click.echo(f'Overriding memory per worker to {round(memory / 1e9, 2)}GB')
+        click.echo(f'Overriding memory per worker to {round(max_mem / 1e9, 2)}GB')
 
         client = Client(processes=local_processes,
                         threads_per_worker=1,
-                        memory_limit=memory,
+                        memory_limit=max_mem,
                         n_workers=nworkers,
                         dashboard_address=dashboard_port,
-                        local_dir=cache_path,
+                        local_directory=cache_path,
                         **kwargs)
-
         cluster = client.cluster
 
     elif cluster_type == 'slurm':
 
         cluster = SLURMCluster(processes=processes,
+                               n_workers=nworkers,
                                cores=cores,
                                memory=memory,
                                queue=queue,
@@ -477,7 +491,6 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                                local_directory=cache_path,
                                dashboard_address=dashboard_port,
                                **kwargs)
-
         client = Client(cluster)
     else:
         raise NotImplementedError('Specified cluster not supported. Supported types are: "slurm", "local"')
@@ -498,7 +511,6 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         active_workers = len(client.scheduler_info()['workers'])
         start_time = time.time()
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", TqdmSynchronisationWarning)
             warnings.simplefilter('ignore')
             pbar = tqdm(total=nworkers, desc="Intializing workers")
 
@@ -514,7 +526,9 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
             pbar.close()
 
-    return client, cluster, workers, cache
+    workers = cluster.workers
+
+    return client, cluster, workers
 
 
 @gen.coroutine
@@ -565,20 +579,6 @@ def get_rps(frames, rps=600, normalize=True):
         rproj = scipy.stats.zscore(scipy.stats.zscore(rproj).T)
 
     return rproj
-
-
-# JM: commented out 9/4/2019, wasn't being used for anything!
-# def get_rps_dask(frames, client=None, rps=600, chunk_size=5000, normalize=True):
-#
-#     rps = frames.dot(da.random.normal(0, 1,
-#                                       size=(frames.shape[1], rps),
-#                                       chunks=(chunk_size, -1)))
-#     rps = scipy.stats.zscore(scipy.stats.zscore(rps).T)
-#
-#     if client is not None:
-#         rps = client.scatter(rps)
-#
-#     return rps
 
 
 def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, baseline=True, timestamps=None):
