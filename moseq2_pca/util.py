@@ -1,24 +1,25 @@
-from dask_jobqueue import SLURMCluster
-from dask.distributed import Client, LocalCluster
-import dask.array as da
-from chest import Chest
-from copy import deepcopy
-from tornado import gen
-from tqdm.auto import tqdm
-from tqdm import TqdmSynchronisationWarning
-import ruamel.yaml as yaml
 import os
 import cv2
 import h5py
-import numpy as np
-import click
-import scipy.signal
+import dask
 import time
-import warnings
-import pathlib
+import dask
+import click
 import psutil
+import pathlib
+import warnings
 import platform
-import re
+import subprocess
+import numpy as np
+import scipy.signal
+from chest import Chest
+from tornado import gen
+from copy import deepcopy
+import ruamel.yaml as yaml
+from tqdm.auto import tqdm
+from dask_jobqueue import SLURMCluster
+from tqdm import TqdmSynchronisationWarning
+from dask.distributed import Client, LocalCluster
 
 
 # from https://stackoverflow.com/questions/46358797/
@@ -55,8 +56,22 @@ def command_with_config(config_file_param_name):
 def recursive_find_h5s(root_dir=os.getcwd(),
                        ext='.h5',
                        yaml_string='{}.yaml'):
-    """Recursively find h5 files, along with yaml files with the same basename
-    """
+    '''
+    Recursively find h5 files, along with yaml files with the same basename
+
+    Parameters
+    ----------
+    root_dir (str or os.Pathlike): path to directory to start recursive search
+    ext (str): extension to search for, e.g. .h5
+    yaml_string (str): a format to use to name yaml files
+
+    Returns
+    -------
+    h5s (list): list of h5 file paths
+    dicts (list): list of dicts containing metadata file contents
+    yamls (list): list of yaml file paths
+    '''
+
     dicts = []
     h5s = []
     yamls = []
@@ -77,9 +92,6 @@ def recursive_find_h5s(root_dir=os.getcwd(),
                         uuids.append(dct['uuid'])
                     elif 'uuid' not in dct.keys():
                         warnings.warn('No uuid for file {}, skipping...'.format(os.path.join(root, file)))
-                        # h5s.append(os.path.join(root, file))
-                        # yamls.append(os.path.join(root, yaml_file))
-                        # dicts.append(dct)
                     else:
                         warnings.warn('Already found uuid {}, file {} is likely a dupe, skipping...'.format(dct['uuid'], os.path.join(root, file)))
             except OSError:
@@ -89,21 +101,41 @@ def recursive_find_h5s(root_dir=os.getcwd(),
 
 
 def gauss_smooth(signal, win_length=None, sig=1.5, kernel=None):
+    '''
+    Perform Gaussian Smoothing on a 1D signal.
 
+    Parameters
+    ----------
+    signal (1d numpy array): signal to perform smoothing
+    win_length (int): window_size for gaussian kernel filter
+    sig (float): variance of 1d gaussian kernel.
+    kernel (tuple): kernel size to use for smoothing
+
+    Returns
+    -------
+    result (1d numpy array): smoothed signal
+    '''
     if kernel is None:
         kernel = gaussian_kernel1d(n=win_length, sig=sig)
 
     result = scipy.signal.convolve(signal, kernel, mode='same', method='direct')
 
-#    win_length = len(kernel)
-
-#     result[:win_length] = np.nan
-#     result[-win_length:] = np.nan
-
     return result
 
 
 def gaussian_kernel1d(n=None, sig=3):
+    '''
+    Get 1D gaussian kernel.
+
+    Parameters
+    ----------
+    n (int): number of points to use.
+    sig (int): variance of kernel to use.
+
+    Returns
+    -------
+    kernel (1d array): 1D numpy kernel.
+    '''
 
     if n is None:
         n = np.ceil(sig * 4)
@@ -119,6 +151,25 @@ def gaussian_kernel1d(n=None, sig=3):
 def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
                  medfilter_time=None, gaussfilter_time=None, detrend_time=None,
                  tailfilter=None, tail_threshold=5):
+    '''
+    Filters spatial/temporal noise from frames using Median and Gaussian filters,
+    given kernel sizes for each respective requested filter.
+
+    Parameters
+    ----------
+    frames (3D numpy array): frames to filter.
+    medfilter_space (list): median spatial filter kernel.
+    gaussfilter_space (list): gaussian spatial filter kernel.
+    medfilter_time (list): median temporal filter.
+    gaussfilter_time (list): gaussian temporal filter.
+    detrend_time (int): number of frames to lag for.
+    tailfilter (int): size of tail-filter kernel.
+    tail_threshold (int): threshold value to use for tail filtering
+
+    Returns
+    -------
+    out (3D numpy array): filtered frames.
+    '''
 
     out = np.copy(frames)
 
@@ -159,7 +210,20 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
 
 
 def select_strel(string='e', size=(10, 10)):
-    if string is None or 'none' in string or np.all(np.array(size) == 0):
+    '''
+    Selects Structuring Element Shape
+
+    Parameters
+    ----------
+    string (str): e for Ellipse, r for Rectangle
+    size (tuple): size of StructuringElement
+
+    Returns
+    -------
+    strel (cv2.StructuringElement): returned StructuringElement with specified size.
+    '''
+
+    if string is None or 'none' in string or np.all(np.array(size) == 0) or len(string) == 0:
         strel = None
     elif string[0].lower() == 'e':
         strel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, size)
@@ -171,10 +235,26 @@ def select_strel(string='e', size=(10, 10)):
 
 
 def insert_nans(timestamps, data, fps=30):
+    '''
+    Fills NaN values with 0 in timestamps.
+
+    Parameters
+    ----------
+    timestamps (1D array): timestamp time-strs
+    data (1D array): timestamp values
+    fps (int): frames per second
+
+    Returns
+    -------
+    filled_data (1D array): filled missing timestamp values.
+    data_idx (1D array): indices of inserted 0s
+    filled_timestamps (1D array): filled timestamp-strs
+    '''
 
     df_timestamps = np.diff(
         np.insert(timestamps, 0, timestamps[0] - 1.0 / fps))
     missing_frames = np.floor(df_timestamps / (1.0 / fps))
+
     fill_idx = np.where(missing_frames > 1)[0]
     data_idx = np.arange(len(timestamps)).astype('float64')
 
@@ -190,14 +270,15 @@ def insert_nans(timestamps, data, fps=30):
     nframes, nfeatures = filled_data.shape
 
     for idx in fill_idx[::-1]:
-        ninserts = int(missing_frames[idx] - 1)
-        data_idx = np.insert(data_idx, idx, [np.nan] * ninserts)
-        insert_timestamps = timestamps[idx - 1] + \
-            np.cumsum(np.ones(ninserts,) * 1.0 / fps)
-        filled_data = np.insert(filled_data, idx,
-                                np.ones((ninserts, nfeatures)) * np.nan, axis=0)
-        filled_timestamps = np.insert(
-            filled_timestamps, idx, insert_timestamps)
+        if idx < len(missing_frames): # ensures ninserts value remains an int
+            ninserts = int(missing_frames[idx] - 1)
+            data_idx = np.insert(data_idx, idx, [np.nan] * ninserts)
+            insert_timestamps = timestamps[idx - 1] + \
+                np.cumsum(np.ones(ninserts,) * 1.0 / fps)
+            filled_data = np.insert(filled_data, idx,
+                                    np.ones((ninserts, nfeatures)) * np.nan, axis=0)
+            filled_timestamps = np.insert(
+                filled_timestamps, idx, insert_timestamps)
 
     if isvec:
         filled_data = np.squeeze(filled_data)
@@ -206,6 +287,17 @@ def insert_nans(timestamps, data, fps=30):
 
 
 def read_yaml(yaml_file):
+    '''
+    Reads yaml file and returns dictionary representation of file contents.
+
+    Parameters
+    ----------
+    yaml_file (str): path to yaml file
+
+    Returns
+    -------
+    return_dict (dict): dict of yaml file contents
+    '''
 
     try:
         with open(yaml_file, 'r') as f:
@@ -221,7 +313,18 @@ def read_yaml(yaml_file):
 
 
 def get_timestamp_path(h5file):
-    '''Return path within h5 file that contains the kinect timestamps'''
+    '''
+    Return path within h5 file that contains the kinect timestamps
+
+    Parameters
+    ----------
+    h5file (str): path to h5 file.
+
+    Returns
+    -------
+    (str): path to metadata timestamps within h5 file
+    '''
+
     with h5py.File(h5file, 'r') as f:
         if '/timestamps' in f:
             return '/timestamps'
@@ -233,7 +336,18 @@ def get_timestamp_path(h5file):
 
 
 def get_metadata_path(h5file):
-    '''Return path within h5 file that contains the kinect extraction metadata'''
+    '''
+    Return path within h5 file that contains the kinect extraction metadata.
+
+    Parameters
+    ----------
+    h5file (str): path to h5 file.
+
+    Returns
+    -------
+    (str): path to acquistion metadata within h5 file.
+    '''
+
     with h5py.File(h5file, 'r') as f:
         if '/metadata/acquisition' in f:
             return '/metadata/acquisition'
@@ -243,98 +357,143 @@ def get_metadata_path(h5file):
             raise KeyError('acquisition metadata not found')
 
 
-def recursively_load_dict_contents_from_group(h5file, path):
-    """
-    ....
-    """
+def h5_to_dict(h5file, path):
+    '''
+    Reads all contents from h5 and returns them in a nested dict object.
+
+    Parameters
+    ----------
+    h5file (str): path to h5 file
+    path (str): path to group within h5 file
+
+    Returns
+    -------
+    ans (dict): dictionary of all h5 group contents
+    '''
+
     ans = {}
 
     if type(h5file) is str:
         with h5py.File(h5file, 'r') as f:
-            ans = recursively_load_dict_contents_from_group(f, path)
+            ans = h5_to_dict(f, path)
             return ans
 
     for key, item in h5file[path].items():
         if isinstance(item, h5py._hl.dataset.Dataset):
             ans[key] = item[...]
         elif isinstance(item, h5py._hl.group.Group):
-            ans[key] = recursively_load_dict_contents_from_group(
-                h5file, path + key + '/')
+            ans[key] = h5_to_dict(h5file, path + key + '/')
     return ans
+
+
+def set_dask_config(memory={'target': 0.85, 'spill': False, 'pause': False, 'terminate': 0.95}):
+    memory = {f'distributed.worker.memory.{k}': v for k, v in memory.items()}
+    dask.config.set(memory)
+    dask.config.set({'optimization.fuse.ave-width': 5})
+
+
+def get_env_cpu_and_mem():
+    is_slurm = os.environ.get('SLURM_JOBID', False)
+
+    if is_slurm:
+        click.echo('Detected slurm environment, using "sacct" to detect cpu and memory requirements')
+        cmd = f'sacct -j {is_slurm} --format AllocCPUS,ReqMem -X -n -p'
+        output = subprocess.check_output(cmd.split(' '))
+        output = output.decode('utf-8').strip().split('|')
+        cpu, mem, _ = output
+        cpu = int(cpu)
+        if 'G' in mem:
+            mem = float(mem[:mem.index('G')]) * 1e9
+        elif 'M' in mem:
+            mem = float(mem[:mem.index('M')]) * 1e6
+    else:
+        mem = psutil.virtual_memory().available * 0.8
+        cpu = max(1, psutil.cpu_count() - 1)
+
+    return mem, cpu
 
 
 def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                     wall_time='01:00:00', queue='debug', local_processes=False,
-                    cluster_type='local', scheduler='distributed', timeout=10,
-                    cache_path=os.path.join(pathlib.Path.home(), 'moseq2_pca'),
-                    **kwargs):
+                    cluster_type='local', timeout=10,
+                    cache_path=os.path.expanduser('~/moseq2_pca'),
+                    dashboard_port='8787', data_size=None, **kwargs):
+    '''
+    Initialize dask client, cluster, workers, etc.
 
-    # only use distributed if we need it
+    Parameters
+    ----------
+    nworkers (int): number of dask workers to initialize
+    processes (int): number of processes per worker
+    memory (str): amount of memory to allocate to dask cluster
+    cores (int): number of cores to use.
+    wall_time (str): amount of time to allow program to run
+    queue (str): logging mode
+    local_processes (bool): flag to use processes or threads when using a local cluster
+    cluster_type (str): indicate what cluster to use (local or slurm)
+    scheduler (str): indicate what scheduler to use
+    timeout (int): how many minutes to wait for workers to initialize
+    cache_path (str or Pathlike): path to store cached data
+    dashboard_port (str): port number to find dask statistics
+    data_size (float): size of the dask array in number of bytes.
+    kwargs: extra keyward arguments
 
-    client = None
-    workers = None
-    cache = None
-    cluster = None
+    Returns
+    -------
+    client (dask Client): initialized Client
+    cluster (dask Cluster): initialized Cluster
+    workers (dask Workers): intialized workers
+    '''
 
-    if cluster_type == 'local' and scheduler == 'dask':
+    click.echo(f'Access dask dashboard at localhost:{dashboard_port}')
 
-        if not os.path.exists(cache_path):
-            os.makedirs(cache_path)
-
-        cache = Chest(path=cache_path)
-
-    elif cluster_type == 'local' and scheduler == 'distributed':
+    if cluster_type == 'local':
         warnings.simplefilter('ignore')
-        ncpus = psutil.cpu_count()
-        mem = psutil.virtual_memory().total
-        mem_per_worker = np.floor(((mem * .8) / nworkers) / 1e9)
-        cur_mem = float(re.search(r'\d+', memory).group(0))
 
-        # TODO: make a decision re: threads here (maybe leave as an option?)
+        max_mem, max_cpu = get_env_cpu_and_mem()
+        overhead = 0.8e9  # memory overhead for each worker; approximate
 
-        if cores * nworkers > ncpus or cur_mem > mem_per_worker:
+        # if we don't know the size of the dataset, fall back onto this
+        if data_size is None:
+            optimal_workers = (max_mem // overhead) - 1
+        else:
+            click.echo(f'Using dataset size ({round(data_size / 1e9, 2)}GB) to set optimal parameters')
+            # set optimal workers to handle incoming data
+            optimal_workers = ((max_mem - data_size) // overhead) - 1
 
-            if cores * nworkers > ncpus:
-                cores = 1
-                nworkers = ncpus
+        optimal_workers = max(1, optimal_workers)
 
-            if cur_mem > mem_per_worker:
-                mem_per_worker = np.round(((mem * .8) / nworkers) / 1e9)
-                memory = '{}GB'.format(mem_per_worker)
+        # set number of workers to optimal workers, or total number of CPUs
+        # if there are fewer CPUs present than optimal workers
+        nworkers = int(min(max(1, max_cpu - 1), optimal_workers))
 
-            '''
-            warning_string = ("ncpus or memory out of range, setting to "
-                              "{} cores, {} workers, {} mem per worker "
-                              "\n!!!IF YOU ARE RUNNING ON A CLUSTER MAKE "
-                              "SURE THESE SETTINGS ARE CORRECT!!!"
-                              ).format(cores, nworkers, memory)
-            warnings.warn(warning_string)
-            input('Press ENTER to continue...')
-            '''
+        # display some diagnostic info
+        click.echo(f'Setting number of workers to: {nworkers}')
+        click.echo(f'Overriding memory per worker to {round(max_mem / 1e9, 2)}GB')
 
-        cluster = LocalCluster(n_workers=nworkers,
-                               threads_per_worker=cores,
-                               processes=local_processes,
-                               local_dir=cache_path,
-                               memory_limit=memory,
-                               **kwargs)
-        client = Client(cluster)
+        client = Client(processes=local_processes,
+                        threads_per_worker=1,
+                        memory_limit=max_mem,
+                        n_workers=nworkers,
+                        dashboard_address=dashboard_port,
+                        local_directory=cache_path,
+                        **kwargs)
+        cluster = client.cluster
 
     elif cluster_type == 'slurm':
 
         cluster = SLURMCluster(processes=processes,
+                               n_workers=nworkers,
                                cores=cores,
                                memory=memory,
                                queue=queue,
                                walltime=wall_time,
                                local_directory=cache_path,
+                               dashboard_address=dashboard_port,
                                **kwargs)
-
-        try:
-            workers = cluster.start_workers(nworkers)
-        except AttributeError:
-            workers = cluster.scale(nworkers)
         client = Client(cluster)
+    else:
+        raise NotImplementedError('Specified cluster not supported. Supported types are: "slurm", "local"')
 
     if client is not None:
 
@@ -343,45 +502,71 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
             ip = client_info['address'].split('://')[1].split(':')[0]
             port = client_info['services']['bokeh']
             hostname = platform.node()
-            print('Web UI served at {}:{} (if port forwarding use internal IP not localhost)'
-                  .format(ip, port))
-            print('Tunnel command:\n ssh -NL {}:{}:{} {}'.format(port, ip, port, hostname))
-            print('Tunnel command (gcloud):\n gcloud compute ssh {} -- -NL {}:{}:{}'.format(hostname, port, ip, port))
+            click.echo(f'Web UI served at {ip}:{port} (if port forwarding use internal IP not localhost)')
+            click.echo(f'Tunnel command:\n ssh -NL {port}:{ip}:{port} {hostname}')
+            click.echo(f'Tunnel command (gcloud):\n gcloud compute ssh {hostname} -- -NL {port}:{ip}:{port}')
 
     if cluster_type == 'slurm':
 
         active_workers = len(client.scheduler_info()['workers'])
         start_time = time.time()
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", TqdmSynchronisationWarning)
             warnings.simplefilter('ignore')
-            pbar = tqdm(total=nworkers,
-                        desc="Intializing workers")
+            pbar = tqdm(total=nworkers, desc="Intializing workers")
 
-            elapsed_time = (time.time() - start_time) / 60.0
+            elapsed_time = (time.time() - start_time) / 60
 
             while active_workers < nworkers and elapsed_time < timeout:
                 tmp = len(client.scheduler_info()['workers'])
                 if tmp - active_workers > 0:
                     pbar.update(tmp - active_workers)
-                active_workers += tmp - active_workers
-                time.sleep(5)
-                elapsed_time = (time.time() - start_time) / 60.0
+                active_workers = tmp
+                time.sleep(1)
+                elapsed_time = (time.time() - start_time) / 60
 
             pbar.close()
 
-    return client, cluster, workers, cache
+    workers = cluster.workers
+
+    return client, cluster, workers
 
 
-# graceful shutdown...
-# https://github.com/dask/distributed/issues/1703#issuecomment-361291492
 @gen.coroutine
-def shutdown_dask(scheduler):
-    yield scheduler.retire_workers(workers=scheduler.workers, close_workers=True)
+def shutdown_dask(scheduler, workers=None):
+    '''
+    Graceful shutdown dask scheduler.
+    source: https://github.com/dask/distributed/issues/1703#issuecomment-361291492
+
+    Parameters
+    ----------
+    scheduler (dask Scheduler): scheduler to shutdown.
+
+    Returns
+    -------
+    None
+    '''
+
+    if workers == None:
+        yield scheduler.retire_workers(workers=scheduler.workers, close_workers=True)
+    else:
+        yield scheduler.retire_workers(workers=workers, close_workers=True)
     yield scheduler.close()
 
 
 def get_rps(frames, rps=600, normalize=True):
+    '''
+    Get random projections of frames.
+
+    Parameters
+    ----------
+    frames (2D or 3D numpy array): Frames to get dimensions from.
+    rps (int): Number of random projections.
+    normalize (bool): indicates whether to normalize frames.
+
+    Returns
+    -------
+    rproj (2D or 3D numpy array): Computed random projections with same shape as frames
+    '''
 
     if frames.ndim == 3:
         use_frames = frames.reshape(-1, np.prod(frames.shape[1:]))
@@ -396,21 +581,25 @@ def get_rps(frames, rps=600, normalize=True):
     return rproj
 
 
-# JM: commented out 9/4/2019, wasn't being used for anything!
-# def get_rps_dask(frames, client=None, rps=600, chunk_size=5000, normalize=True):
-#
-#     rps = frames.dot(da.random.normal(0, 1,
-#                                       size=(frames.shape[1], rps),
-#                                       chunks=(chunk_size, -1)))
-#     rps = scipy.stats.zscore(scipy.stats.zscore(rps).T)
-#
-#     if client is not None:
-#         rps = client.scatter(rps)
-#
-#     return rps
-
-
 def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, baseline=True, timestamps=None):
+    '''
+    Compute changepoints distribution and CP Curve.
+
+    Parameters
+    ----------
+    scores (3D numpy array): nframes * r * c
+    k (int): klags - Lag to use for derivative calculation.
+    sigma (int): Standard deviation of gaussian smoothing filter.
+    peak_height (float): user-defined peak Changepoint length.
+    peak_neighbors (int): number of peaks in the CP curve.
+    baseline (bool): normalize data.
+    timestamps (array): loaded timestamps.
+
+    Returns
+    -------
+    cps (2D numpy array): array of values for CP curve
+    normed_df (1D numpy array): array of values for bar plot
+    '''
 
     if type(k) is not int:
         k = int(k)
