@@ -59,7 +59,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, gui=False
     with open(config_store, 'w') as f:
         yaml.safe_dump(params, f)
 
-    tailfilter = select_strel((config_data['tailfilter_shape'], config_data['tailfilter_size']))
+    tailfilter = select_strel(config_data['tailfilter_shape'], config_data['tailfilter_size'])
 
     clean_params = {
         'gaussfilter_space': config_data['gaussfilter_space'],
