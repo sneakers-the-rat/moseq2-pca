@@ -24,6 +24,7 @@ jobs:
         - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get update; fi
         - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get install -y ffmpeg --allow-unauthenticated; fi
       install:
+        - pipenv install --dev --ignore-pipfile --deploy
         - pipenv install -e .
       before_script:
         - make
@@ -42,6 +43,7 @@ jobs:
         - pip install "pytest-cov>=2.4.0,<2.6"
         - export PYTHONPATH=$PYTHONPATH:$(pwd)
       install:
+        - pipenv install --dev --ignore-pipfile --deploy
         - pipenv install -e .
       before_script:
         - make
