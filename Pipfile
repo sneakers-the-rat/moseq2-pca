@@ -26,7 +26,6 @@ matplotlib = '*'
 statsmodels = "*"
 ruamel_yaml = '*'
 distributed = '*'
-scikit-image = "*"
-scikit-learn = "*"
+scikit-image = "==0.16.2"
 dask_jobqueue = '*'
 opencv-python = '*'
