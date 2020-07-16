@@ -62,7 +62,7 @@ jobs:
       before_script:
         - make
       script:
-        - pytest --cov=./moseq2_pca/tests/
+        - pytest --cov=./tests/
       after_success:
         - codecov -t $CC_TEST_REPORTER_ID
 
@@ -82,6 +82,6 @@ jobs:
       before_script:
         - make
       script:
-        - pytest --cov=./moseq2_pca/tests/
+        - pytest --cov=./tests/
       after_success:
         - codecov -t $CC_TEST_REPORTER_ID
