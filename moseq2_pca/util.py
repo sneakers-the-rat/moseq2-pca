@@ -313,6 +313,34 @@ def read_yaml(yaml_file):
 
     return return_dict
 
+def check_timestamps(h5s):
+    '''
+
+    Helper function to determine whether timestamps and/or metadata is missing from
+    extracted files. Function will emit a warning if either pieces of data are missing.
+
+    Parameters
+    ----------
+    h5s (list): List of paths to all extracted h5 files.
+
+    Returns
+    -------
+    None
+    '''
+
+    for h5 in h5s:
+        try:
+            h5_timestamp_path = get_timestamp_path(h5)
+            h5_metadata_path = get_metadata_path(h5)
+        except:
+            warnings.warn(f'Autoload timestamps for session {h5} failed.')
+
+        if h5_timestamp_path == None:
+            warnings.warn(f'Could not located timestamps in {h5}. \
+                          This may cause issues if PCA has been trained on missing data.')
+        if h5_metadata_path == None:
+            warnings.warn(f'Could not located metadata in {h5}. \
+                          This may cause issues if PCA has been trained on missing data.')
 
 def get_timestamp_path(h5file):
     '''
@@ -531,6 +559,31 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     workers = cluster.workers
 
     return client, cluster, workers
+
+def close_dask(client, cluster, timeout):
+    '''
+    Shuts down the Dask client and cluster.
+    Dumps all cached data.
+
+    Parameters
+    ----------
+    client (Dask Client): Client object
+    cluster (Dask Cluster)
+    timeout (int): Time to wait for client to close gracefully (minutes)
+
+    Returns
+    -------
+    None
+    '''
+
+    if client is not None:
+        try:
+            client.close(timeout=timeout)
+            cluster.close(timeout=timeout)
+        except Exception as e:
+            print('Error:', e)
+            print('Could not restart dask client')
+            pass
 
 def get_rps(frames, rps=600, normalize=True):
     '''

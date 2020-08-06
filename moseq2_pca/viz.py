@@ -4,12 +4,54 @@ Visualization operations for plotting computed PCs, a Scree Plot, and the Change
 
 '''
 
+import os
+import click
+import logging
 import warnings
 import numpy as np
 import skimage.util
 import seaborn as sns
 from scipy.stats import mode
 import matplotlib.pyplot as plt
+
+def plot_pca_results(output_dict, save_file, output_dir):
+    '''
+    Convenience function to graph and save Trained PCA results.
+
+    Parameters
+    ----------
+    output_dict (dict): Dict object containing PCA training results
+    save_file (str): Path to write images to.
+    output_dir (str): Directory containing logger
+
+    Returns
+    -------
+    None
+    '''
+
+    try:
+        # Plotting PCA Components
+        plt, _ = display_components(output_dict['components'], headless=True)
+        plt.savefig(f'{save_file}_components.png')
+        plt.savefig(f'{save_file}_components.pdf')
+        plt.close()
+    except Exception as e:
+        logging.error(e)
+        logging.error(e.__traceback__)
+        click.echo('could not plot components')
+        click.echo('You may find error logs here:', os.path.join(output_dir, 'train.log'))
+
+    try:
+        # Plotting Scree Plot
+        plt = scree_plot(output_dict['explained_variance_ratio'], headless=True)
+        plt.savefig(f'{save_file}_scree.png')
+        plt.savefig(f'{save_file}_scree.pdf')
+        plt.close()
+    except Exception as e:
+        logging.error(e)
+        logging.error(e.__traceback__)
+        click.echo('could not plot scree')
+        click.echo('You may find error logs here:', os.path.join(output_dir, 'train.log'))
 
 
 def display_components(components, cmap='gray', headless=False):

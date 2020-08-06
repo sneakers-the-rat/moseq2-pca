@@ -7,11 +7,13 @@ Helper functions for reading files and directories in preparation for changepoin
 import os
 import h5py
 import ruamel.yaml as yaml
-from moseq2_pca.util import recursive_find_h5s, select_strel, get_timestamp_path
+from moseq2_pca.util import select_strel
 
-def setup_cp_command(input_dir, config_data, output_dir, output_file):
+def get_pca_paths(config_data, output_dir):
     '''
+
     Helper function for changepoints_wrapper to perform data-path existence checks.
+    Returns paths to saved pre-trained PCA components and PCA Scores files.
 
     Parameters
     ----------
@@ -25,23 +27,9 @@ def setup_cp_command(input_dir, config_data, output_dir, output_file):
     config_data (dict): updated config_data dict with the proper paths
     pca_file_components (str): path to trained pca file
     pca_file_scores (str): path to pca_scores file
-    h5s (list): list of relevant pca h5 files
-    yamls (list): list of relevant pca metadata yaml files
-    save_file (str): path to save changepoints
     '''
 
-    if os.path.exists(os.path.join(input_dir, 'aggregate_results/')):
-        h5s, dicts, yamls = recursive_find_h5s(os.path.join(input_dir, 'aggregate_results/'))
-    else:
-        h5s, dicts, yamls = recursive_find_h5s(input_dir)
-
-    try:
-        h5_timestamp_path = get_timestamp_path(h5s[0])
-    except:
-        pass
-
-    output_dir = os.path.abspath(output_dir)
-
+    # Get path to pre-computed PCA file
     if config_data.get('pca_file_components') is None:
         pca_file_components = os.path.join(output_dir, 'pca.h5')
         config_data['pca_file_components'] = pca_file_components
@@ -52,6 +40,7 @@ def setup_cp_command(input_dir, config_data, output_dir, output_file):
         else:
             pca_file_components = config_data['pca_file_components']
 
+    # Get paths to PCA Scores
     if config_data.get('pca_file_scores') is None:
         pca_file_scores = os.path.join(output_dir, 'pca_scores.h5')
         config_data['pca_file_scores'] = pca_file_scores
@@ -61,12 +50,7 @@ def setup_cp_command(input_dir, config_data, output_dir, output_file):
     if not os.path.exists(pca_file_components):
         raise IOError(f'Could not find PCA components file {pca_file_components}')
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    save_file = os.path.join(output_dir, output_file)
-
-    return config_data, pca_file_components, pca_file_scores, h5s, yamls, save_file
+    return config_data, pca_file_components, pca_file_scores
 
 def load_pcs_for_cp(pca_file_components, config_data):
     '''
