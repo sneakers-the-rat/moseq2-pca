@@ -1,3 +1,9 @@
+'''
+
+Utility functions for all PCA-related operations.
+
+'''
+
 import dask
 import h5py
 import logging
@@ -6,8 +12,7 @@ import numpy as np
 import dask.array as da
 from tqdm.auto import tqdm
 import dask.array.linalg as lng
-from dask.diagnostics import ProgressBar
-from dask.distributed import as_completed, wait, progress
+from dask.distributed import as_completed, progress
 from moseq2_pca.util import (clean_frames, insert_nans, read_yaml, get_changepoints, get_rps)
 
 

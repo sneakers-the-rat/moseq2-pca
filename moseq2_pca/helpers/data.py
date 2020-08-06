@@ -1,3 +1,9 @@
+'''
+
+Helper functions for reading files and directories in preparation for changepoint analysis or apply pca.
+
+'''
+
 import os
 import h5py
 import pathlib

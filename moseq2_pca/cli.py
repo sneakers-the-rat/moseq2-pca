@@ -1,3 +1,13 @@
+'''
+
+CLI front-end operations. This module contains all the functionality and configurable parameters
+users can alter to most accurately process their data.
+
+Note: These functions simply read all the parameters into a dictionary,
+ and then call the corresponding wrapper function with the given input parameters.
+
+'''
+
 import os
 import h5py
 import tqdm

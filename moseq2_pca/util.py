@@ -1,25 +1,28 @@
+'''
+
+Utility and helper functions for traversing directories to find and read files, filtering operations,
+ Dask initialization, and changepoint helper functions.
+
+'''
+
 import os
 import cv2
 import h5py
-import dask
 import time
 import dask
 import click
 import psutil
-import pathlib
 import warnings
 import platform
 import subprocess
 import numpy as np
 import scipy.signal
-from chest import Chest
 from tornado import gen
 from copy import deepcopy
 import ruamel.yaml as yaml
 from tqdm.auto import tqdm
+from dask.distributed import Client
 from dask_jobqueue import SLURMCluster
-from tqdm import TqdmSynchronisationWarning
-from dask.distributed import Client, LocalCluster
 
 
 # from https://stackoverflow.com/questions/46358797/
