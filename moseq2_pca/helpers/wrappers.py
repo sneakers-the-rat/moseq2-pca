@@ -367,7 +367,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     # After Success: Shutting down Dask client and clearing any residual data
     close_dask(client, cluster, config_data['timeout'])
 
-    # Write Changepoints to save file
+    # Read Changepoints from saved file
     import numpy as np
     with h5py.File(f'{save_file}.h5', 'r') as f:
         cps = h5_to_dict(f, 'cps')
