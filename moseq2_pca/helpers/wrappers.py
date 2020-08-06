@@ -239,21 +239,13 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, **kwargs)
     save_file = os.path.join(output_dir, output_file)
 
     # Get path to trained PCA file to load PCs from
-    if config_data['pca_file'] is None:
-        pca_file = os.path.join(output_dir, 'pca.h5')
-        config_data['pca_file'] = pca_file
-    else:
-        if not os.path.exists(config_data['pca_file']):
-            pca_file = os.path.join(output_dir, 'pca.h5')
-            config_data['pca_file'] = pca_file
-        else:
-            pca_file = config_data['pca_file']
+    config_data, pca_file, pca_file_scores = get_pca_paths(config_data, output_dir)
 
     if not os.path.exists(pca_file):
         raise IOError(f'Could not find PCA components file {pca_file}')
 
     print('Loading PCs from', pca_file)
-    with h5py.File(config_data['pca_file'], 'r') as f:
+    with h5py.File(config_data['pca_file_components'], 'r') as f:
         pca_components = f[config_data['pca_path']][()]
 
     # Get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
