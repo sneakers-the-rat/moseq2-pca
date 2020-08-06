@@ -2,7 +2,6 @@ import os
 import cv2
 import h5py
 import pytest
-import pathlib
 import numpy as np
 import scipy.signal
 import ruamel.yaml as yaml
@@ -187,7 +186,7 @@ class TestUtils(TestCase):
         queue = 'debug'
         cluster_type = 'local'
         timeout = 10
-        cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
+        cache_path = os.path.expanduser('~/moseq2_pca')
 
         client, cluster, workers = initialize_dask(nworkers=nworkers, processes=processes, memory=memory,
                                                    cores=cores, wall_time=wall_time, queue=queue,

@@ -6,9 +6,8 @@ Helper functions for reading files and directories in preparation for changepoin
 
 import os
 import h5py
-import pathlib
 import ruamel.yaml as yaml
-from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, get_timestamp_path
+from moseq2_pca.util import recursive_find_h5s, select_strel, get_timestamp_path
 
 def setup_cp_command(input_dir, config_data, output_dir, output_file):
     '''

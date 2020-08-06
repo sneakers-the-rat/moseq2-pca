@@ -12,7 +12,6 @@ import os
 import h5py
 import tqdm
 import click
-import pathlib
 from moseq2_pca.util import command_with_config
 from moseq2_pca.helpers.wrappers import train_pca_wrapper, apply_pca_wrapper, compute_changepoints_wrapper
 
@@ -33,7 +32,7 @@ def cli():
     pass
 
 
-@cli.command('clip-scores',  help='Clips speficied number of frames from PCA scores at the beginning or end')
+@cli.command('clip-scores',  help='Clips specified number of frames from PCA scores at the beginning or end')
 @click.argument('pca_file', type=click.Path(exists=True, resolve_path=True))
 @click.argument('clip_samples', type=int)
 @click.option('--from-end', type=bool, is_flag=True)
