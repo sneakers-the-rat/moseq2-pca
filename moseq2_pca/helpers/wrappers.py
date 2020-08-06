@@ -241,9 +241,6 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, **kwargs)
     # Get path to trained PCA file to load PCs from
     config_data, pca_file, pca_file_scores = get_pca_paths(config_data, output_dir)
 
-    if not os.path.exists(pca_file):
-        raise IOError(f'Could not find PCA components file {pca_file}')
-
     print('Loading PCs from', pca_file)
     with h5py.File(config_data['pca_file_components'], 'r') as f:
         pca_components = f[config_data['pca_path']][()]
