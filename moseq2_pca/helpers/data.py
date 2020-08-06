@@ -17,10 +17,8 @@ def get_pca_paths(config_data, output_dir):
 
     Parameters
     ----------
-    input_dir (int): path to directory containing all h5+yaml files
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
-    output_file (str): pca model filename
 
     Returns
     -------
