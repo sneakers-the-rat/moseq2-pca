@@ -17,7 +17,6 @@ import platform
 import subprocess
 import numpy as np
 import scipy.signal
-from tornado import gen
 from copy import deepcopy
 import ruamel.yaml as yaml
 from tqdm.auto import tqdm
@@ -532,29 +531,6 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     workers = cluster.workers
 
     return client, cluster, workers
-
-
-@gen.coroutine
-def shutdown_dask(scheduler, workers=None):
-    '''
-    Graceful shutdown dask scheduler.
-    source: https://github.com/dask/distributed/issues/1703#issuecomment-361291492
-
-    Parameters
-    ----------
-    scheduler (dask Scheduler): scheduler to shutdown.
-
-    Returns
-    -------
-    None
-    '''
-
-    if workers == None:
-        yield scheduler.retire_workers(workers=scheduler.workers, close_workers=True)
-    else:
-        yield scheduler.retire_workers(workers=workers, close_workers=True)
-    yield scheduler.close()
-
 
 def get_rps(frames, rps=600, normalize=True):
     '''

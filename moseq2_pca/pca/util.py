@@ -159,10 +159,8 @@ def copy_metadatas_to_scores(f, f_scores, uuid):
         metadata_name = 'metadata/{}'.format(uuid)
         f.copy('/metadata/extraction', f_scores, name=metadata_name)
 
-def train_pca_dask(dask_array, clean_params, use_fft, rank,
-                   cluster_type, client, workers,
-                   mask=None, iters=10, recon_pcs=10,
-                   min_height=10, max_height=100):
+def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client,
+                   mask=None, iters=10, recon_pcs=10, min_height=10, max_height=100):
     '''
     Train PCA using dask arrays.
 
@@ -174,7 +172,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     rank (int): Matrix rank to use
     cluster_type (str): indicates which cluster to use.
     client (Dask.Client): client object to execute dask operations
-    workers (int): number of dask workers
     mask (dask array): dask array of masked data if missing_data parameter==True
     iters (int): number of SVD iterations
     recon_pcs (int): number of PCs to reconstruct. (if missing_data = True)
@@ -185,9 +182,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank,
     -------
     output_dict (dict): dictionary containing PCA training results.
     '''
-
-    logger = logging.getLogger("distributed.utils_perf")
-    logger.setLevel(logging.WARNING)
 
     missing_data = False
 
@@ -364,9 +358,6 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
     None
     '''
 
-    logger = logging.getLogger("distributed.utils_perf")
-    logger.setLevel(logging.WARNING)
-
     futures = []
     uuids = []
 
@@ -475,8 +466,6 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
     futures = []
     uuids = []
     nrps = changepoint_params.pop('rps')
-    logger = logging.getLogger("distributed.utils_perf")
-    logger.setLevel(logging.WARNING)
 
     for h5, yml in tqdm(zip(h5s, yamls), disable=progress_bar, desc='Setting up calculation', total=len(h5s)):
         data = read_yaml(yml)

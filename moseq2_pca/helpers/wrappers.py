@@ -21,7 +21,7 @@ from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local, train_pca_dask,
 from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, set_dask_config, \
             h5_to_dict, get_timestamp_path, get_metadata_path
 
-def train_pca_wrapper(input_dir, config_data, output_dir, output_file, gui=False):
+def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     '''
     Wrapper function to train PCA.
 
@@ -78,7 +78,6 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, gui=False
     }
 
     logging.basicConfig(filename=f'{output_dir}/train.log', level=logging.ERROR)
-    logger = logging.getLogger("distributed.utils_perf")
 
     dsets = [h5py.File(h5, mode='r')[config_data['h5_path']] for h5 in h5s]
     arrays = [da.from_array(dset, chunks=config_data['chunk_size']) for dset in dsets]
@@ -122,7 +121,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, gui=False
                            rank=config_data['rank'], cluster_type=config_data['cluster_type'],
                            min_height=config_data['min_height'],
                            max_height=config_data['max_height'], client=client,
-                           iters=config_data['missing_data_iters'], workers=workers,
+                           iters=config_data['missing_data_iters'],
                            recon_pcs=config_data['recon_pcs'])
     except Exception as e:
         logging.error(e)
@@ -170,7 +169,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, gui=False
 
     return config_data
 
-def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, gui=False):
+def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     '''
     Wrapper function to obtain PCA Scores.
 
@@ -180,7 +179,6 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, gui=False
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
-    gui (bool): indicate GUI is running
 
     Returns
     -------
@@ -263,7 +261,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, gui=False
                                 data_size=config_data.get('data_size', None))
 
             logging.basicConfig(filename=f'{output_dir}/scores.log', level=logging.ERROR)
-            logger = logging.getLogger("distributed.utils_perf")
+
             try:
                 apply_pca_dask(pca_components=pca_components, h5s=h5s, yamls=yamls,
                                use_fft=use_fft, clean_params=clean_params,
@@ -284,11 +282,10 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, gui=False
                     print('Could not restart dask client')
                     pass
 
-    if gui:
-        config_data['pca_file_scores'] = save_file + '.h5'
-        return config_data
+    config_data['pca_file_scores'] = save_file + '.h5'
+    return config_data
 
-def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file, gui=False):
+def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file):
     '''
     Wrapper function to compute model-free (PCA based) Changepoints.
 
@@ -298,7 +295,6 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
-    gui (bool): indicate GUI is running
 
     Returns
     -------
@@ -330,7 +326,6 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
                         data_size=config_data.get('data_size', None))
 
     logging.basicConfig(filename=f'{output_dir}/changepoints.log', level=logging.ERROR)
-    logger = logging.getLogger("distributed.utils_perf")
 
     try:
         get_changepoints_dask(pca_components=pca_components, pca_scores=pca_file_scores,
@@ -362,5 +357,4 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
         fig.savefig(f'{save_file}_dist.pdf')
         fig.close('all')
 
-    if gui:
-        return config_data
+    return config_data
