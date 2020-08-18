@@ -303,11 +303,7 @@ def read_yaml(yaml_file):
 
     try:
         with open(yaml_file, 'r') as f:
-            dat = f.read()
-            try:
-                return_dict = yaml.safe_load(dat)
-            except yaml.constructor.ConstructorError:
-                return_dict = yaml.safe_load(dat)
+            return_dict = yaml.safe_load(f)
     except IOError:
         return_dict = {}
 
