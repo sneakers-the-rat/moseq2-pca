@@ -188,6 +188,8 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, **kwargs)
         logging.error(e.__traceback__)
         click.echo('Training interrupted. Closing Dask Client. You may find logs of the error here:')
         click.echo('---- ', os.path.join(output_dir, 'train.log'))
+    finally:
+        # After Success or failure: Shutting down Dask client and clearing any residual data
         close_dask(client, cluster, config_data['timeout'])
 
     # Plotting training results
@@ -199,9 +201,6 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, **kwargs)
             f.create_dataset(k, data=v, compression='gzip', dtype='float32')
 
     config_data['pca_file'] = f'{save_file}.h5'
-
-    # After Success: Shutting down Dask client and clearing any residual data
-    close_dask(client, cluster, config_data['timeout'])
 
     return config_data
 
@@ -289,10 +288,9 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, **kwargs)
             except:
                 # Clearing all data from Dask client in case of interrupted PCA
                 click.echo('Operation interrupted. Closing Dask Client.')
+            finally:
+                # After Success or failure: Shutting down Dask client and clearing any residual data
                 close_dask(client, cluster, config_data['timeout'])
-
-            # After Success: Shutting down Dask client and clearing any residual data
-            close_dask(client, cluster, config_data['timeout'])
 
     config_data['pca_file_scores'] = save_file + '.h5'
     return config_data
