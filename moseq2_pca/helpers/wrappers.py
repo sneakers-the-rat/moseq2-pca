@@ -344,7 +344,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
                         wall_time=config_data['wall_time'],
                         queue=config_data['queue'],
                         timeout=config_data['timeout'],
-                        cache_path=dask_cache_path,
+                        cache_path=config_data['dask_cache_path'],
                         dashboard_port=config_data['dask_port'],
                         data_size=config_data.get('data_size', None))
 
