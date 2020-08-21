@@ -578,8 +578,7 @@ def close_dask(client, cluster, timeout):
             cluster.close(timeout=timeout)
         except Exception as e:
             print('Error:', e)
-            print('Could not restart dask client')
-            pass
+            print('Could not shutdown dask client')
 
 def get_rps(frames, rps=600, normalize=True):
     '''

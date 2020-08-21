@@ -136,7 +136,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, **kwargs)
     arrays = [da.from_array(dset, chunks=config_data['chunk_size']) for dset in dsets]
     stacked_array = da.concatenate(arrays, axis=0)
 
-    # Filter out depth value optimas; Generally same values used during extraction
+    # Filter out depth value extreme values; Generally same values used during extraction
     stacked_array[stacked_array < config_data['min_height']] = 0
     stacked_array[stacked_array > config_data['max_height']] = 0
 
@@ -159,7 +159,9 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, **kwargs)
 
     click.echo(f'Processing {len(stacked_array)} total frames')
 
-    # Optionally read corresponding frame masks if recomputing PC scores for dropped frames
+    # Optionally read corresponding frame masks if for recording sessions that contain inscopix,
+    # photometry, or ephys cables. These sessions in particular include frame-by-frame masks
+    # to explicitly tell PCA where the mouse is, removing any noise or obstructions.
     # Note: timestamps for all files are required in order for this operation to work.
     if config_data['missing_data']:
         mask_dsets = [h5py.File(h5, mode='r')[config_data['h5_mask_path']] for h5 in h5s]
@@ -322,8 +324,6 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
 
     # Get loaded h5s and yamls
     h5s, yamls, dicts = kwargs['h5s'], kwargs['yamls'], kwargs['dicts']
-
-    dask_cache_path = os.path.expanduser('~/moseq2_pca')
 
     # Set path to changepoints
     save_file = os.path.join(output_dir, output_file)
