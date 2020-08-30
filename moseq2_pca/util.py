@@ -1,25 +1,27 @@
+'''
+
+Utility and helper functions for traversing directories to find and read files, filtering operations,
+ Dask initialization, and changepoint helper functions.
+
+'''
+
 import os
 import cv2
 import h5py
-import dask
 import time
 import dask
 import click
 import psutil
-import pathlib
 import warnings
 import platform
 import subprocess
 import numpy as np
 import scipy.signal
-from chest import Chest
-from tornado import gen
 from copy import deepcopy
 import ruamel.yaml as yaml
 from tqdm.auto import tqdm
+from dask.distributed import Client
 from dask_jobqueue import SLURMCluster
-from tqdm import TqdmSynchronisationWarning
-from dask.distributed import Client, LocalCluster
 
 
 # from https://stackoverflow.com/questions/46358797/
@@ -301,16 +303,40 @@ def read_yaml(yaml_file):
 
     try:
         with open(yaml_file, 'r') as f:
-            dat = f.read()
-            try:
-                return_dict = yaml.safe_load(dat)
-            except yaml.constructor.ConstructorError:
-                return_dict = yaml.safe_load(dat)
+            return_dict = yaml.safe_load(f)
     except IOError:
         return_dict = {}
 
     return return_dict
 
+def check_timestamps(h5s):
+    '''
+
+    Helper function to determine whether timestamps and/or metadata is missing from
+    extracted files. Function will emit a warning if either pieces of data are missing.
+
+    Parameters
+    ----------
+    h5s (list): List of paths to all extracted h5 files.
+
+    Returns
+    -------
+    None
+    '''
+
+    for h5 in h5s:
+        try:
+            h5_timestamp_path = get_timestamp_path(h5)
+            h5_metadata_path = get_metadata_path(h5)
+        except:
+            warnings.warn(f'Autoload timestamps for session {h5} failed.')
+
+        if h5_timestamp_path == None:
+            warnings.warn(f'Could not located timestamps in {h5}. \
+                          This may cause issues if PCA has been trained on missing data.')
+        if h5_metadata_path == None:
+            warnings.warn(f'Could not located metadata in {h5}. \
+                          This may cause issues if PCA has been trained on missing data.')
 
 def get_timestamp_path(h5file):
     '''
@@ -530,28 +556,29 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
     return client, cluster, workers
 
-
-@gen.coroutine
-def shutdown_dask(scheduler, workers=None):
+def close_dask(client, cluster, timeout):
     '''
-    Graceful shutdown dask scheduler.
-    source: https://github.com/dask/distributed/issues/1703#issuecomment-361291492
+    Shuts down the Dask client and cluster.
+    Dumps all cached data.
 
     Parameters
     ----------
-    scheduler (dask Scheduler): scheduler to shutdown.
+    client (Dask Client): Client object
+    cluster (Dask Cluster)
+    timeout (int): Time to wait for client to close gracefully (minutes)
 
     Returns
     -------
     None
     '''
 
-    if workers == None:
-        yield scheduler.retire_workers(workers=scheduler.workers, close_workers=True)
-    else:
-        yield scheduler.retire_workers(workers=workers, close_workers=True)
-    yield scheduler.close()
-
+    if client is not None:
+        try:
+            client.close(timeout=timeout)
+            cluster.close(timeout=timeout)
+        except Exception as e:
+            print('Error:', e)
+            print('Could not shutdown dask client')
 
 def get_rps(frames, rps=600, normalize=True):
     '''

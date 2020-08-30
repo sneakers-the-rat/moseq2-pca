@@ -13,7 +13,7 @@ dask = '*'
 tqdm = "*"
 bokeh = '*'
 chest = '*'
-scipy = "*"
+scipy = "==1.3.2"
 numpy = "*"
 click = "*"
 psutil = '*'
