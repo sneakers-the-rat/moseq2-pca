@@ -14,73 +14,58 @@ import datetime
 import warnings
 import dask.array as da
 import ruamel.yaml as yaml
-from functools import wraps
 from moseq2_pca.viz import plot_pca_results, changepoint_dist
 from moseq2_pca.helpers.data import get_pca_paths, get_pca_yaml_data, load_pcs_for_cp
 from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local, train_pca_dask, get_changepoints_dask
 from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, set_dask_config, close_dask, \
             h5_to_dict, check_timestamps
 
-def load_and_check_data(function):
+def load_and_check_data(input_dir, output_dir, changepoints=False):
     '''
 
-    Decorator function that executes initialization functionality that is common among all 3 PCA related operations.
+    Executes initialization functionality that is common among all 3 PCA related operations.
     Function will load relevant h5 and yaml files found in given input directory, then check for timestamps and
     warn the user if they are missing.
 
     Parameters
     ----------
-    function (function): train_pca_wrapper, apply_pca_wrapper, compute_changepoints_wrapper
+    input_dir (str): input directory containing h5 files to find
+    output_dir (str): directory name to save pca results
+    changepoints (bool): boolean for whether to find data from the aggregate_results directory
+
     Returns
     -------
-    function (function): decorated function with keyword arguments holding loaded data
+    output_dir (str): absolute output directory path
+    h5s (list): list of found h5 files
+    yamls (list): list of corresponding yaml files
+    dicts (list): list of corresponding metadata.json files
     '''
 
-    @wraps(function)
-    def wrapped(*args):
+    set_dask_config()
 
-        func = function.__name__
+    # Set up output directory
+    output_dir = os.path.abspath(output_dir)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
-        set_dask_config()
-
-        input_dir = args[0]
-        output_dir = args[2]
-
-        # Set up output directory
-        output_dir = os.path.abspath(output_dir)
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
-        if 'changepoints' in func:
-            # Look for aggregated results by default, recursively search for data if aggregate_results path does not exist.
-            if os.path.exists(os.path.join(input_dir, 'aggregate_results/')):
-                h5s, dicts, yamls = recursive_find_h5s(os.path.join(input_dir, 'aggregate_results/'))
-            else:
-                h5s, dicts, yamls = recursive_find_h5s(input_dir)
+    if changepoints:
+        # Look for aggregated results by default, recursively search for data if aggregate_results path does not exist.
+        if os.path.exists(os.path.join(input_dir, 'aggregate_results/')):
+            h5s, dicts, yamls = recursive_find_h5s(os.path.join(input_dir, 'aggregate_results/'))
         else:
-            # find directories with .dat files that either have incomplete or no extractions
             h5s, dicts, yamls = recursive_find_h5s(input_dir)
+    else:
+        # find directories with .dat files that either have incomplete or no extractions
+        h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
-        check_timestamps(h5s)  # function to check whether timestamp files are found
+    check_timestamps(h5s)  # function to check whether timestamp files are found
 
-        # Save the variables to pass to function
-        kwargs = {
-            'h5s': h5s,
-            'yamls': yamls,
-            'dicts': dicts
-        }
+    return output_dir, h5s, dicts, yamls
 
-        return function(*args, **kwargs)
-    return wrapped
-
-@load_and_check_data
-def train_pca_wrapper(input_dir, config_data, output_dir, output_file, **kwargs):
+def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     '''
 
     Wrapper function to train PCA.
-
-    Note: function is decorated with function performing initialization operations and saving
-    the results in the kwargs variable.
 
     Parameters
     ----------
@@ -100,7 +85,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, **kwargs)
 
     params = config_data
 
-    h5s = kwargs['h5s']
+    output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir)
 
     params['start_time'] = f'{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}'
     params['inputs'] = h5s
@@ -206,14 +191,10 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file, **kwargs)
 
     return config_data
 
-@load_and_check_data
-def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, **kwargs):
+def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     '''
 
     Wrapper function to obtain PCA Scores.
-
-    Note: function is decorated with function performing initialization operations and saving
-    the results in the kwargs variable.
 
     Parameters
     ----------
@@ -233,8 +214,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, **kwargs)
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
 
-    h5s = kwargs['h5s']
-    yamls = kwargs['yamls']
+    output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir)
 
     # Set path to PCA Scores file
     save_file = os.path.join(output_dir, output_file)
@@ -297,14 +277,10 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file, **kwargs)
     config_data['pca_file_scores'] = save_file + '.h5'
     return config_data
 
-@load_and_check_data
-def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file, **kwargs):
+def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file):
     '''
 
     Wrapper function to compute model-free (PCA based) Changepoints.
-
-    Note: function is decorated with function performing initialization operations and saving
-    the results in the kwargs variable.
 
     Parameters
     ----------
@@ -323,7 +299,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     warnings.filterwarnings("ignore", category=UserWarning)
 
     # Get loaded h5s and yamls
-    h5s, yamls, dicts = kwargs['h5s'], kwargs['yamls'], kwargs['dicts']
+    output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir, changepoints=True)
 
     # Set path to changepoints
     save_file = os.path.join(output_dir, output_file)
