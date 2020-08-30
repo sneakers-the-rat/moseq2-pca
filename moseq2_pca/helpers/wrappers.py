@@ -85,6 +85,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
 
     params = config_data
 
+    # Get training data
     output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir)
 
     params['start_time'] = f'{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}'
@@ -214,6 +215,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
 
+    # Set up data
     output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir)
 
     # Set path to PCA Scores file
