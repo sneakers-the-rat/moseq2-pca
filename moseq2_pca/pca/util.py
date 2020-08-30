@@ -6,6 +6,7 @@ Utility functions for all PCA-related operations.
 
 import dask
 import h5py
+import click
 import warnings
 import numpy as np
 import dask.array as da
@@ -187,6 +188,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client
     smallest_chunk = np.min(dask_array.chunks[0])
 
     if mask is not None:
+        click.echo('Found mask, applying to training data')
         missing_data = True
         dask_array[mask] = 0
         mask = mask.reshape(len(mask), -1)
