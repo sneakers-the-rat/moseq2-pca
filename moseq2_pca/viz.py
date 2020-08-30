@@ -70,6 +70,7 @@ def display_components(components, cmap='gray', headless=False):
     ax (plt.ax): figure axis variable
     '''
 
+    # Get square image size
     im_size = int(np.sqrt(components.shape[1]))
     plotv = components.reshape((-1, im_size, im_size))
     plotv = skimage.util.montage(plotv)
@@ -77,6 +78,7 @@ def display_components(components, cmap='gray', headless=False):
     if headless:
         plt.switch_backend('agg')
 
+    # Plot PCs
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
     plt.imshow(plotv, cmap=cmap)
     plt.xticks([])

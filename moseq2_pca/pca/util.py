@@ -66,9 +66,11 @@ def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, mi
     '''
 
     if not missing_data:
+        # Compute PCs
         _, s, v = lng.svd_compressed(dask_array - mean, rank, 0, compute=True)
     else:
         for iter in range(iters):
+            # Compute PCs and reconstruct missing data from masks
             u, s, v = lng.svd_compressed(dask_array - mean, rank, 0, compute=True)
             if iter < iters - 1:
                 recon = u[:, :recon_pcs].dot(da.diag(s[:recon_pcs]).dot(v[:recon_pcs, :])) + mean
@@ -77,6 +79,7 @@ def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, mi
                 dask_array = da.map_blocks(mask_data, dask_array, mask, recon, dtype=dask_array.dtype)
                 mean = dask_array.mean(axis=0)
 
+    # Compute total variance
     total_var = dask_array.var(ddof=1, axis=0).sum()
     futures = client.compute([s, v, mean, total_var])
 
@@ -185,14 +188,17 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client
 
     missing_data = False
 
+    # Get smallest chunk
     smallest_chunk = np.min(dask_array.chunks[0])
 
+    # Apply the mask if it was provided via missing_data == True
     if mask is not None:
         click.echo('Found mask, applying to training data')
         missing_data = True
         dask_array[mask] = 0
         mask = mask.reshape(len(mask), -1)
 
+    # Apply filters
     if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
         dask_array = dask_array.map_overlap(
             clean_frames, depth=(np.minimum(smallest_chunk, 20), 0, 0), boundary='reflect',
@@ -200,12 +206,14 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client
     else:
         dask_array = dask_array.map_blocks(clean_frames, dtype='float32', **clean_params)
 
+    # Optionally apply FFT to training data
     if use_fft:
         print('Using FFT...')
         dask_array = dask_array.map_blocks(
             lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
             dtype='float32')
 
+    # Reshape the data to 2D matrix
     dask_array = dask_array.reshape(len(dask_array), -1).astype('float32')
 
     if cluster_type == 'slurm':
@@ -214,6 +222,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client
         if mask is not None:
             mask = client.persist(mask)
 
+    # Compute mean to subtract from data later
     mean = dask_array.mean(axis=0)
 
     if cluster_type == 'slurm':
@@ -223,6 +232,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client
 
     print('\nComputing SVD...')
 
+    # Pack the PCA training parameters
     svd_training_parameters = {
         'dask_array': dask_array,
         'mask': mask,
@@ -235,6 +245,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client
         'max_height': max_height
     }
 
+    # Train the PCA
     s, v, mean, total_var = compute_svd(**svd_training_parameters, client=client)
 
     print('\nCalculation complete...')
@@ -244,8 +255,10 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client
     correction = np.sign(v[np.arange(len(v)), tmp])
     v *= correction[:, None]
 
+    # Get explained variances
     explained_variance, explained_variance_ratio = compute_explained_variance(s, len(dask_array), total_var)
 
+    # Pack computed values into output dictionary
     output_dict = {
         'components': v,
         'singular_values': s,
@@ -287,45 +300,53 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
     with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
         for h5, yml in tqdm(zip(h5s, yamls), total=len(h5s), desc='Computing scores'):
-
+            # Load the file's metadata
             data = read_yaml(yml)
             uuid = data['uuid']
 
             with h5py.File(h5, 'r') as f:
-
+                # Load frames
                 frames = f[h5_path][()].astype('float32')
 
                 if missing_data:
+                    # Load masked frames
                     mask = f[h5_mask_path][()]
                     mask = np.logical_and(mask < mask_params['mask_threshold'],
                                           frames > mask_params['mask_height_threshold'])
                     frames[mask] = 0
                     mask = mask.reshape(-1, frames.shape[1] * frames.shape[2])
 
+                # Filter the data
                 frames = clean_frames(frames, **clean_params)
 
+                # Apply FFT
                 if use_fft:
                     frames = np.fft.fftshift(np.abs(np.fft.fft2(frames)), axes=(1, 2))
 
+                # Reshape the data to 2D matrix
                 frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
 
                 timestamps = get_timestamps(f, frames, fps)
                 copy_metadatas_to_scores(f, f_scores, uuid)
 
+            # Compute scores
             scores = frames.dot(pca_components.T)
 
             # if we have missing data, simply fill in, repeat the score calculation,
             # then move on
             if missing_data:
+                # Compute reconstructed PCs
                 recon = scores.dot(pca_components)
                 recon[recon < mask_params['min_height']] = 0
                 recon[recon > mask_params['max_height']] = 0
                 frames[mask] = recon[mask]
                 scores = frames.dot(pca_components.T)
 
+            # Insert NaNs into scores array
             scores, score_idx, _ = insert_nans(data=scores, timestamps=timestamps,
                                                fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
 
+            # Write scores
             f_scores.create_dataset('scores/{}'.format(uuid), data=scores,
                                     dtype='float32', compression='gzip')
             f_scores.create_dataset('scores_idx/{}'.format(uuid), data=score_idx,
@@ -363,14 +384,17 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
     uuids = []
 
     for h5, yml in tqdm(zip(h5s, yamls), total=len(h5s), desc='Loading Data'):
+        # Load metadata
         data = read_yaml(yml)
         uuid = data['uuid']
 
+        # Load data
         dset = h5py.File(h5, mode='r')[h5_path]
         frames = da.from_array(dset, chunks=chunk_size).astype('float32')
 
 
         if missing_data:
+            # Load masked data
             mask_dset = h5py.File(h5, mode='r')[h5_mask_path]
             mask = da.from_array(mask_dset, chunks=frames.chunks)
             mask = da.logical_and(mask < mask_params['mask_threshold'],
@@ -378,25 +402,30 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
             frames[mask] = 0
             mask = mask.reshape(-1, frames.shape[1] * frames.shape[2])
 
+        # Apply filters
         if clean_params['gaussfilter_time'] > 0 or np.any(np.array(clean_params['medfilter_time']) > 0):
             frames = frames.map_overlap(
                 clean_frames, depth=(20, 0, 0), boundary='reflect', dtype='float32', **clean_params)
         else:
             frames = frames.map_blocks(clean_frames, dtype='float32', **clean_params)
 
+        # Apply FFT
         if use_fft:
             frames = frames.map_blocks(
                 lambda x: np.fft.fftshift(np.abs(np.fft.fft2(x)), axes=(1, 2)),
                 dtype='float32')
 
+        # Reshape data to 2D and compute scores
         frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
         scores = frames.dot(pca_components.T)
 
         if missing_data:
+            # Reconstruct missing scores data
             recon = scores.dot(pca_components)
             recon[recon < mask_params['min_height']] = 0
             recon[recon > mask_params['max_height']] = 0
             frames = da.map_blocks(mask_data, frames, mask, recon, dtype=frames.dtype)
+            # Compute reconstructed scores
             scores = frames.dot(pca_components.T)
 
         futures.append(scores)
@@ -410,25 +439,27 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
         batch_count = 0
         batches = range(0, len(futures), batch_size)
         for i in tqdm(batches, total=len(batches), desc='Computing scores in batches'):
-
+            # Setting up dask operations
             futures_batch = client.compute(futures[i:i+batch_size])
             uuids_batch = uuids[i:i+batch_size]
             h5s_batch = h5s[i:i+batch_size]
+
             keys = [tmp.key for tmp in futures_batch]
             batch_count += 1
 
-
             for future, result in as_completed(futures_batch, with_results=True):
-
                 file_idx = keys.index(future.key)
 
                 with h5py.File(h5s_batch[file_idx], mode='r') as f:
+                    # Load timestamps
                     timestamps = get_timestamps(f, frames, fps)
                     copy_metadatas_to_scores(f, f_scores, uuids_batch[file_idx])
 
+                # Insert NaNs in missing frames in scores array
                 scores, score_idx, _ = insert_nans(data=result, timestamps=timestamps,
                                                    fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
 
+                # Write scores
                 f_scores.create_dataset('scores/{}'.format(uuids_batch[file_idx]), data=scores,
                                         dtype='float32', compression='gzip')
                 f_scores.create_dataset('scores_idx/{}'.format(uuids_batch[file_idx]), data=score_idx,
@@ -469,26 +500,32 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
     nrps = changepoint_params.pop('rps')
 
     for h5, yml in tqdm(zip(h5s, yamls), disable=progress_bar, desc='Setting up calculation', total=len(h5s)):
+        # Load session metadata
         data = read_yaml(yml)
         uuid = data['uuid']
 
         with h5py.File(h5, 'r') as f:
-
+            # Load frames
             dset = h5py.File(h5, mode='r')[h5_path]
             frames = da.from_array(dset, chunks=chunk_size).astype('float32')
 
+            # Load timestamps
             timestamps = get_timestamps(f, frames, fps)
 
         if missing_data and pca_scores is None:
             raise RuntimeError("Need to compute PC scores to impute missing data")
         elif missing_data:
+            # Load masked data
             mask_dset = h5py.File(h5, mode='r')[h5_mask_path]
             mask = da.from_array(mask_dset, chunks=frames.chunks)
             mask = da.logical_and(mask < mask_params['mask_threshold'],
                                   frames > mask_params['mask_height_threshold'])
             frames[mask] = 0
+
+            # Reshape mask
             mask = mask.reshape(-1, frames.shape[1] * frames.shape[2])
 
+            # Load scores
             with h5py.File(pca_scores, 'r') as f:
                 scores = f['scores/{}'.format(uuid)]
                 scores_idx = f['scores_idx/{}'.format(uuid)]
@@ -498,16 +535,20 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                 warnings.warn('Chunks do not add up to scores shape in file {}'.format(h5))
                 continue
 
+            # Load scores into dask
             scores = da.from_array(scores, chunks=(frames.chunks[0], scores.shape[1]))
 
         frames = frames.reshape(-1, frames.shape[1] * frames.shape[2])
 
         if missing_data:
+            # Compute reconstructed PC scores
             recon = scores.dot(pca_components)
             frames = da.map_blocks(mask_data, frames, mask, recon, dtype=frames.dtype)
 
+        # Compute random projections
         rps = dask.delayed(get_rps, pure=False)(frames, rps=nrps, normalize=True)
 
+        # Compute changepoints delayed job
         cps = dask.delayed(get_changepoints, pure=True)(rps, timestamps=timestamps, **changepoint_params)
 
         futures.append(cps)
@@ -517,23 +558,24 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
     batch_size = len(client.scheduler_info()['workers'])
 
     with h5py.File('{}.h5'.format(save_file), 'w') as f_cps:
-
         f_cps.create_dataset('metadata/fps', data=fps, dtype='float32')
 
         batch_count = 0
 
         batches = range(0, len(futures), batch_size)
         for i in tqdm(batches, total=len(batches), desc='Computing changepoints in batches'):
-
+            # Running dask job
             futures_batch = client.compute(futures[i:i+batch_size])
             uuids_batch = uuids[i:i+batch_size]
             keys = [tmp.key for tmp in futures_batch]
+
             batch_count += 1
 
             for future, result in as_completed(futures_batch, with_results=True):
 
                 file_idx = keys.index(future.key)
                 if result[0] is not None and result[1] is not None:
+                    # Writing changepoints to h5 file as batches complete
                     f_cps.create_dataset('cps_score/{}'.format(uuids_batch[file_idx]), data=result[1],
                                          dtype='float32', compression='gzip')
                     f_cps.create_dataset('cps/{}'.format(uuids_batch[file_idx]), data=result[0] / fps,

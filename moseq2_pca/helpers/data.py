@@ -38,7 +38,7 @@ def get_pca_paths(config_data, output_dir):
         else:
             pca_file_components = config_data['pca_file_components']
 
-    # Get paths to PCA Scores
+    # Get path to PCA Scores
     if config_data.get('pca_file_scores') is None:
         pca_file_scores = os.path.join(output_dir, 'pca_scores.h5')
         config_data['pca_file_scores'] = pca_file_scores
@@ -82,6 +82,7 @@ def load_pcs_for_cp(pca_file_components, config_data):
         with open(pca_yaml, 'r') as f:
             pca_config = yaml.safe_load(f.read())
 
+            # Set data masking parameters if missing data == True
             if 'missing_data' in pca_config.keys() and pca_config['missing_data']:
                 print('Detected missing data...')
                 missing_data = True
@@ -97,6 +98,7 @@ def load_pcs_for_cp(pca_file_components, config_data):
             if missing_data and not os.path.exists(config_data['pca_file_scores']):
                 raise RuntimeError("Need PCA scores to impute missing data, run apply pca first")
 
+    # Pack changepoint parameters
     changepoint_params = {
         'k': config_data['klags'],
         'sigma': config_data['sigma'],
@@ -126,6 +128,7 @@ def get_pca_yaml_data(pca_yaml):
     # todo detect missing data and mask parameters, then 0 out, fill in, compute scores...
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
+            # Load pca metadata file
             pca_config = yaml.safe_load(f.read())
             if 'use_fft' in pca_config.keys() and pca_config['use_fft']:
                 print('Will use FFT...')
@@ -133,9 +136,10 @@ def get_pca_yaml_data(pca_yaml):
             else:
                 use_fft = False
 
-            tailfilter = select_strel(pca_config['tailfilter_shape'],
-                                      tuple(pca_config['tailfilter_size']))
+            # Get tail filter
+            tailfilter = select_strel(pca_config['tailfilter_shape'], tuple(pca_config['tailfilter_size']))
 
+            # Pack filtering paraneters
             clean_params = {
                 'gaussfilter_space': pca_config['gaussfilter_space'],
                 'gaussfilter_time': pca_config['gaussfilter_time'],
@@ -144,6 +148,7 @@ def get_pca_yaml_data(pca_yaml):
                 'medfilter_space': pca_config['medfilter_space'],
             }
 
+            # Get masking parameters
             mask_params = {
                 'mask_height_threshold': pca_config['mask_height_threshold'],
                 'mask_threshold': pca_config['mask_threshold'],
@@ -151,6 +156,7 @@ def get_pca_yaml_data(pca_yaml):
                 'max_height': pca_config['max_height']
             }
 
+            # Check if PCA was trained with masked data
             if 'missing_data' in pca_config.keys() and pca_config['missing_data']:
                 print('Detected missing data...')
                 missing_data = True
