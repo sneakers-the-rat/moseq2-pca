@@ -69,8 +69,7 @@ def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, mi
         # Compute PCs
         _, s, v = lng.svd_compressed(dask_array - mean, rank, 0, compute=True)
     else:
-        for iter in range(iters):
-            # Compute PCs and reconstruct missing data from masks
+        for iter in tqdm(range(iters), total=iters, desc='Computing Iterative PCA'):
             u, s, v = lng.svd_compressed(dask_array - mean, rank, 0, compute=True)
             if iter < iters - 1:
                 recon = u[:, :recon_pcs].dot(da.diag(s[:recon_pcs]).dot(v[:recon_pcs, :])) + mean
