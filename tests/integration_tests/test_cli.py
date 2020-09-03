@@ -31,6 +31,7 @@ class TestCli(TestCase):
         train_params_local = ['-i', data_dir,
                               '--cluster-type', 'local',
                               '--local-processes', 'False',
+                              '--gaussfilter-time', '3',
                               '--missing-data',
                               '-o', out_dir]
 
@@ -73,6 +74,7 @@ class TestCli(TestCase):
         apply_params_local = ['-i', data_dir,
                               '-o', outpath,
                               '--output-file', 'pca_scores1',
+                              '-v'
                               ]
 
         runner = CliRunner()
@@ -103,7 +105,7 @@ class TestCli(TestCase):
             os.makedirs(outpath)
 
         cc_params_local = ['-i', data_path, '-o', outpath,
-                           '--output-file', 'changepoints1']
+                           '--output-file', 'changepoints1', '-v']
 
         runner = CliRunner()
 

@@ -110,7 +110,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     clean_params = {
         'gaussfilter_space': config_data['gaussfilter_space'],
         'gaussfilter_time': config_data['gaussfilter_time'],
-        'tailfilter': select_strel((config_data['tailfilter_shape'], config_data['tailfilter_size'])),
+        'tailfilter': select_strel(config_data['tailfilter_shape'], config_data['tailfilter_size']),
         'medfilter_time': config_data['medfilter_time'],
         'medfilter_space': config_data['medfilter_space']
     }
@@ -242,7 +242,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
                             save_file=save_file, chunk_size=config_data['chunk_size'],
                             mask_params=mask_params, fps=config_data['fps'],
                             missing_data=missing_data, h5_path=config_data['h5_path'],
-                            h5_mask_path=config_data['h5_mask_path'])
+                            h5_mask_path=config_data['h5_mask_path'], verbose=config_data['verbose'])
 
         else:
             # Initialize Dask client
@@ -268,7 +268,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
                                save_file=save_file, chunk_size=config_data['chunk_size'],
                                fps=config_data['fps'], client=client, missing_data=missing_data,
                                mask_params=mask_params, h5_path=config_data['h5_path'],
-                               h5_mask_path=config_data['h5_mask_path'])
+                               h5_mask_path=config_data['h5_mask_path'], verbose=config_data['verbose'])
             except:
                 # Clearing all data from Dask client in case of interrupted PCA
                 click.echo('Operation interrupted. Closing Dask Client.')
@@ -335,7 +335,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
                               save_file=save_file, chunk_size=config_data['chunk_size'],
                               fps=config_data['fps'], client=client, missing_data=missing_data,
                               mask_params=mask_params, h5_path=config_data['h5_path'],
-                              h5_mask_path=config_data['h5_mask_path'])
+                              h5_mask_path=config_data['h5_mask_path'], verbose=config_data['verbose'])
     except:
         click.echo('Operation interrupted. Closing Dask Client.')
         close_dask(client, cluster, config_data['timeout'])

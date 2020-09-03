@@ -152,8 +152,9 @@ def train_pca(input_dir, cluster_type, output_dir, h5_path, h5_mask_path, gaussf
 @click.option('--fill-gaps', default=True, type=bool, help='Fill dropped frames with nans')
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
 @click.option('--detrend-window', default=0, type=float, help="Length of detrend window (in seconds, 0 for no detrending)")
+@click.option('--verbose', '-v', is_flag=True, help='Print sessions as they are being loaded.')
 def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask_path,
-              pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window, dask_port,
+              pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window, verbose, dask_port,
               config_file, dask_cache_path, queue, nworkers, cores, processes, memory, wall_time, timeout):
 
     click_data = click.get_current_context().params
@@ -172,9 +173,10 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
 @click.option('-s', '--sigma', type=float, default=3.5, help="Standard deviation of gaussian smoothing filter")
 @click.option('-d', '--dims', type=int, default=300, help="Number of random projections to use")
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
-def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_file_components,
-                         pca_file_scores, pca_path, neighbors, threshold, klags, sigma, dims, fps, h5_path,
-                         h5_mask_path, chunk_size, config_file, dask_cache_path, dask_port,
+@click.option('--verbose', '-v', is_flag=True, help='Print sessions as they are being loaded.')
+def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_file_components, pca_file_scores,
+                         pca_path, neighbors, threshold, klags, sigma, dims, fps, verbose,
+                         h5_path, h5_mask_path, chunk_size, config_file, dask_cache_path, dask_port,
                          queue, nworkers, cores, processes, memory, wall_time, timeout):
 
     click_data = click.get_current_context().params

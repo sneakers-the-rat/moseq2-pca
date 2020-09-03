@@ -272,7 +272,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client
 # todo: for applying pca, run once to impute missing data, then get scores
 def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
                     save_file, chunk_size, mask_params, missing_data, fps=30,
-                    h5_path='/frames', h5_mask_path='/frames_mask'):
+                    h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
     '''
     "Apply" trained PCA on input frame data to obtain PCA Scores
     using local cluster/platform.
@@ -291,6 +291,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
     fps (int): frames per second
     h5_path (str): path to frames within selected h5 file (default: '/frames')
     h5_mask_path (str): path to masked frames within selected h5 file (default: '/frames_mask')
+    verbose (bool): print session names as they are being loaded.
 
     Returns
     -------
@@ -302,6 +303,9 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
             # Load the file's metadata
             data = read_yaml(yml)
             uuid = data['uuid']
+
+            if verbose:
+                print('Loading', h5)
 
             with h5py.File(h5, 'r') as f:
                 # Load frames
@@ -354,7 +358,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
 def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                    save_file, chunk_size, mask_params, missing_data,
-                   client, fps=30, h5_path='/frames', h5_mask_path='/frames_mask'):
+                   client, fps=30, h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
     '''
     "Apply" trained PCA on input frame data to obtain PCA Scores using
     Distributed Dask cluster.
@@ -373,6 +377,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
     fps (int): frames per second
     h5_path (str): path to frames within selected h5 file (default: '/frames')
     h5_mask_path (str): path to masked frames within selected h5 file (default: '/frames_mask')
+    verbose (bool): print session names as they are being loaded.
 
     Returns
     -------
@@ -386,6 +391,9 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
         # Load metadata
         data = read_yaml(yml)
         uuid = data['uuid']
+
+        if verbose:
+            print('Loading', h5)
 
         # Load data
         dset = h5py.File(h5, mode='r')[h5_path]
@@ -468,7 +476,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
 def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                           save_file, chunk_size, mask_params, missing_data,
                           client, fps=30, pca_scores=None, progress_bar=False,
-                          h5_path='/frames', h5_mask_path='/frames_mask'):
+                          h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
     '''
     Computes model-free changepoints using PCs and PC Scores on distributed dask cluster.
 
@@ -488,6 +496,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
     progress_bar (bool): display progress bar
     h5_path (str): path to frames within selected h5 file (default: '/frames')
     h5_mask_path (str): path to masked frames within selected h5 file (default: '/frames_mask')
+    verbose (bool): print session names as they are being loaded.
 
     Returns
     -------
@@ -502,6 +511,9 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
         # Load session metadata
         data = read_yaml(yml)
         uuid = data['uuid']
+
+        if verbose:
+            print('Loading', h5)
 
         with h5py.File(h5, 'r') as f:
             # Load frames
