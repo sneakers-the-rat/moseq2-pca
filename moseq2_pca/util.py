@@ -415,12 +415,33 @@ def h5_to_dict(h5file, path):
 
 
 def set_dask_config(memory={'target': 0.85, 'spill': False, 'pause': False, 'terminate': 0.95}):
+    '''
+    Sets initial dask configuration parameters
+
+    Parameters
+    ----------
+    memory (dict)
+
+    Returns
+    -------
+    '''
+
     memory = {f'distributed.worker.memory.{k}': v for k, v in memory.items()}
     dask.config.set(memory)
     dask.config.set({'optimization.fuse.ave-width': 5})
 
 
 def get_env_cpu_and_mem():
+    '''
+    Reads current system environment and returns the amount of available memory
+    and CPUs to allocate to the created cluster.
+
+    Returns
+    -------
+    mem (float): Optimal number of memory (in bytes) to allocate to initialized dask cluster
+    cpu (int): Optimal number of CPUs to allocate to dask
+    '''
+
     is_slurm = os.environ.get('SLURM_JOBID', False)
 
     if is_slurm:
