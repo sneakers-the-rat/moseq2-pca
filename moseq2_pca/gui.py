@@ -14,14 +14,13 @@ from .cli import train_pca, apply_pca, compute_changepoints
 from moseq2_pca.helpers.wrappers import train_pca_wrapper, apply_pca_wrapper, compute_changepoints_wrapper
 
 
-def train_pca_command(input_dir, config_file, output_dir, output_file):
+def train_pca_command(progress_paths, output_dir, output_file):
     '''
     Train PCA through Jupyter notebook, and updates config file.
 
     Parameters
     ----------
-    input_dir (str): path to directory containing training data
-    config_file (str): path to config file
+    progress_paths (dict): dictionary containing notebook progress paths
     output_dir (str): path to output pca directory
     output_file (str): name of output pca file.
 
@@ -29,6 +28,10 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
     -------
     None
     '''
+
+    # Get appropriate inputs
+    input_dir = progress_paths['train_data_dir']
+    config_file = progress_paths['config_file']
 
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
@@ -51,22 +54,25 @@ def train_pca_command(input_dir, config_file, output_dir, output_file):
         yaml.safe_dump(config_data, f)
 
 
-def apply_pca_command(input_dir, index_file, config_file, output_dir, output_file):
+def apply_pca_command(progress_paths, output_file):
     '''
     Compute PCA Scores given trained PCA using Jupyter Notebook.
 
     Parameters
     ----------
-    input_dir (str): path to directory containing training data
-    index_file (str): path to index file.
-    config_file (str): path to config file
-    output_dir (str): path to output pca directory
+    progress_paths (dict): dictionary containing notebook progress paths
     output_file (str): name of output pca file.
 
     Returns
     -------
     (str): success string.
     '''
+
+    # Get proper inputs
+    input_dir = progress_paths['train_data_dir']
+    config_file = progress_paths['config_file']
+    index_file = progress_paths['index_file']
+    output_dir = progress_paths['pca_dirname']
 
     # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
     # moseq2-model processes these files correctly
@@ -100,21 +106,23 @@ def apply_pca_command(input_dir, index_file, config_file, output_dir, output_fil
     return 'PCA Scores have been successfully computed.'
 
 
-def compute_changepoints_command(input_dir, config_file, output_dir, output_file):
+def compute_changepoints_command(input_dir, progress_paths, output_file):
     '''
     Compute Changepoint distribution using Jupyter Notebook.
 
     Parameters
     ----------
     input_dir (str): path to directory containing training data
-    config_file (str): path to config file
-    output_dir (str): path to output pca directory
+    progress_paths (dict): dictionary containing notebook progress paths
     output_file (str): name of output pca file.
 
     Returns
     -------
     (str): success string.
     '''
+
+    config_file = progress_paths['config_file']
+    output_dir = progress_paths['pca_dirname']
 
     with open(config_file, 'r') as f:
         config_data = yaml.safe_load(f)
