@@ -30,7 +30,12 @@ class TestGUI(TestCase):
         with open(stdin, 'w') as f:
             f.write('Y')
 
-        train_pca_command(data_dir, config_file, output_dir, output_file)
+        progress_paths = {
+            'train_data_dir': data_dir,
+            'config_file': config_file
+        }
+
+        train_pca_command(progress_paths, output_dir, output_file)
 
         assert exists(output_dir), "PCA path was not created."
 
@@ -57,7 +62,15 @@ class TestGUI(TestCase):
 
         print(config_file)
         print(output_file)
-        apply_pca_command(data_dir, index_file, config_file, outpath, output_file)
+
+        progress_paths = {
+            'train_data_dir': data_dir,
+            'config_file': config_file,
+            'index_file': index_file,
+            'pca_dirname': outpath
+        }
+
+        apply_pca_command(progress_paths, output_file)
         assert _is_file(outpath, output_file+'.h5'), "Scores file was not created."
 
         os.remove(join(outpath, output_file+'.h5'))
@@ -69,7 +82,13 @@ class TestGUI(TestCase):
         outpath = 'data/_pca'
         output_file = 'changepoints2'
 
-        compute_changepoints_command(data_dir, config_file, outpath, output_file)
+        progress_paths = {
+            'train_data_dir': data_dir,
+            'config_file': config_file,
+            'pca_dirname': outpath
+        }
+
+        compute_changepoints_command(data_dir, progress_paths, output_file)
 
         assert exists(outpath), 'PCA Path was not found'
         assert _is_file(outpath, output_file+'.h5')
