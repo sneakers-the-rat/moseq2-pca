@@ -180,15 +180,18 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
         # After Success or failure: Shutting down Dask client and clearing any residual data
         close_dask(client, cluster, config_data['timeout'])
 
-    # Plotting training results
-    plot_pca_results(output_dict, save_file, output_dir)
+    try:
+        # Plotting training results
+        plot_pca_results(output_dict, save_file, output_dir)
 
-    # Saving PCA to h5 file
-    with h5py.File(f'{save_file}.h5', 'w') as f:
-        for k, v in output_dict.items():
-            f.create_dataset(k, data=v, compression='gzip', dtype='float32')
+        # Saving PCA to h5 file
+        with h5py.File(f'{save_file}.h5', 'w') as f:
+            for k, v in output_dict.items():
+                f.create_dataset(k, data=v, compression='gzip', dtype='float32')
 
-    config_data['pca_file'] = f'{save_file}.h5'
+        config_data['pca_file'] = f'{save_file}.h5'
+    except:
+        pass
 
     return config_data
 
@@ -220,6 +223,14 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
 
     # Set path to PCA Scores file
     save_file = os.path.join(output_dir, output_file)
+
+    # Edge Case: Handling pre-existing PCA file
+    if os.path.exists(f'{save_file}.h5'):
+        click.echo(
+            f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, else -> exit]\n')
+        ow = input()
+        if ow.lower() != 'y':
+            return config_data
 
     # Get path to trained PCA file to load PCs from
     config_data, pca_file, pca_file_scores = get_pca_paths(config_data, output_dir)

@@ -25,7 +25,7 @@ class TestCli(TestCase):
         assert (result.exit_code == 0), "CLI function did not complete successfully"
 
     def test_train_pca(self):
-        data_dir = 'data'
+        data_dir = 'data/'
         out_dir = 'data/tmp_pca'
 
         train_params_local = ['-i', data_dir,
@@ -33,6 +33,7 @@ class TestCli(TestCase):
                               '--local-processes', 'False',
                               '--gaussfilter-time', '3',
                               '--missing-data',
+                              '--dask-port', ':1234',
                               '-o', out_dir]
 
         # in case it asks for user input
@@ -70,6 +71,10 @@ class TestCli(TestCase):
         with open(pca_yaml, 'w') as f:
             yaml.safe_dump(pca_meta, f)
 
+        # in case it asks for user input
+        stdin = 'data/stdin.txt'
+        with open(stdin, 'w') as f:
+            f.write('Y')
 
         apply_params_local = ['-i', data_dir,
                               '-o', outpath,
