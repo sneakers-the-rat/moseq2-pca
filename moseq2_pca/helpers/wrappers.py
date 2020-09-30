@@ -191,6 +191,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
 
         config_data['pca_file'] = f'{save_file}.h5'
     except:
+        click.echo('Could not save PCA since the training was interrupted.')
         pass
 
     return config_data

@@ -494,7 +494,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     workers (dask Workers): intialized workers
     '''
 
-    click.echo(f'Access dask dashboard at localhost:{dashboard_port}')
+    click.echo(f'Access dask dashboard at http://localhost:{dashboard_port}')
 
     if cluster_type == 'local':
         warnings.simplefilter('ignore')
