@@ -83,13 +83,8 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     if config_data['missing_data'] and config_data['use_fft']:
         raise NotImplementedError("FFT and missing data not implemented yet")
 
-    params = config_data
-
     # Get training data
     output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir)
-
-    params['start_time'] = f'{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}'
-    params['inputs'] = h5s
 
     # Setting path to PCA config file
     save_file = os.path.join(output_dir, output_file)
@@ -100,11 +95,6 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
         ow = input()
         if ow.lower() != 'y':
             return config_data
-
-    # Update PCA config yaml file
-    config_store = '{}.yaml'.format(save_file)
-    with open(config_store, 'w') as f:
-        yaml.safe_dump(params, f)
 
     # Hold all frame filtering parameters in a single dict
     clean_params = {
@@ -149,7 +139,8 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     # photometry, or ephys cables. These sessions in particular include frame-by-frame masks
     # to explicitly tell PCA where the mouse is, removing any noise or obstructions.
     # Note: timestamps for all files are required in order for this operation to work.
-    if config_data['missing_data']:
+    if config_data['missing_data'] or config_data.get('cable_filter_iters', 0) > 1:
+        config_data['missing_data'] = True # in case cable filter iterations > 1
         mask_dsets = [h5py.File(h5, mode='r')[config_data['h5_mask_path']] for h5 in h5s]
         mask_arrays = [da.from_array(dset, chunks=config_data['chunk_size']) for dset in mask_dsets]
         stacked_array_mask = da.concatenate(mask_arrays, axis=0).astype('float32')
@@ -159,6 +150,15 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
 
     else:
         stacked_array_mask = None
+
+    params = config_data
+    params['start_time'] = f'{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}'
+    params['inputs'] = h5s
+
+    # Update PCA config yaml file
+    config_store = '{}.yaml'.format(save_file)
+    with open(config_store, 'w') as f:
+        yaml.safe_dump(params, f)
 
     # Compute Principal Components
     try:
