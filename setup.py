@@ -34,7 +34,7 @@ setup(
     version=get_version('moseq2_pca/__init__.py'),
     platforms=['mac', 'unix'],
     packages=find_packages(),
-    install_requires=['h5py==2.10.0', 'matplotlib==3.1.2', 'scipy==1.3.2', 'pathspec==0.5.3',
+    install_requires=['h5py==2.10.0', 'matplotlib==3.1.2', 'scipy==1.4.1', 'pathspec==0.5.3',
                       'tqdm==4.40.0', 'numpy==1.18.3', 'joblib==0.15.1',
                       'click==7.0', 'ruamel.yaml==0.16.5', 'dask==2.16.0',
                       'distributed==2.16.0', 'chest==0.2.3', 'seaborn==0.9.0', 'dask-jobqueue==0.7.0',

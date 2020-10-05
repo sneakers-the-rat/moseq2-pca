@@ -31,6 +31,30 @@ click.core.Option.__init__ = new_init
 def cli():
     pass
 
+def load_config_params(config_file, click_data):
+    '''
+    If a config file path is provided as a CLI parameter, it will be loaded, and used
+     to update all the input Click parameters with the contents of the file.
+
+    Parameters
+    ----------
+    config_file (str): Path to config file.
+    click_data (dict): dict of all the function parameter key-value pairings
+
+    Returns
+    -------
+    click_data (dict): updated dict of input parameters
+    '''
+
+    if isinstance(config_file, str):
+        if os.path.exists(config_file):
+            with open(config_file, 'r') as f:
+                config_data = yaml.safe_load(f)
+
+            for key in config_data.keys():
+                click_data[key] = config_data[key]
+
+    return click_data
 
 @cli.command('clip-scores',  help='Clips specified number of frames from PCA scores at the beginning or end')
 @click.argument('pca_file', type=click.Path(exists=True, resolve_path=True))
@@ -140,6 +164,7 @@ def train_pca(input_dir, cluster_type, output_dir, h5_path, h5_mask_path, gaussf
               queue, nworkers, cores, processes, memory, wall_time, timeout):
 
     click_data = click.get_current_context().params
+    click_data = load_config_params(config_file, click_data)
     train_pca_wrapper(input_dir, click_data, output_dir, output_file)
 
 
@@ -158,6 +183,7 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
               config_file, dask_cache_path, queue, nworkers, cores, processes, memory, wall_time, timeout):
 
     click_data = click.get_current_context().params
+    click_data = load_config_params(config_file, click_data)
     apply_pca_wrapper(input_dir, click_data, output_dir, output_file)
 
 @cli.command('compute-changepoints', cls=command_with_config('config_file'), help='Computes the Model-Free Syllable Changepoints based on the PCA/PCA_Scores')
@@ -180,6 +206,7 @@ def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_f
                          queue, nworkers, cores, processes, memory, wall_time, timeout):
 
     click_data = click.get_current_context().params
+    click_data = load_config_params(config_file, click_data)
     compute_changepoints_wrapper(input_dir, click_data, output_dir, output_file)
 
 if __name__ == '__main__':
