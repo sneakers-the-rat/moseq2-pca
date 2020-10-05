@@ -12,6 +12,7 @@ import os
 import h5py
 import tqdm
 import click
+import ruamel.yaml as yaml
 from moseq2_pca.util import command_with_config
 from moseq2_pca.helpers.wrappers import train_pca_wrapper, apply_pca_wrapper, compute_changepoints_wrapper
 

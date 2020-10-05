@@ -4,9 +4,19 @@ import ruamel.yaml as yaml
 from unittest import TestCase
 from os.path import join, exists
 from click.testing import CliRunner
-from moseq2_pca.cli import clip_scores, train_pca, apply_pca, compute_changepoints
+from moseq2_pca.cli import clip_scores, train_pca, apply_pca, compute_changepoints, load_config_params
 
 class TestCli(TestCase):
+
+    def test_load_config_params(self):
+
+        test_config = 'data/config.yaml'
+        click_data = {}
+        with open(test_config, 'r') as f:
+            test_config_data = yaml.safe_load(f)
+
+        click_data = load_config_params(test_config, click_data)
+        assert test_config_data == click_data
 
     def test_clip_scores(self):
 

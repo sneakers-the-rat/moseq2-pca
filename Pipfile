@@ -24,6 +24,7 @@ matplotlib = '*'
 statsmodels = "*"
 ruamel_yaml = '*'
 distributed = '*'
+scikit-learn = '==0.20.3'
 scikit-image = "==0.16.2"
 dask_jobqueue = '*'
 opencv-python = '*'
