@@ -7,7 +7,8 @@ Helper functions for reading files and directories in preparation for changepoin
 import os
 import h5py
 import ruamel.yaml as yaml
-from moseq2_pca.util import select_strel
+from os.path import join, exists
+from moseq2_pca.util import select_strel, read_yaml
 
 def get_pca_paths(config_data, output_dir):
     '''
@@ -28,25 +29,18 @@ def get_pca_paths(config_data, output_dir):
     '''
 
     # Get path to pre-computed PCA file
-    if config_data.get('pca_file_components') is None:
-        pca_file_components = os.path.join(output_dir, 'pca.h5')
+    pca_file_components = join(output_dir, 'pca.h5')
+    if 'pca_file_components' not in config_data:
         config_data['pca_file_components'] = pca_file_components
     else:
-        if not os.path.exists(config_data['pca_file_components']):
-            pca_file_components = os.path.join(output_dir, 'pca.h5')
-            config_data['pca_file_components'] = pca_file_components
-        else:
-            pca_file_components = config_data['pca_file_components']
+        pca_file_components = config_data['pca_file_components']
+
+    if not exists(pca_file_components):
+        raise IOError(f'Could not find PCA components file {pca_file_components}')
 
     # Get path to PCA Scores
-    if config_data.get('pca_file_scores') is None:
-        pca_file_scores = os.path.join(output_dir, 'pca_scores.h5')
-        config_data['pca_file_scores'] = pca_file_scores
-    else:
-        pca_file_scores = config_data['pca_file_scores']
-
-    if not os.path.exists(pca_file_components):
-        raise IOError(f'Could not find PCA components file {pca_file_components}')
+    pca_file_scores = config_data.get('pca_file_scores', join(output_dir, 'pca_scores.h5'))
+    config_data['pca_file_scores'] = pca_file_scores
 
     return config_data, pca_file_components, pca_file_scores
 
@@ -70,32 +64,30 @@ def load_pcs_for_cp(pca_file_components, config_data):
     mask_params (dict): Mask parameters to use when computing CPs
     '''
 
-    print('Loading PCs from {}'.format(pca_file_components))
+    print(f'Loading PCs from {pca_file_components}')
     with h5py.File(pca_file_components, 'r') as f:
-        pca_components = f[config_data['pca_path']][...]
+        pca_components = f[config_data['pca_path']][()]
 
     # get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
     pca_yaml = os.path.splitext(pca_file_components)[0] + '.yaml'
 
-    # todo detect missing data and mask parameters, then 0 out, fill in, compute scores...
+    # TODO: from win - is this todo all set?
+    # TODO: detect missing data and mask parameters, then 0 out, fill in, compute scores...
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
             pca_config = yaml.safe_load(f.read())
 
-            # Set data masking parameters if missing data == True
-            if 'missing_data' in pca_config.keys() and pca_config['missing_data']:
+            missing_data = pca_config.get('missing_data', False)
+            if missing_data:
                 print('Detected missing data...')
-                missing_data = True
                 mask_params = {
                     'mask_height_threshold': pca_config['mask_height_threshold'],
                     'mask_threshold': pca_config['mask_threshold']
                 }
             else:
-                missing_data = False
-                pca_file_scores = None
                 mask_params = None
 
-            if missing_data and not os.path.exists(config_data['pca_file_scores']):
+            if missing_data and not exists(config_data['pca_file_scores']):
                 raise RuntimeError("Need PCA scores to impute missing data, run apply pca first")
 
     # Pack changepoint parameters
@@ -125,45 +117,41 @@ def get_pca_yaml_data(pca_yaml):
     missing_data (bool): indicates whether to use mask_params
     '''
 
-    # todo detect missing data and mask parameters, then 0 out, fill in, compute scores...
-    if os.path.exists(pca_yaml):
-        with open(pca_yaml, 'r') as f:
-            # Load pca metadata file
-            pca_config = yaml.safe_load(f.read())
-            if 'use_fft' in pca_config.keys() and pca_config['use_fft']:
-                print('Will use FFT...')
-                use_fft = True
-            else:
-                use_fft = False
+    # TODO: from win - is this todo done?
+    # TODO detect missing data and mask parameters, then 0 out, fill in, compute scores...
+    if exists(pca_yaml):
+        # Load pca metadata file
+        pca_config = read_yaml(pca_yaml)
 
-            # Get tail filter
-            tailfilter = select_strel(pca_config['tailfilter_shape'], tuple(pca_config['tailfilter_size']))
+        use_fft = pca_config.get('use_fft', False)
+        # Check if PCA was trained with masked data
+        missing_data = pca_config.get('missing_data', False)
+        if use_fft:
+            print('Will use FFT...')
+        if missing_data:
+            print('Detected missing data...')
 
-            # Pack filtering paraneters
-            clean_params = {
-                'gaussfilter_space': pca_config['gaussfilter_space'],
-                'gaussfilter_time': pca_config['gaussfilter_time'],
-                'tailfilter': tailfilter,
-                'medfilter_time': pca_config['medfilter_time'],
-                'medfilter_space': pca_config['medfilter_space'],
-            }
+        # Get tail filter
+        tailfilter = select_strel(pca_config['tailfilter_shape'], tuple(pca_config['tailfilter_size']))
 
-            # Get masking parameters
-            mask_params = {
-                'mask_height_threshold': pca_config['mask_height_threshold'],
-                'mask_threshold': pca_config['mask_threshold'],
-                'min_height': pca_config['min_height'],
-                'max_height': pca_config['max_height']
-            }
+        # Pack filtering paraneters
+        clean_params = {
+            'gaussfilter_space': pca_config['gaussfilter_space'],
+            'gaussfilter_time': pca_config['gaussfilter_time'],
+            'tailfilter': tailfilter,
+            'medfilter_time': pca_config['medfilter_time'],
+            'medfilter_space': pca_config['medfilter_space'],
+        }
 
-            # Check if PCA was trained with masked data
-            if 'missing_data' in pca_config.keys() and pca_config['missing_data']:
-                print('Detected missing data...')
-                missing_data = True
-            else:
-                missing_data = False
+        # Get masking parameters
+        mask_params = {
+            'mask_height_threshold': pca_config['mask_height_threshold'],
+            'mask_threshold': pca_config['mask_threshold'],
+            'min_height': pca_config['min_height'],
+            'max_height': pca_config['max_height']
+        }
 
     else:
-        IOError(f'Could not find {pca_yaml}')
+        raise IOError(f'Could not find {pca_yaml}')
 
     return use_fft, clean_params, mask_params, missing_data

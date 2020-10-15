@@ -154,11 +154,11 @@ def copy_metadatas_to_scores(f, f_scores, uuid):
 
     if '/metadata/acquisition' in f:
         # h5 format post v0.1.3
-        metadata_name = 'metadata/{}'.format(uuid)
+        metadata_name = f'metadata/{uuid}'
         f.copy('/metadata/acquisition', f_scores, name=metadata_name)
     elif '/metadata/extraction' in f:
         # h5 format pre v0.1.3
-        metadata_name = 'metadata/{}'.format(uuid)
+        metadata_name = f'metadata/{uuid}'
         f.copy('/metadata/extraction', f_scores, name=metadata_name)
 
 def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client,
@@ -269,7 +269,6 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client
     return output_dict
 
 
-# todo: for applying pca, run once to impute missing data, then get scores
 def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
                     save_file, chunk_size, mask_params, missing_data, fps=30,
                     h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
@@ -350,9 +349,9 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
                                                fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
 
             # Write scores
-            f_scores.create_dataset('scores/{}'.format(uuid), data=scores,
+            f_scores.create_dataset(f'scores/{uuid}', data=scores,
                                     dtype='float32', compression='gzip')
-            f_scores.create_dataset('scores_idx/{}'.format(uuid), data=score_idx,
+            f_scores.create_dataset(f'scores_idx/{uuid}', data=score_idx,
                                     dtype='float32', compression='gzip')
 
 
@@ -441,7 +440,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
     # pin the batch size to the number of workers (assume each worker has enough RAM for one session)
     batch_size = len(client.scheduler_info()['workers'])
 
-    with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
+    with h5py.File(f'{save_file}.h5', 'w') as f_scores:
 
         batch_count = 0
         batches = range(0, len(futures), batch_size)
@@ -467,9 +466,9 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                                                    fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
 
                 # Write scores
-                f_scores.create_dataset('scores/{}'.format(uuids_batch[file_idx]), data=scores,
+                f_scores.create_dataset(f'scores/{uuids_batch[file_idx]}', data=scores,
                                         dtype='float32', compression='gzip')
-                f_scores.create_dataset('scores_idx/{}'.format(uuids_batch[file_idx]), data=score_idx,
+                f_scores.create_dataset(f'scores_idx/{uuids_batch[file_idx]}', data=score_idx,
                                         dtype='float32', compression='gzip')
 
 
@@ -587,7 +586,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                 file_idx = keys.index(future.key)
                 if result[0] is not None and result[1] is not None:
                     # Writing changepoints to h5 file as batches complete
-                    f_cps.create_dataset('cps_score/{}'.format(uuids_batch[file_idx]), data=result[1],
+                    f_cps.create_dataset(f'cps_score/{uuids_batch[file_idx]}', data=result[1],
                                          dtype='float32', compression='gzip')
-                    f_cps.create_dataset('cps/{}'.format(uuids_batch[file_idx]), data=result[0] / fps,
+                    f_cps.create_dataset(f'cps/{uuids_batch[file_idx]}', data=result[0] / fps,
                                          dtype='float32', compression='gzip')

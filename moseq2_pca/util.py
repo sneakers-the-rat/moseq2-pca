@@ -56,9 +56,9 @@ def command_with_config(config_file_param_name):
     return custom_command_class
 
 
-def recursive_find_h5s(root_dir=os.getcwd(),
-                       ext='.h5',
-                       yaml_string='{}.yaml'):
+# TODO: If you made any changes to this version of the function in moseq2-extract
+# copy it over here after I've approved it.
+def recursive_find_h5s(root_dir=os.getcwd(), ext='.h5', yaml_string='{}.yaml'):
     '''
     Recursively find h5 files, along with yaml files with the same basename
 
@@ -256,8 +256,7 @@ def insert_nans(timestamps, data, fps=30):
     filled_timestamps (1D array): filled timestamp-strs
     '''
 
-    df_timestamps = np.diff(
-        np.insert(timestamps, 0, timestamps[0] - 1.0 / fps))
+    df_timestamps = np.diff(np.insert(timestamps, 0, timestamps[0] - 1.0 / fps))
     missing_frames = np.floor(df_timestamps / (1.0 / fps))
 
     fill_idx = np.where(missing_frames > 1)[0]
@@ -312,6 +311,7 @@ def read_yaml(yaml_file):
 
     return return_dict
 
+
 def check_timestamps(h5s):
     '''
 
@@ -341,6 +341,7 @@ def check_timestamps(h5s):
             warnings.warn(f'Could not located metadata in {h5}. \
                           This may cause issues if PCA has been trained on missing data.')
 
+
 def get_timestamp_path(h5file):
     '''
     Return path within h5 file that contains the kinect timestamps
@@ -360,8 +361,7 @@ def get_timestamp_path(h5file):
         elif '/metadata/timestamps' in f:
             return '/metadata/timestamps'
         else:
-            #raise KeyError('timestamp key not found')
-            print('timestamp key not found!')
+            raise KeyError('timestamp key not found')
 
 
 def get_metadata_path(h5file):
@@ -409,7 +409,7 @@ def h5_to_dict(h5file, path):
 
     for key, item in h5file[path].items():
         if isinstance(item, h5py._hl.dataset.Dataset):
-            ans[key] = item[...]
+            ans[key] = item[()]
         elif isinstance(item, h5py._hl.group.Group):
             ans[key] = h5_to_dict(h5file, path + key + '/')
     return ans
@@ -580,6 +580,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
     return client, cluster, workers
 
+
 def close_dask(client, cluster, timeout):
     '''
     Shuts down the Dask client and cluster.
@@ -604,6 +605,7 @@ def close_dask(client, cluster, timeout):
             print('Error:', e)
             print('Could not shutdown dask client')
 
+
 def get_rps(frames, rps=600, normalize=True):
     '''
     Get random projections of frames.
@@ -612,7 +614,7 @@ def get_rps(frames, rps=600, normalize=True):
     ----------
     frames (2D or 3D numpy array): Frames to get dimensions from.
     rps (int): Number of random projections.
-    normalize (bool): indicates whether to normalize frames.
+    normalize (bool): indicates whether to normalize the random projections.
 
     Returns
     -------
@@ -632,9 +634,11 @@ def get_rps(frames, rps=600, normalize=True):
     return rproj
 
 
-def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, baseline=True, timestamps=None):
+def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1,
+                     baseline=True, timestamps=None):
     '''
-    Compute changepoints distribution and CP Curve.
+    Compute changepoints and its corresponding distribution. Changepoints describe
+    the magnitude of frame-to-frame changes of mouse pose.
 
     Parameters
     ----------
@@ -648,7 +652,7 @@ def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, bas
 
     Returns
     -------
-    cps (2D numpy array): array of values for CP curve
+    cps (2D numpy array): array of changepoint values
     normed_df (1D numpy array): array of values for bar plot
     '''
 

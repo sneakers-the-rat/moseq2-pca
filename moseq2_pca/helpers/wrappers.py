@@ -48,6 +48,7 @@ def load_and_check_data(input_dir, output_dir, changepoints=False):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    # TODO: why does this depend on checkpoints? slack me with the answer
     if changepoints:
         # Look for aggregated results by default, recursively search for data if aggregate_results path does not exist.
         if os.path.exists(os.path.join(input_dir, 'aggregate_results/')):
@@ -139,6 +140,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     # photometry, or ephys cables. These sessions in particular include frame-by-frame masks
     # to explicitly tell PCA where the mouse is, removing any noise or obstructions.
     # Note: timestamps for all files are required in order for this operation to work.
+    # TODO: is this behavior mentioned in the documentation? Will people know that setting cable_filter_iters > 1 will automatically turn this into missing data?
     if config_data['missing_data'] or config_data.get('cable_filter_iters', 0) > 1:
         config_data['missing_data'] = True # in case cable filter iterations > 1
         mask_dsets = [h5py.File(h5, mode='r')[config_data['h5_mask_path']] for h5 in h5s]
@@ -156,7 +158,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     params['inputs'] = h5s
 
     # Update PCA config yaml file
-    config_store = '{}.yaml'.format(save_file)
+    config_store = f'{save_file}.yaml'
     with open(config_store, 'w') as f:
         yaml.safe_dump(params, f)
 
