@@ -4,13 +4,13 @@ Visualization operations for plotting computed PCs, a Scree Plot, and the Change
 
 '''
 
-import os
 import click
 import logging
 import warnings
 import numpy as np
 import skimage.util
 import seaborn as sns
+from os.path import join
 from scipy.stats import mode
 import matplotlib.pyplot as plt
 
@@ -39,7 +39,7 @@ def plot_pca_results(output_dict, save_file, output_dir):
         logging.error(e)
         logging.error(e.__traceback__)
         click.echo('could not plot components')
-        click.echo('You may find error logs here:', os.path.join(output_dir, 'train.log'))
+        click.echo('You may find error logs here:', join(output_dir, 'train.log'))
 
     try:
         # Plotting Scree Plot
@@ -51,7 +51,7 @@ def plot_pca_results(output_dict, save_file, output_dir):
         logging.error(e)
         logging.error(e.__traceback__)
         click.echo('could not plot scree')
-        click.echo('You may find error logs here:', os.path.join(output_dir, 'train.log'))
+        click.echo('You may find error logs here:', join(output_dir, 'train.log'))
 
 
 def display_components(components, cmap='gray', headless=False):
@@ -117,7 +117,7 @@ def scree_plot(explained_variance_ratio, headless=False):
         idx = np.min(idx)
         plt.plot([idx, idx], [0, csum[idx]], 'k-')
         plt.plot([0, idx], [csum[idx], csum[idx]], 'k-')
-        plt.title('{:0.2f}% in {} pcs'.format(csum[idx], idx + 1))
+        plt.title(f'{csum[idx]:0.2f}% in {idx + 1} pcs')
 
     plt.ylabel('Variance explained (percent)')
     plt.xlabel('nPCs')
@@ -153,7 +153,7 @@ def changepoint_dist(cps, headless=False):
         ax.set_xlim((0, 2))
         ax.set_xticks(np.linspace(0, 2, 11))
 
-        s = "Mean, median, mode (s) = {0:.5}, {1:.5}, {2:.5}".format(str(np.mean(cps)), str(np.median(cps)), str(mode(cps)[0][0][0]))
+        s = f'Mean, median, mode (s) = {np.mean(cps):.4f} {np.median(cps):.4f}, {mode(cps)[0][0][0]:.4f}'
         plt.text(.5, 2, s, fontsize=12)
         plt.ylabel('P(block duration)')
         plt.xlabel('Block duration (s)')

@@ -93,11 +93,12 @@ def recursive_find_h5s(root_dir=os.getcwd(),
                         dicts.append(dct)
                         uuids.append(dct['uuid'])
                     elif 'uuid' not in dct.keys():
-                        warnings.warn('No uuid for file {}, skipping...'.format(os.path.join(root, file)))
+                        warnings.warn(f'No uuid for file {os.path.join(root, file)}, skipping...')
                     else:
-                        warnings.warn('Already found uuid {}, file {} is likely a dupe, skipping...'.format(dct['uuid'], os.path.join(root, file)))
+                        warnings.warn(f'Already found uuid {dct["uuid"]}, file '
+                                      f'{os.path.join(root, file)} is likely a dupe, skipping...')
             except OSError:
-                print('Error loading {}'.format(os.path.join(root, file)))
+                print(f'Error loading {os.path.join(root, file)}')
 
     return h5s, dicts, yamls
 

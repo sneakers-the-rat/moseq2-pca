@@ -14,7 +14,9 @@ import datetime
 import warnings
 import dask.array as da
 import ruamel.yaml as yaml
+from tqdm.auto import tqdm
 from moseq2_pca.viz import plot_pca_results, changepoint_dist
+from os.path import abspath, join, exists, splitext, basename, dirname
 from moseq2_pca.helpers.data import get_pca_paths, get_pca_yaml_data, load_pcs_for_cp
 from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local, train_pca_dask, get_changepoints_dask
 from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, set_dask_config, close_dask, \
@@ -44,14 +46,14 @@ def load_and_check_data(input_dir, output_dir, changepoints=False):
     set_dask_config()
 
     # Set up output directory
-    output_dir = os.path.abspath(output_dir)
-    if not os.path.exists(output_dir):
+    output_dir = abspath(output_dir)
+    if not exists(output_dir):
         os.makedirs(output_dir)
 
     if changepoints:
         # Look for aggregated results by default, recursively search for data if aggregate_results path does not exist.
-        if os.path.exists(os.path.join(input_dir, 'aggregate_results/')):
-            h5s, dicts, yamls = recursive_find_h5s(os.path.join(input_dir, 'aggregate_results/'))
+        if exists(join(input_dir, 'aggregate_results/')):
+            h5s, dicts, yamls = recursive_find_h5s(join(input_dir, 'aggregate_results/'))
         else:
             h5s, dicts, yamls = recursive_find_h5s(input_dir)
     else:
@@ -87,10 +89,10 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir)
 
     # Setting path to PCA config file
-    save_file = os.path.join(output_dir, output_file)
+    save_file = join(output_dir, output_file)
 
     # Edge Case: Handling pre-existing PCA file
-    if os.path.exists(f'{save_file}.h5'):
+    if exists(f'{save_file}.h5'):
         click.echo(f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, else -> exit]\n')
         ow = input()
         if ow.lower() != 'y':
@@ -156,7 +158,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     params['inputs'] = h5s
 
     # Update PCA config yaml file
-    config_store = '{}.yaml'.format(save_file)
+    config_store = f'{save_file}.yaml'
     with open(config_store, 'w') as f:
         yaml.safe_dump(params, f)
 
@@ -175,7 +177,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
         logging.error(e)
         logging.error(e.__traceback__)
         click.echo('Training interrupted. Closing Dask Client. You may find logs of the error here:')
-        click.echo('---- ', os.path.join(output_dir, 'train.log'))
+        click.echo('---- ', join(output_dir, 'train.log'))
     finally:
         # After Success or failure: Shutting down Dask client and clearing any residual data
         close_dask(client, cluster, config_data['timeout'])
@@ -223,10 +225,10 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir)
 
     # Set path to PCA Scores file
-    save_file = os.path.join(output_dir, output_file)
+    save_file = join(output_dir, output_file)
 
     # Edge Case: Handling pre-existing PCA file
-    if os.path.exists(f'{save_file}.h5'):
+    if exists(f'{save_file}.h5'):
         click.echo(
             f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, else -> exit]\n')
         ow = input()
@@ -241,7 +243,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
         pca_components = f[config_data['pca_path']][()]
 
     # Get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
-    pca_yaml = os.path.splitext(pca_file)[0] + '.yaml'
+    pca_yaml = splitext(pca_file)[0] + '.yaml'
 
     # Get filtering parameters and optional PCA reconstruction parameters (if missing_data == True)
     use_fft, clean_params, mask_params, missing_data = get_pca_yaml_data(pca_yaml)
@@ -316,7 +318,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir, changepoints=True)
 
     # Set path to changepoints
-    save_file = os.path.join(output_dir, output_file)
+    save_file = join(output_dir, output_file)
 
     # Get paths to PCA, PCA Scores file
     config_data, pca_file_components, pca_file_scores = get_pca_paths(config_data, output_dir)
@@ -370,3 +372,35 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
         fig.close('all')
 
     return config_data
+
+def clip_scores_wrapper(pca_file, clip_samples, from_end=False):
+    '''
+
+    Clips PCA scores from the beginning or end.
+    Note that scores are modified *in place*.
+
+    Parameters
+    ----------
+    pca_file (str): Path to PCA scores.
+    clip_samples (int): number of samples to clip from beginning or end
+    from_end (bool): if true clip from end rather than beginning
+
+    Returns
+    -------
+
+    '''
+
+    with h5py.File(pca_file, 'r') as f:
+        store_dir = dirname(pca_file)
+        base_filename = splitext(basename(pca_file))[0]
+        new_filename = join(store_dir, f'{base_filename}_clip.h5')
+
+        with h5py.File(new_filename, 'w') as f2:
+            f.copy('/metadata', f2)
+            for key in tqdm(f['/scores'].keys(), desc='Copying data'):
+                if from_end:
+                    f2[f'/scores/{key}'] = f[f'/scores/{key}'][:-clip_samples]
+                    f2[f'/scores_idx/{key}'] = f[f'/scores_idx/{key}'][:-clip_samples]
+                else:
+                    f2[f'/scores/{key}'] = f[f'/scores/{key}'][clip_samples:]
+                    f2[f'/scores_idx/{key}'] = f[f'/scores_idx/{key}'][clip_samples:]
