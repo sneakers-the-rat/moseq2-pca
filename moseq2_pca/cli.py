@@ -32,30 +32,6 @@ click.core.Option.__init__ = new_init
 def cli():
     pass
 
-def load_config_params(config_file, click_data):
-    '''
-    If a config file path is provided as a CLI parameter, it will be loaded, and used
-     to update all the input Click parameters with the contents of the file.
-
-    Parameters
-    ----------
-    config_file (str): Path to config file.
-    click_data (dict): dict of all the function parameter key-value pairings
-
-    Returns
-    -------
-    click_data (dict): updated dict of input parameters
-    '''
-
-    if isinstance(config_file, str):
-        if os.path.exists(config_file):
-            with open(config_file, 'r') as f:
-                config_data = yaml.safe_load(f)
-
-            for key in config_data.keys():
-                click_data[key] = config_data[key]
-
-    return click_data
 
 @cli.command('clip-scores',  help='Clips specified number of frames from PCA scores at the beginning or end')
 @click.argument('pca_file', type=click.Path(exists=True, resolve_path=True))
@@ -87,6 +63,7 @@ def clip_scores(pca_file, clip_samples, from_end):
                     f2[f'/scores/{key}'] = f[f'/scores/{key}'][clip_samples:]
                     f2[f'/scores_idx/{key}'] = f[f'/scores_idx/{key}'][clip_samples:]
 
+
 def common_pca_options(function):
     '''
     This is a decorator function that is used to group common Click parameters/dependencies for PCA-related operations.
@@ -109,6 +86,7 @@ def common_pca_options(function):
     function = click.option('--chunk-size', default=4000, type=int, help='Number of frames per chunk')(function)
 
     return function
+
 
 def common_dask_parameters(function):
     '''
@@ -137,6 +115,7 @@ def common_dask_parameters(function):
 
     return function
 
+
 @cli.command(name='train-pca', cls=command_with_config('config_file'), help='Trains PCA on all extracted results (h5 files) in input directory')
 @common_pca_options
 @common_dask_parameters
@@ -157,16 +136,8 @@ def common_dask_parameters(function):
 @click.option('--rank', default=25, type=int, help="Rank for compressed SVD (generally>>nPCS)")
 @click.option('--output-file', default='pca', type=str, help='Name of h5 file for storing pca results')
 @click.option('--local-processes', default=False, type=bool, help='Used with a local cluster. If True: use processes, If False: use threads')
-def train_pca(input_dir, cluster_type, output_dir, h5_path, h5_mask_path, gaussfilter_space,
-              gaussfilter_time, medfilter_space, medfilter_time, missing_data, missing_data_iters, mask_threshold,
-              mask_height_threshold, min_height, max_height, tailfilter_size, local_processes,
-              tailfilter_shape, use_fft, recon_pcs, rank, output_file, chunk_size,
-              config_file, dask_cache_path, dask_port,
-              queue, nworkers, cores, processes, memory, wall_time, timeout):
-
-    click_data = click.get_current_context().params
-    click_data = load_config_params(config_file, click_data)
-    train_pca_wrapper(input_dir, click_data, output_dir, output_file)
+def train_pca(input_dir, output_dir, output_file, **cli_args):
+    train_pca_wrapper(input_dir, cli_args, output_dir, output_file)
 
 
 @cli.command(name='apply-pca', cls=command_with_config('config_file'), help='Computes PCA Scores of extraction data given a pre-trained PCA')
@@ -179,13 +150,8 @@ def train_pca(input_dir, cluster_type, output_dir, h5_path, h5_mask_path, gaussf
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
 @click.option('--detrend-window', default=0, type=float, help="Length of detrend window (in seconds, 0 for no detrending)")
 @click.option('--verbose', '-v', is_flag=True, help='Print sessions as they are being loaded.')
-def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask_path,
-              pca_path, pca_file, chunk_size, fill_gaps, fps, detrend_window, verbose, dask_port,
-              config_file, dask_cache_path, queue, nworkers, cores, processes, memory, wall_time, timeout):
-
-    click_data = click.get_current_context().params
-    click_data = load_config_params(config_file, click_data)
-    apply_pca_wrapper(input_dir, click_data, output_dir, output_file)
+def apply_pca(input_dir, output_dir, output_file, **cli_args):
+    apply_pca_wrapper(input_dir, cli_args, output_dir, output_file)
 
 @cli.command('compute-changepoints', cls=command_with_config('config_file'), help='Computes the Model-Free Syllable Changepoints based on the PCA/PCA_Scores')
 @common_pca_options
@@ -201,14 +167,8 @@ def apply_pca(input_dir, cluster_type, output_dir, output_file, h5_path, h5_mask
 @click.option('-d', '--dims', type=int, default=300, help="Number of random projections to use")
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
 @click.option('--verbose', '-v', is_flag=True, help='Print sessions as they are being loaded.')
-def compute_changepoints(input_dir, output_dir, output_file, cluster_type, pca_file_components, pca_file_scores,
-                         pca_path, neighbors, threshold, klags, sigma, dims, fps, verbose,
-                         h5_path, h5_mask_path, chunk_size, config_file, dask_cache_path, dask_port,
-                         queue, nworkers, cores, processes, memory, wall_time, timeout):
-
-    click_data = click.get_current_context().params
-    click_data = load_config_params(config_file, click_data)
-    compute_changepoints_wrapper(input_dir, click_data, output_dir, output_file)
+def compute_changepoints(input_dir, output_dir, output_file, **cli_args):
+    compute_changepoints_wrapper(input_dir, cli_args, output_dir, output_file)
 
 if __name__ == '__main__':
     cli()

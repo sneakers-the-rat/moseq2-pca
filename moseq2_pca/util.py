@@ -27,6 +27,7 @@ from dask_jobqueue import SLURMCluster
 # from https://stackoverflow.com/questions/46358797/
 # python-click-supply-arguments-and-options-from-a-configuration-file
 def command_with_config(config_file_param_name):
+    '''Provides a cli helper function to assign variables from a config file'''
     class custom_command_class(click.Command):
 
         def invoke(self, ctx):
