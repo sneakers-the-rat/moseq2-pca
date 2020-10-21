@@ -1,10 +1,37 @@
+import os
 import h5py
 import numpy as np
 from unittest import TestCase
 from moseq2_pca.util import h5_to_dict
-from moseq2_pca.viz import display_components, scree_plot, changepoint_dist
+from moseq2_pca.viz import display_components, scree_plot, changepoint_dist, plot_pca_results
 
 class TestViz(TestCase):
+
+    def test_plot_pca_results(self):
+        pca_path = 'data/_pca/pca.h5'
+        with h5py.File(pca_path, 'r') as f:
+            components = f['components'][()]
+            explained_variance_ratio = f['explained_variance_ratio'][()]
+
+        in_dict = {'components': components,
+                   'explained_variance_ratio': explained_variance_ratio}
+        save_file = 'data/pca'
+        output_dir = 'data/'
+
+        plot_pca_results(in_dict, save_file, output_dir)
+
+        assert os.path.exists('data/pca_components.png')
+        assert os.path.exists('data/pca_components.pdf')
+
+        os.remove('data/pca_components.png')
+        os.remove('data/pca_components.pdf')
+
+        assert os.path.exists('data/pca_scree.png')
+        assert os.path.exists('data/pca_scree.pdf')
+
+        os.remove('data/pca_scree.png')
+        os.remove('data/pca_scree.pdf')
+
 
     def test_display_components(self):
         # get components

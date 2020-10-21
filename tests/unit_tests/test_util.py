@@ -9,7 +9,7 @@ from unittest import TestCase
 from dask.distributed import Client, LocalCluster
 from moseq2_pca.util import gaussian_kernel1d, gauss_smooth, read_yaml, insert_nans, \
     check_timestamps, recursive_find_h5s, clean_frames, select_strel, \
-    get_timestamp_path, get_metadata_path, initialize_dask, get_rps, get_changepoints
+    get_timestamp_path, get_metadata_path, initialize_dask, get_rps, get_changepoints, h5_to_dict
 
 
 class TestUtils(TestCase):
@@ -120,10 +120,12 @@ class TestUtils(TestCase):
         test01 = select_strel(string0, size)
         test1 = select_strel(string1, size)
         test2 = select_strel(string2, size)
+        test3 = select_strel('default', size)
 
         assert test0 == test01 == mock_strel0
         assert test1.all() == mock_strel1.all()
         assert test2.all() == mock_strel2.all()
+        assert test3.all() == mock_strel1.all()
 
     def test_read_yaml(self):
         # original param: yaml_file
@@ -302,3 +304,14 @@ class TestUtils(TestCase):
         assert len(timestamps) < len(filled_timestamps)
         assert len(truth_scores) < len(test_scores)
         assert truth_scores_idx.all() == test_score_idx.all()
+
+    def test_h5_to_dict(self):
+
+        h5path = 'data/test_scores.h5'
+        path = 'scores/'
+
+        test = h5_to_dict(h5path, path)
+
+        assert isinstance(test, dict)
+        assert list(test.keys()) == ['5c72bf30-9596-4d4d-ae38-db9a7a28e912', 'abe92017-1d40-495e-95ef-e420b7f0f4b9']
+        assert test['5c72bf30-9596-4d4d-ae38-db9a7a28e912'].shape == (908, 50)

@@ -32,31 +32,6 @@ click.core.Option.__init__ = new_init
 def cli():
     pass
 
-def load_config_params(config_file, click_data):
-    '''
-    If a config file path is provided as a CLI parameter, it will be loaded, and used
-     to update all the input Click parameters with the contents of the file.
-
-    Parameters
-    ----------
-    config_file (str): Path to config file.
-    click_data (dict): dict of all the function parameter key-value pairings
-
-    Returns
-    -------
-    click_data (dict): updated dict of input parameters
-    '''
-
-    if isinstance(config_file, str):
-        if exists(config_file):
-            with open(config_file, 'r') as f:
-                config_data = yaml.safe_load(f)
-
-            for key in config_data.keys():
-                click_data[key] = config_data[key]
-
-    return click_data
-
 def common_pca_options(function):
     '''
     This is a decorator function that is used to group common Click parameters/dependencies for PCA-related operations.
@@ -129,7 +104,6 @@ def common_dask_parameters(function):
 @click.option('--local-processes', default=False, type=bool, help='Used with a local cluster. If True: use processes, If False: use threads')
 def train_pca(input_dir, output_dir, output_file, config_file, **config_data):
 
-    config_data = load_config_params(config_file, config_data)
     train_pca_wrapper(input_dir, config_data, output_dir, output_file)
 
 
@@ -145,7 +119,6 @@ def train_pca(input_dir, output_dir, output_file, config_file, **config_data):
 @click.option('--verbose', '-v', is_flag=True, help='Print sessions as they are being loaded.')
 def apply_pca(input_dir, output_dir, output_file, config_file, **config_data):
 
-    config_data = load_config_params(config_file, config_data)
     apply_pca_wrapper(input_dir, config_data, output_dir, output_file)
 
 @cli.command('compute-changepoints', cls=command_with_config('config_file'), help='Computes the Model-Free Syllable Changepoints based on the PCA/PCA_Scores')
@@ -164,7 +137,6 @@ def apply_pca(input_dir, output_dir, output_file, config_file, **config_data):
 @click.option('--verbose', '-v', is_flag=True, help='Print sessions as they are being loaded.')
 def compute_changepoints(input_dir, output_dir, output_file, config_file, **config_data):
 
-    config_data = load_config_params(config_file, config_data)
     compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file)
 
 @cli.command('clip-scores',  help='Clips specified number of frames from PCA scores at the beginning or end')

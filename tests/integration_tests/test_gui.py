@@ -51,17 +51,47 @@ class TestGUI(TestCase):
         os.remove(stdin)
 
     def test_apply_pca_command(self):
-        data_dir = 'data'
+        data_dir = 'data/'
+        config_file = 'data/config.yaml'
+        output_dir = 'data/tmp_pca'
+        output_file = 'pca'
+
+        with open(config_file, 'r') as f:
+            config_data = yaml.safe_load(f)
+
+            config_data['use_fft'] = True
+
+        with open(config_file, 'w') as f:
+            yaml.safe_dump(config_data, f)
+
+        # in case it asks for user input
+        stdin = 'data/stdin.txt'
+        with open(stdin, 'w') as f:
+            f.write('Y')
+
+        progress_paths = {
+            'train_data_dir': data_dir,
+            'config_file': config_file
+        }
+
+        train_pca_command(progress_paths, output_dir, output_file)
+
+        data_dir = 'data/'
         index_file = 'data/test_index.yaml'
         config_file = 'data/config.yaml'
-        outpath = 'data/_pca'
+        outpath = 'data/tmp_pca'
         output_file = 'pca_scores2'
 
         if not exists(outpath):
             os.makedirs(outpath)
 
-        print(config_file)
-        print(output_file)
+        with open(config_file, 'r') as f:
+            config_data = yaml.safe_load(f)
+
+            config_data['use_fft'] = True
+
+        with open(config_file, 'w') as f:
+            yaml.safe_dump(config_data, f)
 
         progress_paths = {
             'train_data_dir': data_dir,
@@ -73,8 +103,7 @@ class TestGUI(TestCase):
         apply_pca_command(progress_paths, output_file)
         assert _is_file(outpath, output_file+'.h5'), "Scores file was not created."
 
-        os.remove(join(outpath, output_file+'.h5'))
-
+        shutil.rmtree(outpath)
 
     def test_compute_changepoints_command(self):
         data_dir = 'data/'
