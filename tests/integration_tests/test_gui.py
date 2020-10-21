@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import ruamel.yaml as yaml
 from unittest import TestCase
@@ -46,6 +47,10 @@ class TestGUI(TestCase):
         assert _is_file(output_dir, 'pca.yaml'), "PCA metadata file is missing"
         assert _is_file(output_dir, 'pca_components.pdf'), "PCA components image is missing"
         assert _is_file(output_dir, 'pca_scree.pdf'), "PCA Scree plot is missing"
+
+        sys.stdin = open(stdin)
+
+        train_pca_command(progress_paths, output_dir, output_file)
 
         shutil.rmtree(output_dir)
         os.remove(stdin)
@@ -102,6 +107,10 @@ class TestGUI(TestCase):
 
         apply_pca_command(progress_paths, output_file)
         assert _is_file(outpath, output_file+'.h5'), "Scores file was not created."
+
+        sys.stdin = open(stdin)
+
+        apply_pca_command(progress_paths, output_file)
 
         shutil.rmtree(outpath)
 
