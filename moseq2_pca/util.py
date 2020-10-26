@@ -17,11 +17,13 @@ import platform
 import subprocess
 import numpy as np
 import scipy.signal
+from glob import glob
 from copy import deepcopy
 import ruamel.yaml as yaml
 from tqdm.auto import tqdm
 from dask.distributed import Client
 from dask_jobqueue import SLURMCluster
+from os.path import join, exists, abspath, expanduser
 
 
 # from https://stackoverflow.com/questions/46358797/
@@ -56,49 +58,41 @@ def command_with_config(config_file_param_name):
     return custom_command_class
 
 
-# TODO: If you made any changes to this version of the function in moseq2-extract
-# copy it over here after I've approved it.
-def recursive_find_h5s(root_dir=os.getcwd(), ext='.h5', yaml_string='{}.yaml'):
+def recursive_find_h5s(root_dir=os.getcwd(),
+                       ext='.h5',
+                       yaml_string='{}.yaml'):
     '''
     Recursively find h5 files, along with yaml files with the same basename
 
     Parameters
     ----------
-    root_dir (str or os.Pathlike): path to directory to start recursive search
-    ext (str): extension to search for, e.g. .h5
-    yaml_string (str): a format to use to name yaml files
+    root_dir (str): path to base directory to begin recursive search in.
+    ext (str): extension to search for
+    yaml_string (str): string for filename formatting when saving data
 
     Returns
     -------
-    h5s (list): list of h5 file paths
-    dicts (list): list of dicts containing metadata file contents
-    yamls (list): list of yaml file paths
+    h5s (list): list of found h5 files
+    dicts (list): list of found metadata files
+    yamls (list): list of found yaml files
     '''
 
-    dicts = []
-    h5s = []
-    yamls = []
-    uuids = []
-    for root, dirs, files in os.walk(root_dir):
-        for file in files:
-            yaml_file = yaml_string.format(os.path.splitext(file)[0])
-            try:
-                if file.endswith(ext):
-                    with h5py.File(os.path.join(root, file), 'r') as f:
-                        if 'frames' not in f.keys():
-                            continue
-                    dct = read_yaml(os.path.join(root, yaml_file))
-                    if 'uuid' in dct.keys() and dct['uuid'] not in uuids:
-                        h5s.append(os.path.join(root, file))
-                        yamls.append(os.path.join(root, yaml_file))
-                        dicts.append(dct)
-                        uuids.append(dct['uuid'])
-                    elif 'uuid' not in dct.keys():
-                        warnings.warn('No uuid for file {}, skipping...'.format(os.path.join(root, file)))
-                    else:
-                        warnings.warn('Already found uuid {}, file {} is likely a dupe, skipping...'.format(dct['uuid'], os.path.join(root, file)))
-            except OSError:
-                print('Error loading {}'.format(os.path.join(root, file)))
+    if not ext.startswith('.'):
+        ext = '.' + ext
+
+    def has_frames(f):
+        try:
+            with h5py.File(f, 'r') as h5f:
+                return 'frames' in h5f
+        except OSError:
+            warnings.warn(f'Error reading {f}, skipping...')
+            return False
+
+    h5s = glob(join(abspath(root_dir), '**', f'*{ext}'), recursive=True)
+    h5s = filter(lambda f: exists(yaml_string.format(f.replace(ext, ''))), h5s)
+    h5s = list(filter(has_frames, h5s))
+    yamls = list(map(lambda f: yaml_string.format(f.replace(ext, '')), h5s))
+    dicts = list(map(read_yaml, yamls))
 
     return h5s, dicts, yamls
 
@@ -466,7 +460,7 @@ def get_env_cpu_and_mem():
 def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                     wall_time='01:00:00', queue='debug', local_processes=False,
                     cluster_type='local', timeout=10,
-                    cache_path=os.path.expanduser('~/moseq2_pca'),
+                    cache_path=expanduser('~/moseq2_pca'),
                     dashboard_port='8787', data_size=None, **kwargs):
     '''
     Initialize dask client, cluster, workers, etc.

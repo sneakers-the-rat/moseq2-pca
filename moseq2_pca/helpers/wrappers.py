@@ -20,7 +20,7 @@ from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local, train_pca_dask,
 from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, set_dask_config, close_dask, \
             h5_to_dict, check_timestamps
 
-def load_and_check_data(input_dir, output_dir, changepoints=False):
+def load_and_check_data(input_dir, output_dir):
     '''
 
     Executes initialization functionality that is common among all 3 PCA related operations.
@@ -48,16 +48,8 @@ def load_and_check_data(input_dir, output_dir, changepoints=False):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # TODO: why does this depend on checkpoints? slack me with the answer
-    if changepoints:
-        # Look for aggregated results by default, recursively search for data if aggregate_results path does not exist.
-        if os.path.exists(os.path.join(input_dir, 'aggregate_results/')):
-            h5s, dicts, yamls = recursive_find_h5s(os.path.join(input_dir, 'aggregate_results/'))
-        else:
-            h5s, dicts, yamls = recursive_find_h5s(input_dir)
-    else:
-        # find directories with .dat files that either have incomplete or no extractions
-        h5s, dicts, yamls = recursive_find_h5s(input_dir)
+    # find directories with .dat files that either have incomplete or no extractions
+    h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
     check_timestamps(h5s)  # function to check whether timestamp files are found
 
@@ -312,7 +304,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     warnings.filterwarnings("ignore", category=UserWarning)
 
     # Get loaded h5s and yamls
-    output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir, changepoints=True)
+    output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir)
 
     # Set path to changepoints
     save_file = os.path.join(output_dir, output_file)
