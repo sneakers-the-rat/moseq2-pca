@@ -29,9 +29,9 @@ def get_pca_paths(config_data, output_dir):
 
     # Get path to pre-computed PCA file
     pca_file_components = join(output_dir, 'pca.h5')
-    if 'pca_file_components' not in config_data.keys():
+    if 'pca_file_components' not in config_data:
         config_data['pca_file_components'] = pca_file_components
-    elif config_data['pca_file_components'] != None:
+    elif config_data['pca_file_components'] is not None:
         pca_file_components = config_data['pca_file_components']
 
     if not exists(pca_file_components):
