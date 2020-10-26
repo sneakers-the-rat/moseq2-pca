@@ -154,11 +154,11 @@ def copy_metadatas_to_scores(f, f_scores, uuid):
 
     if '/metadata/acquisition' in f:
         # h5 format post v0.1.3
-        metadata_name = 'metadata/{}'.format(uuid)
+        metadata_name = f'metadata/{uuid}'
         f.copy('/metadata/acquisition', f_scores, name=metadata_name)
     elif '/metadata/extraction' in f:
         # h5 format pre v0.1.3
-        metadata_name = 'metadata/{}'.format(uuid)
+        metadata_name = f'metadata/{uuid}'
         f.copy('/metadata/extraction', f_scores, name=metadata_name)
 
 def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client,
@@ -269,10 +269,9 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client
     return output_dict
 
 
-# todo: for applying pca, run once to impute missing data, then get scores
 def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
                     save_file, chunk_size, mask_params, missing_data, fps=30,
-                    h5_path='/frames', h5_mask_path='/frames_mask'):
+                    h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
     '''
     "Apply" trained PCA on input frame data to obtain PCA Scores
     using local cluster/platform.
@@ -291,17 +290,21 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
     fps (int): frames per second
     h5_path (str): path to frames within selected h5 file (default: '/frames')
     h5_mask_path (str): path to masked frames within selected h5 file (default: '/frames_mask')
+    verbose (bool): print session names as they are being loaded.
 
     Returns
     -------
     None
     '''
 
-    with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
+    with h5py.File(f'{save_file}.h5', 'w') as f_scores:
         for h5, yml in tqdm(zip(h5s, yamls), total=len(h5s), desc='Computing scores'):
             # Load the file's metadata
             data = read_yaml(yml)
             uuid = data['uuid']
+
+            if verbose:
+                print('Loading', h5)
 
             with h5py.File(h5, 'r') as f:
                 # Load frames
@@ -346,15 +349,15 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
                                                fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
 
             # Write scores
-            f_scores.create_dataset('scores/{}'.format(uuid), data=scores,
+            f_scores.create_dataset(f'scores/{uuid}', data=scores,
                                     dtype='float32', compression='gzip')
-            f_scores.create_dataset('scores_idx/{}'.format(uuid), data=score_idx,
+            f_scores.create_dataset(f'scores_idx/{uuid}', data=score_idx,
                                     dtype='float32', compression='gzip')
 
 
 def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                    save_file, chunk_size, mask_params, missing_data,
-                   client, fps=30, h5_path='/frames', h5_mask_path='/frames_mask'):
+                   client, fps=30, h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
     '''
     "Apply" trained PCA on input frame data to obtain PCA Scores using
     Distributed Dask cluster.
@@ -373,6 +376,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
     fps (int): frames per second
     h5_path (str): path to frames within selected h5 file (default: '/frames')
     h5_mask_path (str): path to masked frames within selected h5 file (default: '/frames_mask')
+    verbose (bool): print session names as they are being loaded.
 
     Returns
     -------
@@ -386,6 +390,9 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
         # Load metadata
         data = read_yaml(yml)
         uuid = data['uuid']
+
+        if verbose:
+            print('Loading', h5)
 
         # Load data
         dset = h5py.File(h5, mode='r')[h5_path]
@@ -433,7 +440,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
     # pin the batch size to the number of workers (assume each worker has enough RAM for one session)
     batch_size = len(client.scheduler_info()['workers'])
 
-    with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
+    with h5py.File(f'{save_file}.h5', 'w') as f_scores:
 
         batch_count = 0
         batches = range(0, len(futures), batch_size)
@@ -459,16 +466,16 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                                                    fps=np.round(1 / np.mean(np.diff(timestamps))).astype('int'))
 
                 # Write scores
-                f_scores.create_dataset('scores/{}'.format(uuids_batch[file_idx]), data=scores,
+                f_scores.create_dataset(f'scores/{uuids_batch[file_idx]}', data=scores,
                                         dtype='float32', compression='gzip')
-                f_scores.create_dataset('scores_idx/{}'.format(uuids_batch[file_idx]), data=score_idx,
+                f_scores.create_dataset(f'scores_idx/{uuids_batch[file_idx]}', data=score_idx,
                                         dtype='float32', compression='gzip')
 
 
 def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                           save_file, chunk_size, mask_params, missing_data,
                           client, fps=30, pca_scores=None, progress_bar=False,
-                          h5_path='/frames', h5_mask_path='/frames_mask'):
+                          h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
     '''
     Computes model-free changepoints using PCs and PC Scores on distributed dask cluster.
 
@@ -488,6 +495,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
     progress_bar (bool): display progress bar
     h5_path (str): path to frames within selected h5 file (default: '/frames')
     h5_mask_path (str): path to masked frames within selected h5 file (default: '/frames_mask')
+    verbose (bool): print session names as they are being loaded.
 
     Returns
     -------
@@ -502,6 +510,9 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
         # Load session metadata
         data = read_yaml(yml)
         uuid = data['uuid']
+
+        if verbose:
+            print('Loading', h5)
 
         with h5py.File(h5, 'r') as f:
             # Load frames
@@ -526,12 +537,12 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
 
             # Load scores
             with h5py.File(pca_scores, 'r') as f:
-                scores = f['scores/{}'.format(uuid)]
-                scores_idx = f['scores_idx/{}'.format(uuid)]
+                scores = f[f'scores/{uuid}']
+                scores_idx = f[f'scores_idx/{uuid}']
                 scores = scores[~np.isnan(scores_idx), :]
 
             if np.sum(frames.chunks[0]) != scores.shape[0]:
-                warnings.warn('Chunks do not add up to scores shape in file {}'.format(h5))
+                warnings.warn(f'Chunks do not add up to scores shape in file {h5}')
                 continue
 
             # Load scores into dask
@@ -556,7 +567,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
     # pin the batch size to the number of workers (assume each worker has enough RAM for one session)
     batch_size = len(client.scheduler_info()['workers'])
 
-    with h5py.File('{}.h5'.format(save_file), 'w') as f_cps:
+    with h5py.File(f'{save_file}.h5', 'w') as f_cps:
         f_cps.create_dataset('metadata/fps', data=fps, dtype='float32')
 
         batch_count = 0
@@ -575,7 +586,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                 file_idx = keys.index(future.key)
                 if result[0] is not None and result[1] is not None:
                     # Writing changepoints to h5 file as batches complete
-                    f_cps.create_dataset('cps_score/{}'.format(uuids_batch[file_idx]), data=result[1],
+                    f_cps.create_dataset(f'cps_score/{uuids_batch[file_idx]}', data=result[1],
                                          dtype='float32', compression='gzip')
-                    f_cps.create_dataset('cps/{}'.format(uuids_batch[file_idx]), data=result[0] / fps,
+                    f_cps.create_dataset(f'cps/{uuids_batch[file_idx]}', data=result[0] / fps,
                                          dtype='float32', compression='gzip')

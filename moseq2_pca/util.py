@@ -17,16 +17,19 @@ import platform
 import subprocess
 import numpy as np
 import scipy.signal
+from glob import glob
 from copy import deepcopy
 import ruamel.yaml as yaml
 from tqdm.auto import tqdm
 from dask.distributed import Client
 from dask_jobqueue import SLURMCluster
+from os.path import join, exists, abspath, expanduser
 
 
 # from https://stackoverflow.com/questions/46358797/
 # python-click-supply-arguments-and-options-from-a-configuration-file
 def command_with_config(config_file_param_name):
+    '''Provides a cli helper function to assign variables from a config file'''
     class custom_command_class(click.Command):
 
         def invoke(self, ctx):
@@ -63,41 +66,33 @@ def recursive_find_h5s(root_dir=os.getcwd(),
 
     Parameters
     ----------
-    root_dir (str or os.Pathlike): path to directory to start recursive search
-    ext (str): extension to search for, e.g. .h5
-    yaml_string (str): a format to use to name yaml files
+    root_dir (str): path to base directory to begin recursive search in.
+    ext (str): extension to search for
+    yaml_string (str): string for filename formatting when saving data
 
     Returns
     -------
-    h5s (list): list of h5 file paths
-    dicts (list): list of dicts containing metadata file contents
-    yamls (list): list of yaml file paths
+    h5s (list): list of found h5 files
+    dicts (list): list of found metadata files
+    yamls (list): list of found yaml files
     '''
 
-    dicts = []
-    h5s = []
-    yamls = []
-    uuids = []
-    for root, dirs, files in os.walk(root_dir):
-        for file in files:
-            yaml_file = yaml_string.format(os.path.splitext(file)[0])
-            try:
-                if file.endswith(ext):
-                    with h5py.File(os.path.join(root, file), 'r') as f:
-                        if 'frames' not in f.keys():
-                            continue
-                    dct = read_yaml(os.path.join(root, yaml_file))
-                    if 'uuid' in dct.keys() and dct['uuid'] not in uuids:
-                        h5s.append(os.path.join(root, file))
-                        yamls.append(os.path.join(root, yaml_file))
-                        dicts.append(dct)
-                        uuids.append(dct['uuid'])
-                    elif 'uuid' not in dct.keys():
-                        warnings.warn('No uuid for file {}, skipping...'.format(os.path.join(root, file)))
-                    else:
-                        warnings.warn('Already found uuid {}, file {} is likely a dupe, skipping...'.format(dct['uuid'], os.path.join(root, file)))
-            except OSError:
-                print('Error loading {}'.format(os.path.join(root, file)))
+    if not ext.startswith('.'):
+        ext = '.' + ext
+
+    def has_frames(f):
+        try:
+            with h5py.File(f, 'r') as h5f:
+                return 'frames' in h5f
+        except OSError:
+            warnings.warn(f'Error reading {f}, skipping...')
+            return False
+
+    h5s = glob(join(abspath(root_dir), '**', f'*{ext}'), recursive=True)
+    h5s = filter(lambda f: exists(yaml_string.format(f.replace(ext, ''))), h5s)
+    h5s = list(filter(has_frames, h5s))
+    yamls = list(map(lambda f: yaml_string.format(f.replace(ext, '')), h5s))
+    dicts = list(map(read_yaml, yamls))
 
     return h5s, dicts, yamls
 
@@ -224,6 +219,8 @@ def select_strel(string='e', size=(10, 10)):
     -------
     strel (cv2.StructuringElement): returned StructuringElement with specified size.
     '''
+    if not isinstance(size, tuple):
+        size = tuple(size)
 
     if string is None or 'none' in string or np.all(np.array(size) == 0) or len(string) == 0:
         strel = None
@@ -253,8 +250,7 @@ def insert_nans(timestamps, data, fps=30):
     filled_timestamps (1D array): filled timestamp-strs
     '''
 
-    df_timestamps = np.diff(
-        np.insert(timestamps, 0, timestamps[0] - 1.0 / fps))
+    df_timestamps = np.diff(np.insert(timestamps, 0, timestamps[0] - 1.0 / fps))
     missing_frames = np.floor(df_timestamps / (1.0 / fps))
 
     fill_idx = np.where(missing_frames > 1)[0]
@@ -309,6 +305,7 @@ def read_yaml(yaml_file):
 
     return return_dict
 
+
 def check_timestamps(h5s):
     '''
 
@@ -338,6 +335,7 @@ def check_timestamps(h5s):
             warnings.warn(f'Could not located metadata in {h5}. \
                           This may cause issues if PCA has been trained on missing data.')
 
+
 def get_timestamp_path(h5file):
     '''
     Return path within h5 file that contains the kinect timestamps
@@ -357,8 +355,7 @@ def get_timestamp_path(h5file):
         elif '/metadata/timestamps' in f:
             return '/metadata/timestamps'
         else:
-            #raise KeyError('timestamp key not found')
-            print('timestamp key not found!')
+            raise KeyError('timestamp key not found')
 
 
 def get_metadata_path(h5file):
@@ -406,19 +403,40 @@ def h5_to_dict(h5file, path):
 
     for key, item in h5file[path].items():
         if isinstance(item, h5py._hl.dataset.Dataset):
-            ans[key] = item[...]
+            ans[key] = item[()]
         elif isinstance(item, h5py._hl.group.Group):
             ans[key] = h5_to_dict(h5file, path + key + '/')
     return ans
 
 
 def set_dask_config(memory={'target': 0.85, 'spill': False, 'pause': False, 'terminate': 0.95}):
+    '''
+    Sets initial dask configuration parameters
+
+    Parameters
+    ----------
+    memory (dict)
+
+    Returns
+    -------
+    '''
+
     memory = {f'distributed.worker.memory.{k}': v for k, v in memory.items()}
     dask.config.set(memory)
     dask.config.set({'optimization.fuse.ave-width': 5})
 
 
 def get_env_cpu_and_mem():
+    '''
+    Reads current system environment and returns the amount of available memory
+    and CPUs to allocate to the created cluster.
+
+    Returns
+    -------
+    mem (float): Optimal number of memory (in bytes) to allocate to initialized dask cluster
+    cpu (int): Optimal number of CPUs to allocate to dask
+    '''
+
     is_slurm = os.environ.get('SLURM_JOBID', False)
 
     if is_slurm:
@@ -442,7 +460,7 @@ def get_env_cpu_and_mem():
 def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                     wall_time='01:00:00', queue='debug', local_processes=False,
                     cluster_type='local', timeout=10,
-                    cache_path=os.path.expanduser('~/moseq2_pca'),
+                    cache_path=expanduser('~/moseq2_pca'),
                     dashboard_port='8787', data_size=None, **kwargs):
     '''
     Initialize dask client, cluster, workers, etc.
@@ -471,7 +489,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     workers (dask Workers): intialized workers
     '''
 
-    click.echo(f'Access dask dashboard at localhost:{dashboard_port}')
+    click.echo(f'Access dask dashboard at http://localhost:{dashboard_port}')
 
     if cluster_type == 'local':
         warnings.simplefilter('ignore')
@@ -556,6 +574,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
     return client, cluster, workers
 
+
 def close_dask(client, cluster, timeout):
     '''
     Shuts down the Dask client and cluster.
@@ -580,6 +599,7 @@ def close_dask(client, cluster, timeout):
             print('Error:', e)
             print('Could not shutdown dask client')
 
+
 def get_rps(frames, rps=600, normalize=True):
     '''
     Get random projections of frames.
@@ -588,7 +608,7 @@ def get_rps(frames, rps=600, normalize=True):
     ----------
     frames (2D or 3D numpy array): Frames to get dimensions from.
     rps (int): Number of random projections.
-    normalize (bool): indicates whether to normalize frames.
+    normalize (bool): indicates whether to normalize the random projections.
 
     Returns
     -------
@@ -608,9 +628,11 @@ def get_rps(frames, rps=600, normalize=True):
     return rproj
 
 
-def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, baseline=True, timestamps=None):
+def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1,
+                     baseline=True, timestamps=None):
     '''
-    Compute changepoints distribution and CP Curve.
+    Compute changepoints and its corresponding distribution. Changepoints describe
+    the magnitude of frame-to-frame changes of mouse pose.
 
     Parameters
     ----------
@@ -624,7 +646,7 @@ def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1, bas
 
     Returns
     -------
-    cps (2D numpy array): array of values for CP curve
+    cps (2D numpy array): array of changepoint values
     normed_df (1D numpy array): array of values for bar plot
     '''
 

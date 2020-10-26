@@ -14,13 +14,15 @@ import datetime
 import warnings
 import dask.array as da
 import ruamel.yaml as yaml
+from tqdm.auto import tqdm
 from moseq2_pca.viz import plot_pca_results, changepoint_dist
+from os.path import abspath, join, exists, splitext, basename, dirname
 from moseq2_pca.helpers.data import get_pca_paths, get_pca_yaml_data, load_pcs_for_cp
 from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local, train_pca_dask, get_changepoints_dask
 from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, set_dask_config, close_dask, \
             h5_to_dict, check_timestamps
 
-def load_and_check_data(input_dir, output_dir, changepoints=False):
+def load_and_check_data(input_dir, output_dir):
     '''
 
     Executes initialization functionality that is common among all 3 PCA related operations.
@@ -44,19 +46,12 @@ def load_and_check_data(input_dir, output_dir, changepoints=False):
     set_dask_config()
 
     # Set up output directory
-    output_dir = os.path.abspath(output_dir)
-    if not os.path.exists(output_dir):
+    output_dir = abspath(output_dir)
+    if not exists(output_dir):
         os.makedirs(output_dir)
 
-    if changepoints:
-        # Look for aggregated results by default, recursively search for data if aggregate_results path does not exist.
-        if os.path.exists(os.path.join(input_dir, 'aggregate_results/')):
-            h5s, dicts, yamls = recursive_find_h5s(os.path.join(input_dir, 'aggregate_results/'))
-        else:
-            h5s, dicts, yamls = recursive_find_h5s(input_dir)
-    else:
-        # find directories with .dat files that either have incomplete or no extractions
-        h5s, dicts, yamls = recursive_find_h5s(input_dir)
+    # find directories with .dat files that either have incomplete or no extractions
+    h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
     check_timestamps(h5s)  # function to check whether timestamp files are found
 
@@ -83,34 +78,24 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     if config_data['missing_data'] and config_data['use_fft']:
         raise NotImplementedError("FFT and missing data not implemented yet")
 
-    params = config_data
-
     # Get training data
     output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir)
 
-    params['start_time'] = f'{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}'
-    params['inputs'] = h5s
-
     # Setting path to PCA config file
-    save_file = os.path.join(output_dir, output_file)
+    save_file = join(output_dir, output_file)
 
     # Edge Case: Handling pre-existing PCA file
-    if os.path.exists(f'{save_file}.h5'):
+    if exists(f'{save_file}.h5'):
         click.echo(f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, else -> exit]\n')
         ow = input()
         if ow.lower() != 'y':
             return config_data
 
-    # Update PCA config yaml file
-    config_store = '{}.yaml'.format(save_file)
-    with open(config_store, 'w') as f:
-        yaml.safe_dump(params, f)
-
     # Hold all frame filtering parameters in a single dict
     clean_params = {
         'gaussfilter_space': config_data['gaussfilter_space'],
         'gaussfilter_time': config_data['gaussfilter_time'],
-        'tailfilter': select_strel((config_data['tailfilter_shape'], config_data['tailfilter_size'])),
+        'tailfilter': select_strel(config_data['tailfilter_shape'], config_data['tailfilter_size']),
         'medfilter_time': config_data['medfilter_time'],
         'medfilter_space': config_data['medfilter_space']
     }
@@ -149,7 +134,8 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     # photometry, or ephys cables. These sessions in particular include frame-by-frame masks
     # to explicitly tell PCA where the mouse is, removing any noise or obstructions.
     # Note: timestamps for all files are required in order for this operation to work.
-    if config_data['missing_data']:
+    if config_data['missing_data'] or config_data.get('cable_filter_iters', 0) > 1:
+        config_data['missing_data'] = True # in case cable filter iterations > 1
         mask_dsets = [h5py.File(h5, mode='r')[config_data['h5_mask_path']] for h5 in h5s]
         mask_arrays = [da.from_array(dset, chunks=config_data['chunk_size']) for dset in mask_dsets]
         stacked_array_mask = da.concatenate(mask_arrays, axis=0).astype('float32')
@@ -159,6 +145,15 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
 
     else:
         stacked_array_mask = None
+
+    params = config_data
+    params['start_time'] = f'{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}'
+    params['inputs'] = h5s
+
+    # Update PCA config yaml file
+    config_store = f'{save_file}.yaml'
+    with open(config_store, 'w') as f:
+        yaml.safe_dump(params, f)
 
     # Compute Principal Components
     try:
@@ -175,20 +170,24 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
         logging.error(e)
         logging.error(e.__traceback__)
         click.echo('Training interrupted. Closing Dask Client. You may find logs of the error here:')
-        click.echo('---- ', os.path.join(output_dir, 'train.log'))
+        click.echo('---- ', join(output_dir, 'train.log'))
     finally:
         # After Success or failure: Shutting down Dask client and clearing any residual data
         close_dask(client, cluster, config_data['timeout'])
 
-    # Plotting training results
-    plot_pca_results(output_dict, save_file, output_dir)
+    try:
+        # Plotting training results
+        plot_pca_results(output_dict, save_file, output_dir)
 
-    # Saving PCA to h5 file
-    with h5py.File(f'{save_file}.h5', 'w') as f:
-        for k, v in output_dict.items():
-            f.create_dataset(k, data=v, compression='gzip', dtype='float32')
+        # Saving PCA to h5 file
+        with h5py.File(f'{save_file}.h5', 'w') as f:
+            for k, v in output_dict.items():
+                f.create_dataset(k, data=v, compression='gzip', dtype='float32')
 
-    config_data['pca_file'] = f'{save_file}.h5'
+        config_data['pca_file'] = f'{save_file}.h5'
+    except:
+        click.echo('Could not save PCA since the training was interrupted.')
+        pass
 
     return config_data
 
@@ -210,8 +209,6 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     config_data (dict): updated config_data variable to write back in GUI API
     '''
 
-    # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
-
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -219,7 +216,15 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir)
 
     # Set path to PCA Scores file
-    save_file = os.path.join(output_dir, output_file)
+    save_file = join(output_dir, output_file)
+
+    # Edge Case: Handling pre-existing PCA file
+    if exists(f'{save_file}.h5'):
+        click.echo(
+            f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, else -> exit]\n')
+        ow = input()
+        if ow.lower() != 'y':
+            return config_data
 
     # Get path to trained PCA file to load PCs from
     config_data, pca_file, pca_file_scores = get_pca_paths(config_data, output_dir)
@@ -229,7 +234,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
         pca_components = f[config_data['pca_path']][()]
 
     # Get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
-    pca_yaml = os.path.splitext(pca_file)[0] + '.yaml'
+    pca_yaml = splitext(pca_file)[0] + '.yaml'
 
     # Get filtering parameters and optional PCA reconstruction parameters (if missing_data == True)
     use_fft, clean_params, mask_params, missing_data = get_pca_yaml_data(pca_yaml)
@@ -242,7 +247,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
                             save_file=save_file, chunk_size=config_data['chunk_size'],
                             mask_params=mask_params, fps=config_data['fps'],
                             missing_data=missing_data, h5_path=config_data['h5_path'],
-                            h5_mask_path=config_data['h5_mask_path'])
+                            h5_mask_path=config_data['h5_mask_path'], verbose=config_data['verbose'])
 
         else:
             # Initialize Dask client
@@ -268,7 +273,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
                                save_file=save_file, chunk_size=config_data['chunk_size'],
                                fps=config_data['fps'], client=client, missing_data=missing_data,
                                mask_params=mask_params, h5_path=config_data['h5_path'],
-                               h5_mask_path=config_data['h5_mask_path'])
+                               h5_mask_path=config_data['h5_mask_path'], verbose=config_data['verbose'])
             except:
                 # Clearing all data from Dask client in case of interrupted PCA
                 click.echo('Operation interrupted. Closing Dask Client.')
@@ -301,10 +306,10 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     warnings.filterwarnings("ignore", category=UserWarning)
 
     # Get loaded h5s and yamls
-    output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir, changepoints=True)
+    output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir)
 
     # Set path to changepoints
-    save_file = os.path.join(output_dir, output_file)
+    save_file = join(output_dir, output_file)
 
     # Get paths to PCA, PCA Scores file
     config_data, pca_file_components, pca_file_scores = get_pca_paths(config_data, output_dir)
@@ -335,7 +340,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
                               save_file=save_file, chunk_size=config_data['chunk_size'],
                               fps=config_data['fps'], client=client, missing_data=missing_data,
                               mask_params=mask_params, h5_path=config_data['h5_path'],
-                              h5_mask_path=config_data['h5_mask_path'])
+                              h5_mask_path=config_data['h5_mask_path'], verbose=config_data['verbose'])
     except:
         click.echo('Operation interrupted. Closing Dask Client.')
         close_dask(client, cluster, config_data['timeout'])
@@ -358,3 +363,35 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
         fig.close('all')
 
     return config_data
+
+def clip_scores_wrapper(pca_file, clip_samples, from_end=False):
+    '''
+
+    Clips PCA scores from the beginning or end.
+    Note that scores are modified *in place*.
+
+    Parameters
+    ----------
+    pca_file (str): Path to PCA scores.
+    clip_samples (int): number of samples to clip from beginning or end
+    from_end (bool): if true clip from end rather than beginning
+
+    Returns
+    -------
+
+    '''
+
+    with h5py.File(pca_file, 'r') as f:
+        store_dir = dirname(pca_file)
+        base_filename = splitext(basename(pca_file))[0]
+        new_filename = join(store_dir, f'{base_filename}_clip.h5')
+
+        with h5py.File(new_filename, 'w') as f2:
+            f.copy('/metadata', f2)
+            for key in tqdm(f['/scores'].keys(), desc='Copying data'):
+                if from_end:
+                    f2[f'/scores/{key}'] = f[f'/scores/{key}'][:-clip_samples]
+                    f2[f'/scores_idx/{key}'] = f[f'/scores_idx/{key}'][:-clip_samples]
+                else:
+                    f2[f'/scores/{key}'] = f[f'/scores/{key}'][clip_samples:]
+                    f2[f'/scores_idx/{key}'] = f[f'/scores_idx/{key}'][clip_samples:]
