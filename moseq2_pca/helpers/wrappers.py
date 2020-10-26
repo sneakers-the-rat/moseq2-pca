@@ -313,7 +313,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     config_data, pca_file_components, pca_file_scores = get_pca_paths(config_data, output_dir)
 
     # Load Principal components, set up changepoint parameter dict, and optionally load reconstructed PCs.
-    pca_components, changepoint_params, missing_data, mask_params = load_pcs_for_cp(input_dir, pca_file_components, config_data)
+    pca_components, changepoint_params, missing_data, mask_params = load_pcs_for_cp(pca_file_components, config_data)
 
     # Initialize Dask client
     client, cluster, workers = \

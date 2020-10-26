@@ -44,7 +44,7 @@ def get_pca_paths(config_data, output_dir):
 
     return config_data, pca_file_components, pca_file_scores
 
-def load_pcs_for_cp(input_dir, pca_file_components, config_data):
+def load_pcs_for_cp(pca_file_components, config_data):
     '''
     Load computed Principal Components for Model-free Changepoint Analysis.
 
