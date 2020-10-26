@@ -30,9 +30,9 @@ def get_pca_paths(config_data, output_dir):
 
     # Get path to pre-computed PCA file
     pca_file_components = join(output_dir, 'pca.h5')
-    if 'pca_file_components' not in config_data:
+    if 'pca_file_components' not in config_data.keys():
         config_data['pca_file_components'] = pca_file_components
-    else:
+    elif config_data['pca_file_components'] != None:
         pca_file_components = config_data['pca_file_components']
 
     if not exists(pca_file_components):
@@ -44,7 +44,7 @@ def get_pca_paths(config_data, output_dir):
 
     return config_data, pca_file_components, pca_file_scores
 
-def load_pcs_for_cp(pca_file_components, config_data):
+def load_pcs_for_cp(input_dir, pca_file_components, config_data):
     '''
     Load computed Principal Components for Model-free Changepoint Analysis.
 
@@ -71,8 +71,6 @@ def load_pcs_for_cp(pca_file_components, config_data):
     # get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
     pca_yaml = os.path.splitext(pca_file_components)[0] + '.yaml'
 
-    # TODO: from win - is this todo all set?
-    # TODO: detect missing data and mask parameters, then 0 out, fill in, compute scores...
     if os.path.exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
             pca_config = yaml.safe_load(f.read())
@@ -117,8 +115,6 @@ def get_pca_yaml_data(pca_yaml):
     missing_data (bool): indicates whether to use mask_params
     '''
 
-    # TODO: from win - is this todo done?
-    # TODO detect missing data and mask parameters, then 0 out, fill in, compute scores...
     if exists(pca_yaml):
         # Load pca metadata file
         pca_config = read_yaml(pca_yaml)

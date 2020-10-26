@@ -140,7 +140,6 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     # photometry, or ephys cables. These sessions in particular include frame-by-frame masks
     # to explicitly tell PCA where the mouse is, removing any noise or obstructions.
     # Note: timestamps for all files are required in order for this operation to work.
-    # TODO: is this behavior mentioned in the documentation? Will people know that setting cable_filter_iters > 1 will automatically turn this into missing data?
     if config_data['missing_data'] or config_data.get('cable_filter_iters', 0) > 1:
         config_data['missing_data'] = True # in case cable filter iterations > 1
         mask_dsets = [h5py.File(h5, mode='r')[config_data['h5_mask_path']] for h5 in h5s]
@@ -215,8 +214,6 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     -------
     config_data (dict): updated config_data variable to write back in GUI API
     '''
-
-    # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
 
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
@@ -324,7 +321,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     config_data, pca_file_components, pca_file_scores = get_pca_paths(config_data, output_dir)
 
     # Load Principal components, set up changepoint parameter dict, and optionally load reconstructed PCs.
-    pca_components, changepoint_params, missing_data, mask_params = load_pcs_for_cp(pca_file_components, config_data)
+    pca_components, changepoint_params, missing_data, mask_params = load_pcs_for_cp(input_dir, pca_file_components, config_data)
 
     # Initialize Dask client
     client, cluster, workers = \

@@ -123,7 +123,7 @@ def common_dask_parameters(function):
 @click.option('--gaussfilter-time', default=0, type=float, help="Temporal filter for data (Gaussian)")
 @click.option('--medfilter-space', default=[0], type=int, help="Median spatial filter", multiple=True)
 @click.option('--medfilter-time', default=[0], type=int, help="Median temporal filter", multiple=True)
-@click.option('--missing-data', is_flag=True, type=bool, help="Use missing data PCA")
+@click.option('--missing-data', is_flag=True, type=bool, help="Use missing data PCA; will be automatically set to True if cable-filter-iters > 1 from the extract step.")
 @click.option('--missing-data-iters', default=10, type=int, help="Missing data PCA iterations")
 @click.option('--mask-threshold', default=-16, type=float, help="Threshold for mask (missing data only)")
 @click.option('--mask-height-threshold', default=5, type=float, help="Threshold for mask based on floor height")
