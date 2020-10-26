@@ -82,7 +82,6 @@ class TestGUI(TestCase):
         }
 
         sys.stdin = open(stdin)
-
         train_pca_command(progress_paths, output_dir, output_file)
 
         data_dir = 'data/'
@@ -114,8 +113,7 @@ class TestGUI(TestCase):
 
         apply_pca_command(progress_paths, output_file)
         assert _is_file(outpath, output_file+'.h5'), "Scores file was not created."
-
-        shutil.rmtree(outpath)
+        sys.stdin = open(stdin)
 
     def test_compute_changepoints_command(self):
         data_dir = 'data/'

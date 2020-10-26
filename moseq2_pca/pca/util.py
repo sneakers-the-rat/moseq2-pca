@@ -297,7 +297,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
     None
     '''
 
-    with h5py.File('{}.h5'.format(save_file), 'w') as f_scores:
+    with h5py.File(f'{save_file}.h5', 'w') as f_scores:
         for h5, yml in tqdm(zip(h5s, yamls), total=len(h5s), desc='Computing scores'):
             # Load the file's metadata
             data = read_yaml(yml)
@@ -537,12 +537,12 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
 
             # Load scores
             with h5py.File(pca_scores, 'r') as f:
-                scores = f['scores/{}'.format(uuid)]
-                scores_idx = f['scores_idx/{}'.format(uuid)]
+                scores = f[f'scores/{uuid}']
+                scores_idx = f[f'scores_idx/{uuid}']
                 scores = scores[~np.isnan(scores_idx), :]
 
             if np.sum(frames.chunks[0]) != scores.shape[0]:
-                warnings.warn('Chunks do not add up to scores shape in file {}'.format(h5))
+                warnings.warn(f'Chunks do not add up to scores shape in file {h5}')
                 continue
 
             # Load scores into dask
@@ -567,7 +567,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
     # pin the batch size to the number of workers (assume each worker has enough RAM for one session)
     batch_size = len(client.scheduler_info()['workers'])
 
-    with h5py.File('{}.h5'.format(save_file), 'w') as f_cps:
+    with h5py.File(f'{save_file}.h5', 'w') as f_cps:
         f_cps.create_dataset('metadata/fps', data=fps, dtype='float32')
 
         batch_count = 0

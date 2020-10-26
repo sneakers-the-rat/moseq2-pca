@@ -4,10 +4,9 @@ Helper functions for reading files and directories in preparation for changepoin
 
 '''
 
-import os
 import h5py
 import ruamel.yaml as yaml
-from os.path import join, exists
+from os.path import join, exists, splitext
 from moseq2_pca.util import select_strel, read_yaml
 
 def get_pca_paths(config_data, output_dir):
@@ -69,9 +68,9 @@ def load_pcs_for_cp(pca_file_components, config_data):
         pca_components = f[config_data['pca_path']][()]
 
     # get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
-    pca_yaml = os.path.splitext(pca_file_components)[0] + '.yaml'
+    pca_yaml = splitext(pca_file_components)[0] + '.yaml'
 
-    if os.path.exists(pca_yaml):
+    if exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
             pca_config = yaml.safe_load(f.read())
 
@@ -146,7 +145,6 @@ def get_pca_yaml_data(pca_yaml):
             'min_height': pca_config['min_height'],
             'max_height': pca_config['max_height']
         }
-
     else:
         raise IOError(f'Could not find {pca_yaml}')
 

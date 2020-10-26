@@ -9,12 +9,12 @@ Note: These functions simply read all the parameters into a dictionary,
 '''
 
 import os
-import h5py
-import tqdm
 import click
 import ruamel.yaml as yaml
+from os.path import join, exists, expanduser
 from moseq2_pca.util import command_with_config
-from moseq2_pca.helpers.wrappers import train_pca_wrapper, apply_pca_wrapper, compute_changepoints_wrapper
+from moseq2_pca.helpers.wrappers import (train_pca_wrapper, apply_pca_wrapper,
+                                         compute_changepoints_wrapper, clip_scores_wrapper)
 
 orig_init = click.core.Option.__init__
 
@@ -32,38 +32,6 @@ click.core.Option.__init__ = new_init
 def cli():
     pass
 
-
-@cli.command('clip-scores',  help='Clips specified number of frames from PCA scores at the beginning or end')
-@click.argument('pca_file', type=click.Path(exists=True, resolve_path=True))
-@click.argument('clip_samples', type=int)
-@click.option('--from-end', type=bool, is_flag=True)
-def clip_scores(pca_file, clip_samples, from_end):
-    """
-    Clips PCA scores from the beginning or end
-
-    Args:
-        pca_file (string): Path to PCA scores
-        clip_samples (int): number of samples to clip from beginning or end
-        from_end (bool): if true clip from end rather than beginning
-    Note that scores are modified *in place*.
-    """
-
-    with h5py.File(pca_file, 'r') as f:
-        store_dir = os.path.dirname(pca_file)
-        base_filename = os.path.splitext(os.path.basename(pca_file))[0]
-        new_filename = os.path.join(store_dir, f'{base_filename}_clip.h5')
-
-        with h5py.File(new_filename, 'w') as f2:
-            f.copy('/metadata', f2)
-            for key in tqdm.tqdm(f['/scores'].keys(), desc='Copying data'):
-                if from_end:
-                    f2[f'/scores/{key}'] = f[f'/scores/{key}'][:-clip_samples]
-                    f2[f'/scores_idx/{key}'] = f[f'/scores_idx/{key}'][:-clip_samples]
-                else:
-                    f2[f'/scores/{key}'] = f[f'/scores/{key}'][clip_samples:]
-                    f2[f'/scores_idx/{key}'] = f[f'/scores_idx/{key}'][clip_samples:]
-
-
 def common_pca_options(function):
     '''
     This is a decorator function that is used to group common Click parameters/dependencies for PCA-related operations.
@@ -78,7 +46,7 @@ def common_pca_options(function):
     function = click.option('--cluster-type', type=click.Choice(['local', 'slurm', 'nodask']),
                   default='local', help='Cluster type')(function)
     function = click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')(function)
-    function = click.option('--output-dir', '-o', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store results')(function)
+    function = click.option('--output-dir', '-o', default=join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store results')(function)
     function = click.option('--config-file', type=click.Path(), help="Path to configuration file")(function)
 
     function = click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')(function)
@@ -99,7 +67,7 @@ def common_dask_parameters(function):
     function (Click command function): Decorated function now including 7 additional input parameters.
     '''
 
-    function = click.option('--dask-cache-path', '-d', default=os.path.expanduser('~/moseq2_pca'), type=click.Path(),
+    function = click.option('--dask-cache-path', '-d', default=expanduser('~/moseq2_pca'), type=click.Path(),
                             help='Path to spill data to disk for dask local scheduler')(function)
     function = click.option('--dask-port', default='8787', type=str, help="Port to access dask dashboard")(function)
     function = click.option('-q', '--queue', type=str, default='debug',
@@ -139,7 +107,6 @@ def common_dask_parameters(function):
 def train_pca(input_dir, output_dir, output_file, **cli_args):
     train_pca_wrapper(input_dir, cli_args, output_dir, output_file)
 
-
 @cli.command(name='apply-pca', cls=command_with_config('config_file'), help='Computes PCA Scores of extraction data given a pre-trained PCA')
 @common_pca_options
 @common_dask_parameters
@@ -169,6 +136,13 @@ def apply_pca(input_dir, output_dir, output_file, **cli_args):
 @click.option('--verbose', '-v', is_flag=True, help='Print sessions as they are being loaded.')
 def compute_changepoints(input_dir, output_dir, output_file, **cli_args):
     compute_changepoints_wrapper(input_dir, cli_args, output_dir, output_file)
+
+@cli.command('clip-scores',  help='Clips specified number of frames from PCA scores at the beginning or end')
+@click.argument('pca_file', type=click.Path(exists=True, resolve_path=True))
+@click.argument('clip_samples', type=int)
+@click.option('--from-end', type=bool, is_flag=True)
+def clip_scores(pca_file, clip_samples, from_end):
+    clip_scores_wrapper(pca_file, clip_samples, from_end)
 
 if __name__ == '__main__':
     cli()
