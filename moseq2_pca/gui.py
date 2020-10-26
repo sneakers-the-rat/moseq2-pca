@@ -75,10 +75,6 @@ def apply_pca_command(progress_paths, output_file):
     index_file = progress_paths['index_file']
     output_dir = progress_paths['pca_dirname']
 
-    # TODO: from win - what's this todo about, and has it been fulfilled?
-    # TODO: additional post-processing, intelligent mapping of metadata to group names, make sure
-    # moseq2-model processes these files correctly
-
     config_data = read_yaml(config_file)
     # merge default params with those in config
     config_data = {**default_params, **config_data}
