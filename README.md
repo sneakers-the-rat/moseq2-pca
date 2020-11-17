@@ -26,6 +26,11 @@ Commands:
 
 ```
 
+### CLI Exclusive Function
+```bash
+  clip-scores           Clips specified number of frames from PCA scores at the beginning or end
+```
+
 Run any command with the `--help` flag to display all available options and their descriptions.
 
 ## Documentation
