@@ -85,11 +85,12 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     save_file = join(output_dir, output_file)
 
     # Edge Case: Handling pre-existing PCA file
-    if exists(f'{save_file}.h5'):
-        click.echo(f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, else -> exit]\n')
-        ow = input()
-        if ow.lower() != 'y':
-            return config_data
+    if not config_data['overwrite_pca']:
+        if exists(f'{save_file}.h5'):
+            click.echo(f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, else -> exit]\n')
+            ow = input()
+            if ow.lower() != 'y':
+                return config_data
 
     # Hold all frame filtering parameters in a single dict
     clean_params = {
