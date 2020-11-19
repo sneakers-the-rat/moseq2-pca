@@ -85,7 +85,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     save_file = join(output_dir, output_file)
 
     # Edge Case: Handling pre-existing PCA file
-    if not config_data['overwrite_pca']:
+    if not config_data.get('overwrite_pca_train', False):
         if exists(f'{save_file}.h5'):
             click.echo(f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, else -> exit]\n')
             ow = input()
@@ -220,12 +220,13 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     save_file = join(output_dir, output_file)
 
     # Edge Case: Handling pre-existing PCA file
-    if exists(f'{save_file}.h5'):
-        click.echo(
-            f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, else -> exit]\n')
-        ow = input()
-        if ow.lower() != 'y':
-            return config_data
+    if not config_data.get('overwrite_pca_apply', False):
+        if exists(f'{save_file}.h5'):
+            click.echo(
+                f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, else -> exit]\n')
+            ow = input()
+            if ow.lower() != 'y':
+                return config_data
 
     # Get path to trained PCA file to load PCs from
     config_data, pca_file, pca_file_scores = get_pca_paths(config_data, output_dir)
