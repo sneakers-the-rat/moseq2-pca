@@ -60,16 +60,16 @@ file as well.
 ## Example Outputs
 
 ### Mouse Principal Components
-<img src="https://github.com/dattalab/moseq2-pca/blob/test-suite/media/Components_Ex.png" width=350 height=350>
+<img src="https://github.com/dattalab/moseq2-pca/blob/dev/media/Components_Ex.png" width=350 height=350>
 
 ### Rat Principal Components
-<img src="https://github.com/dattalab/moseq2-pca/blob/test-suite/media/rat_components.png" width=350 height=350>
+<img src="https://github.com/dattalab/moseq2-pca/blob/dev/media/rat_components.png" width=350 height=350>
 
 ### Scree Plot
-<img src="https://github.com/dattalab/moseq2-pca/blob/test-suite/media/Scree_Ex.png" width=450 height=350>
+<img src="https://github.com/dattalab/moseq2-pca/blob/dev/media/Scree_Ex.png" width=450 height=350>
 
 ### Model-free Changepoint Distribution
-<img src="https://github.com/dattalab/moseq2-pca/blob/test-suite/media/CP_Ex.png" width=350 height=350>
+<img src="https://github.com/dattalab/moseq2-pca/blob/dev/media/CP_Ex.png" width=350 height=350>
 
 ## Contributing
 
