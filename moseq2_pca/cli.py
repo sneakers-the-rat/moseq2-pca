@@ -104,6 +104,7 @@ def common_dask_parameters(function):
 @click.option('--rank', default=25, type=int, help="Rank for compressed SVD (generally>>nPCS)")
 @click.option('--output-file', default='pca', type=str, help='Name of h5 file for storing pca results')
 @click.option('--local-processes', default=False, type=bool, help='Used with a local cluster. If True: use processes, If False: use threads')
+@click.option('--overwrite-pca-train', default=False, type=bool, help='Used to bypass the pca overwrite question. If True: skip question, run automatically')
 def train_pca(input_dir, output_dir, output_file, **cli_args):
     train_pca_wrapper(input_dir, cli_args, output_dir, output_file)
 
@@ -117,6 +118,7 @@ def train_pca(input_dir, output_dir, output_file, **cli_args):
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
 @click.option('--detrend-window', default=0, type=float, help="Length of detrend window (in seconds, 0 for no detrending)")
 @click.option('--verbose', '-v', is_flag=True, help='Print sessions as they are being loaded.')
+@click.option('--overwrite-pca-apply', default=False, type=bool, help='Used to bypass the pca overwrite question. If True: skip question, run automatically')
 def apply_pca(input_dir, output_dir, output_file, **cli_args):
     apply_pca_wrapper(input_dir, cli_args, output_dir, output_file)
 
