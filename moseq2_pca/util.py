@@ -492,7 +492,6 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     click.echo(f'Access dask dashboard at http://localhost:{dashboard_port}')
 
     if cluster_type == 'local':
-        warnings.simplefilter('ignore')
 
         max_mem, max_cpu = get_env_cpu_and_mem()
         overhead = 0.8e9  # memory overhead for each worker; approximate
