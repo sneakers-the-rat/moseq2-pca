@@ -239,8 +239,8 @@ def insert_nans(timestamps, data, fps=30):
 
     Parameters
     ----------
-    timestamps (1D array): timestamp time-strs
-    data (1D array): timestamp values
+    timestamps (1D array): timestamp values
+    data (1D  or 2D array): additional data to fill with NaN values - can be PC scores
     fps (int): frames per second
 
     Returns
