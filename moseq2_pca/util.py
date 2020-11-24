@@ -328,10 +328,10 @@ def check_timestamps(h5s):
         except:
             warnings.warn(f'Autoload timestamps for session {h5} failed.')
 
-        if h5_timestamp_path == None:
+        if h5_timestamp_path is None:
             warnings.warn(f'Could not located timestamps in {h5}. \
                           This may cause issues if PCA has been trained on missing data.')
-        if h5_metadata_path == None:
+        if h5_metadata_path is None:
             warnings.warn(f'Could not located metadata in {h5}. \
                           This may cause issues if PCA has been trained on missing data.')
 

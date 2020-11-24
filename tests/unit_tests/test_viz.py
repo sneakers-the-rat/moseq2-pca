@@ -39,7 +39,7 @@ class TestViz(TestCase):
         with h5py.File(pca_path, 'r') as f:
             components = f['components'][()]
             plt, ax = display_components(components)
-            assert (plt != None and ax != None)
+            assert (plt is not None and ax is not None)
 
     def test_scree_plot(self):
         # get explained_variance_ratio
@@ -47,7 +47,7 @@ class TestViz(TestCase):
         with h5py.File(pca_path, 'r') as f:
             components = f['explained_variance_ratio'][()]
             plt = scree_plot(components)
-            assert (plt != None)
+            assert (plt is not None)
 
     def test_changepoint_dist(self):
         # original params: cps, headless=False
@@ -61,4 +61,4 @@ class TestViz(TestCase):
 
         out = changepoint_dist(block_durs, headless=True)
 
-        assert out != None
+        assert out is not None

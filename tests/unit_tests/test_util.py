@@ -143,7 +143,7 @@ class TestUtils(TestCase):
             pytest.fail('IOERROR')
 
         if truth_dict == {}:
-            if dat != None:
+            if dat is not None:
                 pytest.fail('no data read.')
 
         test_dict = read_yaml(yaml_file)
