@@ -26,13 +26,18 @@ Commands:
 
 ```
 
+### CLI Exclusive Function
+```bash
+  clip-scores           Clips specified number of frames from PCA scores at the beginning or end
+```
+
 Run any command with the `--help` flag to display all available options and their descriptions.
 
 ## Documentation
 
 MoSeq2 uses `sphinx` to generate the documentation in HTML and PDF forms. To install `sphinx`, follow the commands below:
 ```.bash
-pip install sphinx==3.0.3
+pip install sphinx==3.0.3 sphinx_click==2.5.0
 pip install sphinx-rtd-theme
 pip install rst2pdf
 ``` 
@@ -55,16 +60,16 @@ file as well.
 ## Example Outputs
 
 ### Mouse Principal Components
-<img src="https://github.com/dattalab/moseq2-pca/blob/test-suite/media/Components_Ex.png" width=350 height=350>
+<img src="https://github.com/dattalab/moseq2-pca/blob/dev/media/Components_Ex.png" width=350 height=350>
 
 ### Rat Principal Components
-<img src="https://github.com/dattalab/moseq2-pca/blob/test-suite/media/rat_components.png" width=350 height=350>
+<img src="https://github.com/dattalab/moseq2-pca/blob/dev/media/rat_components.png" width=350 height=350>
 
 ### Scree Plot
-<img src="https://github.com/dattalab/moseq2-pca/blob/test-suite/media/Scree_Ex.png" width=450 height=350>
+<img src="https://github.com/dattalab/moseq2-pca/blob/dev/media/Scree_Ex.png" width=450 height=350>
 
 ### Model-free Changepoint Distribution
-<img src="https://github.com/dattalab/moseq2-pca/blob/test-suite/media/CP_Ex.png" width=350 height=350>
+<img src="https://github.com/dattalab/moseq2-pca/blob/dev/media/CP_Ex.png" width=350 height=350>
 
 ## Contributing
 
