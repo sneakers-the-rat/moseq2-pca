@@ -6,7 +6,7 @@
 
 This is a library for computing PCA components and scores from extracted mouse movies.  Use this to compute features for modeling.
 
-Latest version is `0.3.0`
+Latest version is `0.4.0`
 
 ## Features
 Below are the commands/functionality that moseq2-pca currently affords. 
