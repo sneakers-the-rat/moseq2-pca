@@ -57,7 +57,7 @@ class TestViz(TestCase):
             cps = h5_to_dict(f, 'cps')
         block_durs = np.concatenate([np.diff(cp, axis=0) for k, cp in cps.items()])
 
-        assert block_durs.shape == (51,1)
+        assert block_durs.shape == (100, 1)
 
         out = changepoint_dist(block_durs, headless=True)
 
