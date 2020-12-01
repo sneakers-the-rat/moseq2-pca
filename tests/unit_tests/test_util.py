@@ -2,15 +2,14 @@ import os
 import cv2
 import h5py
 import pytest
-import pathlib
 import numpy as np
 import scipy.signal
 import ruamel.yaml as yaml
 from unittest import TestCase
 from dask.distributed import Client, LocalCluster
 from moseq2_pca.util import gaussian_kernel1d, gauss_smooth, read_yaml, insert_nans, \
-    h5_to_dict, recursive_find_h5s, clean_frames, select_strel, \
-    get_timestamp_path, get_metadata_path, initialize_dask, get_rps, get_changepoints
+    check_timestamps, recursive_find_h5s, clean_frames, select_strel, \
+    get_timestamp_path, get_metadata_path, initialize_dask, get_rps, get_changepoints, h5_to_dict
 
 
 class TestUtils(TestCase):
@@ -121,10 +120,12 @@ class TestUtils(TestCase):
         test01 = select_strel(string0, size)
         test1 = select_strel(string1, size)
         test2 = select_strel(string2, size)
+        test3 = select_strel('default', size)
 
         assert test0 == test01 == mock_strel0
         assert test1.all() == mock_strel1.all()
         assert test2.all() == mock_strel2.all()
+        assert test3.all() == mock_strel1.all()
 
     def test_read_yaml(self):
         # original param: yaml_file
@@ -142,11 +143,17 @@ class TestUtils(TestCase):
             pytest.fail('IOERROR')
 
         if truth_dict == {}:
-            if dat != None:
+            if dat is not None:
                 pytest.fail('no data read.')
 
         test_dict = read_yaml(yaml_file)
         assert test_dict == truth_dict
+
+    def test_check_timestamps(self):
+        h5file = ['data/proc/results_00.h5']
+        with pytest.warns(None) as record:
+            check_timestamps(h5file)
+        assert not record  # no warnings emitted
 
     def test_get_timestamp_path(self):
         # original param: h5file path
@@ -187,7 +194,7 @@ class TestUtils(TestCase):
         queue = 'debug'
         cluster_type = 'local'
         timeout = 10
-        cache_path = os.path.join(pathlib.Path.home(), 'moseq2_pca')
+        cache_path = os.path.expanduser('~/moseq2_pca')
 
         client, cluster, workers = initialize_dask(nworkers=nworkers, processes=processes, memory=memory,
                                                    cores=cores, wall_time=wall_time, queue=queue,
@@ -297,3 +304,14 @@ class TestUtils(TestCase):
         assert len(timestamps) < len(filled_timestamps)
         assert len(truth_scores) < len(test_scores)
         assert truth_scores_idx.all() == test_score_idx.all()
+
+    def test_h5_to_dict(self):
+
+        h5path = 'data/test_scores.h5'
+        path = 'scores/'
+
+        test = h5_to_dict(h5path, path)
+
+        assert isinstance(test, dict)
+        assert list(test.keys()) == ['5c72bf30-9596-4d4d-ae38-db9a7a28e912', 'abe92017-1d40-495e-95ef-e420b7f0f4b9']
+        assert test['5c72bf30-9596-4d4d-ae38-db9a7a28e912'].shape == (908, 50)
