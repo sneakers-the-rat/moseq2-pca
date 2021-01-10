@@ -324,9 +324,14 @@ def check_timestamps(h5s):
     for h5 in h5s:
         try:
             h5_timestamp_path = get_timestamp_path(h5)
-            h5_metadata_path = get_metadata_path(h5)
         except:
             warnings.warn(f'Autoload timestamps for session {h5} failed.')
+            h5_timestamp_path = None
+        try:
+            h5_metadata_path = get_metadata_path(h5)
+        except:
+            warnings.warn(f'Autoload metadata for session {h5} failed.')
+            h5_metadata_path = None
 
         if h5_timestamp_path is None:
             warnings.warn(f'Could not located timestamps in {h5}. \
