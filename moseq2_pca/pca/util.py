@@ -273,7 +273,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
                     save_file, chunk_size, mask_params, missing_data, fps=30,
                     h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
     '''
-    "Apply" trained PCA on input frame data to obtain PCA Scores
+    Multiply input frame data by the transpose of the given PCs to obtain PCA Scores
     using local cluster/platform.
 
     Parameters
@@ -359,7 +359,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                    save_file, chunk_size, mask_params, missing_data,
                    client, fps=30, h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
     '''
-    "Apply" trained PCA on input frame data to obtain PCA Scores using
+    Multiply input frame data by the transpose of the given PCs to obtain PCA Scores using
     Distributed Dask cluster.
 
     Parameters
@@ -477,7 +477,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                           client, fps=30, pca_scores=None, progress_bar=False,
                           h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
     '''
-    Computes model-free changepoints using PCs and PC Scores on distributed dask cluster.
+    Computes model-free changepoint block durations using PCs and PC Scores on distributed dask cluster.
 
     Parameters
     ----------

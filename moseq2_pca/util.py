@@ -208,7 +208,8 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
 
 def select_strel(string='e', size=(10, 10)):
     '''
-    Selects Structuring Element Shape
+    Selects Structuring Element Shape. Accepts shapes ('ellipse', 'rectangle'), if neither
+     are given then 'ellipse' is used.
 
     Parameters
     ----------
@@ -308,7 +309,6 @@ def read_yaml(yaml_file):
 
 def check_timestamps(h5s):
     '''
-
     Helper function to determine whether timestamps and/or metadata is missing from
     extracted files. Function will emit a warning if either pieces of data are missing.
 
@@ -324,9 +324,14 @@ def check_timestamps(h5s):
     for h5 in h5s:
         try:
             h5_timestamp_path = get_timestamp_path(h5)
-            h5_metadata_path = get_metadata_path(h5)
         except:
             warnings.warn(f'Autoload timestamps for session {h5} failed.')
+            h5_timestamp_path = None
+        try:
+            h5_metadata_path = get_metadata_path(h5)
+        except:
+            warnings.warn(f'Autoload metadata for session {h5} failed.')
+            h5_metadata_path = None
 
         if h5_timestamp_path is None:
             warnings.warn(f'Could not located timestamps in {h5}. \
@@ -582,7 +587,7 @@ def close_dask(client, cluster, timeout):
     Parameters
     ----------
     client (Dask Client): Client object
-    cluster (Dask Cluster)
+    cluster (dask Cluster): initialized Cluster
     timeout (int): Time to wait for client to close gracefully (minutes)
 
     Returns

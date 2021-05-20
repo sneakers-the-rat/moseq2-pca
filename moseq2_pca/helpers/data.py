@@ -11,7 +11,6 @@ from moseq2_pca.util import select_strel, read_yaml
 
 def get_pca_paths(config_data, output_dir):
     '''
-
     Helper function for changepoints_wrapper to perform data-path existence checks.
     Returns paths to saved pre-trained PCA components and PCA Scores files.
 
@@ -100,7 +99,7 @@ def load_pcs_for_cp(pca_file_components, config_data):
 
 def get_pca_yaml_data(pca_yaml):
     '''
-    Reads PCA yaml file and returns metadata
+    Reads PCA yaml file and returns enclosed metadata.
 
     Parameters
     ----------
