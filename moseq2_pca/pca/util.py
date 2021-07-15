@@ -524,7 +524,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
         frames = da.from_array(h5p[h5_path], chunks=chunk_size).astype('float32')
 
         # Load timestamps
-        timestamps = get_timestamps(f, frames, fps)
+        timestamps = get_timestamps(h5p, frames, fps)
 
         if missing_data and pca_scores is None:
             raise RuntimeError("Need to compute PC scores to impute missing data")
