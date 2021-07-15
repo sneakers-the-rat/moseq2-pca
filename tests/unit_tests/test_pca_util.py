@@ -154,6 +154,18 @@ class TestPCAUtils(TestCase):
         assert os.path.exists(f'{save_file}.h5')
         os.remove(f'{save_file}.h5')
 
+        # testing list comprehension file closing
+        h5_file_pointers = [h5py.File(h5, 'r') for h5 in h5s]
+
+        [h5p.close() for h5p in h5_file_pointers]
+
+        try:
+            for h5p in h5_file_pointers:
+                print(h5p.keys())
+                assert False, 'h5 File pointer is still open'
+        except TypeError as e:
+            assert isinstance(e, TypeError)
+
     def test_get_changepoints_dask(self):
 
         input_dir = 'data/proc/'
