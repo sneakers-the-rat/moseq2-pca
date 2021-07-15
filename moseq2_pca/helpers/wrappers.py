@@ -179,8 +179,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
         close_dask(client, cluster, config_data['timeout'])
 
         # close all open h5 files
-        for fp in h5ps:
-            fp.close()
+        [fp.close() for fp in h5ps]
 
     try:
         # Plotting training results
