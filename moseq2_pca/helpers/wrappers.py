@@ -103,9 +103,11 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
 
     logging.basicConfig(filename=f'{output_dir}/train.log', level=logging.ERROR)
 
-    # Load all h5 file references to extracted frames, then read them into chunked Dask arrays
-    dsets = [h5py.File(h5, mode='r')[config_data['h5_path']] for h5 in h5s]
-    arrays = [da.from_array(dset, chunks=config_data['chunk_size']) for dset in dsets]
+    # Load all open h5 file references
+    h5ps = [h5py.File(h5, mode='r') for h5 in h5s]
+
+    # To extracted frames, then read them into chunked Dask arrays
+    arrays = [da.from_array(fp[config_data['h5_path']], chunks=config_data['chunk_size']) for fp in h5ps]
     stacked_array = da.concatenate(arrays, axis=0)
 
     # Filter out depth value extreme values; Generally same values used during extraction
@@ -175,6 +177,10 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     finally:
         # After Success or failure: Shutting down Dask client and clearing any residual data
         close_dask(client, cluster, config_data['timeout'])
+
+        # close all open h5 files
+        for fp in h5ps:
+            fp.close()
 
     try:
         # Plotting training results
