@@ -93,8 +93,8 @@ class TestPCAUtils(TestCase):
             try:
                 print(fp['frames'].keys()) # line that's meant to raise a ValueError
                 assert False, 'h5 File pointer is still open' # added assertion here to fail test in case file is still open
-            except TypeError as e:
-                assert isinstance(e, TypeError)
+            except ValueError as e:
+                assert isinstance(e, ValueError)
 
     def test_apply_pca_local(self):
 
