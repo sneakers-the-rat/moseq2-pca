@@ -16,7 +16,6 @@ jobs:
       stage: latest-installs
       before_install:
         - pip install -U pip
-        - pip install awscli
         - pip install attrs==19.1.0
         - pip install pytest codecov
         - pip install "pytest-cov>=2.4.0,<2.6"
@@ -27,7 +26,7 @@ jobs:
       install:
         - pip install -e .
       before_script:
-        - make
+        - ./scripts/download_test_dataset.sh
       script:
         - pytest --cov=./tests/
       after_success:
@@ -39,7 +38,6 @@ jobs:
       stage: latest-pythons
       before_install:
         - pip install -U pip
-        - pip install awscli
         - pip install attrs==19.1.0
         - pip install pytest codecov
         - pip install "pytest-cov>=2.4.0,<2.6"
@@ -47,7 +45,7 @@ jobs:
       install:
         - pip install -e .
       before_script:
-        - make
+        - ./scripts/download_test_dataset.sh
       script:
         - pytest --cov=./tests/
       after_success:
