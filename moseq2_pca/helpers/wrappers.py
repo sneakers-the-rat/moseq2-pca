@@ -33,7 +33,6 @@ def load_and_check_data(input_dir, output_dir):
     ----------
     input_dir (str): input directory containing h5 files to find
     output_dir (str): directory name to save pca results
-    changepoints (bool): boolean for whether to find data from the aggregate_results directory
 
     Returns
     -------
@@ -68,7 +67,6 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
-    kwargs (dict): dictionary containing loaded h5s, yamls and dicts found in given input_dir
 
     Returns
     -------
@@ -203,7 +201,6 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
-    kwargs (dict): dictionary containing loaded h5s, yamls and dicts found in given input_dir
 
     Returns
     -------
@@ -297,7 +294,6 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
-    kwargs (dict): dictionary containing loaded h5s, yamls and dicts found in given input_dir
 
     Returns
     -------
@@ -380,7 +376,6 @@ def clip_scores_wrapper(pca_file, clip_samples, from_end=False):
 
     Returns
     -------
-
     '''
 
     with h5py.File(pca_file, 'r') as f:
