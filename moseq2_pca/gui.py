@@ -79,7 +79,7 @@ def apply_pca_command(progress_paths, output_file):
     # merge default params with those in config
     config_data = {**default_params, **config_data}
 
-    config_data = apply_pca_wrapper(input_dir, config_data, output_dir, output_file)
+    config_data, success = apply_pca_wrapper(input_dir, config_data, output_dir, output_file)
 
     with open(config_file, 'w') as f:
         yaml.safe_dump(config_data, f)
