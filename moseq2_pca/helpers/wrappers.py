@@ -85,7 +85,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     # Edge Case: Handling pre-existing PCA file
     if not config_data.get('overwrite_pca_train', False):
         if exists(f'{save_file}.h5'):
-            click.echo(f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, else -> exit]\n')
+            click.echo(f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, n -> no]\n')
             ow = input()
             if ow.lower() != 'y':
                 return config_data
@@ -225,7 +225,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     if not config_data.get('overwrite_pca_apply', False):
         if exists(f'{save_file}.h5'):
             click.echo(
-                f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, else -> exit]\n')
+                f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, n -> no]\n')
             ow = input()
             if ow.lower() != 'y':
                 return config_data
