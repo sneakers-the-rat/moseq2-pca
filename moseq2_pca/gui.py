@@ -85,7 +85,6 @@ def apply_pca_command(progress_paths, output_file):
     config_data, success = apply_pca_wrapper(input_dir, config_data, output_dir, output_file)
 
     if success:
-        # update scores_path to reflect the newly computed pc scores.
         if config_data is not None:
             with open(config_file, 'w') as f:
                 yaml.safe_dump(config_data, f)
