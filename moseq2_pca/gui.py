@@ -92,6 +92,8 @@ def apply_pca_command(progress_paths, output_file):
                 yaml.safe_dump(config_data, f)
     
     # update the index_file
+    # if pc score is not overwritten, the following will ensure the path in progress.yaml will be written to index_file
+    # if pc score is overwritten, the new path, updated in line 89 will be written to index_file
     index_params = read_yaml(index_file)
     if index_params:
         print(f'Updating index file pca_path: {scores_path}')
