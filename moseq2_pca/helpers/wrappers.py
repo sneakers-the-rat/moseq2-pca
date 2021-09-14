@@ -220,7 +220,8 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     # Set path to PCA Scores file
     save_file = join(output_dir, output_file)
 
-    # Edge Case: Handling pre-existing PCA file
+    # Handling pre-existing PCA file
+    # no intended pca overwrite
     if not config_data.get('overwrite_pca_apply', False):
         if exists(f'{save_file}.h5'):
             click.echo(
