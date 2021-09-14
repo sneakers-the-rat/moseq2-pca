@@ -28,7 +28,6 @@ def train_pca_command(progress_paths, output_dir, output_file):
 
     Returns
     -------
-    None
     '''
     # Get default CLI params
     default_params = {tmp.name: tmp.default for tmp in train_pca.params if not tmp.required}

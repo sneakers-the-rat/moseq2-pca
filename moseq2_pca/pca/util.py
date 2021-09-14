@@ -149,7 +149,6 @@ def copy_metadatas_to_scores(f, f_scores, uuid):
 
     Returns
     -------
-    None
     '''
 
     if '/metadata/acquisition' in f:
@@ -294,7 +293,6 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
     Returns
     -------
-    None
     '''
 
     with h5py.File(f'{save_file}.h5', 'w') as f_scores:
@@ -380,7 +378,6 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
 
     Returns
     -------
-    None
     '''
 
     futures = []
@@ -502,7 +499,6 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
 
     Returns
     -------
-    None
     '''
 
     futures = []
