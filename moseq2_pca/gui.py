@@ -76,7 +76,7 @@ def apply_pca_command(progress_paths, output_file):
     output_dir = progress_paths['pca_dirname']
 
     # outputted scores path
-    scores_path = progress_paths.get("scores_path", join(output_dir, output_file+".h5"))
+    scores_path = progress_paths.get("scores_path")
 
     config_data = read_yaml(config_file)
     # merge default params with those in config
@@ -85,20 +85,22 @@ def apply_pca_command(progress_paths, output_file):
     config_data, success = apply_pca_wrapper(input_dir, config_data, output_dir, output_file)
 
     if success:
+        # update scores_path to reflect the newly computed pc scores.
+        scores_path = join(output_dir, output_file+".h5")
         if config_data is not None:
             with open(config_file, 'w') as f:
                 yaml.safe_dump(config_data, f)
+    
+    # update the index_file
+    index_params = read_yaml(index_file)
+    if index_params:
+        print(f'Updating index file pca_path: {scores_path}')
+        index_params['pca_path'] = scores_path
 
-        index_params = read_yaml(index_file)
-        if index_params:
-            print(f'Updating index file pca_path: {scores_path}')
-            index_params['pca_path'] = scores_path
-
-            with open(index_file, 'w') as f:
-                yaml.safe_dump(index_params, f)
-
-        else:
-            print('moseq2-index not found, did not update paths')
+        with open(index_file, 'w') as f:
+            yaml.safe_dump(index_params, f)
+    else:
+        print('moseq2-index not found, did not update paths')
 
     if success:
         return 'PCA Scores have been successfully computed.'
