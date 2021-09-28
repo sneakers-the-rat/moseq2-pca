@@ -96,7 +96,7 @@ def common_dask_parameters(function):
 @click.option('--mask-threshold', default=-16, type=float, help="Threshold for mask (missing data only)")
 @click.option('--mask-height-threshold', default=5, type=float, help="Threshold for mask based on floor height")
 @click.option('--min-height', default=10, type=int, help='Min mouse height from floor (mm)')
-@click.option('--max-height', default=100, type=int, help='Max mouse height from floor (mm)')
+@click.option('--max-height', default=120, type=int, help='Max mouse height from floor (mm)')
 @click.option('--tailfilter-size', default=(9, 9), type=(int, int), help='Tail filter size')
 @click.option('--tailfilter-shape', default='ellipse', type=str, help='Tail filter shape')
 @click.option('--use-fft', type=bool, is_flag=True, help='Use 2D fft')
