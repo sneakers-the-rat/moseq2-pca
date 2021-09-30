@@ -210,6 +210,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     Returns
     -------
     config_data (dict): updated config_data variable to write back in GUI API
+    success (bool): indicates whether the PCA scores were computed successfully
     '''
 
     warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -221,14 +222,15 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     # Set path to PCA Scores file
     save_file = join(output_dir, output_file)
 
-    # Edge Case: Handling pre-existing PCA file
+    # Handling pre-existing PCA file
+    # no intended pca overwrite
     if not config_data.get('overwrite_pca_apply', False):
         if exists(f'{save_file}.h5'):
             click.echo(
                 f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, n -> no]\n')
             ow = input()
             if ow.lower() != 'y':
-                return config_data
+                return config_data, False
 
     # Get path to trained PCA file to load PCs from
     config_data, pca_file, pca_file_scores = get_pca_paths(config_data, output_dir)
@@ -286,7 +288,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
                 close_dask(client, cluster, config_data['timeout'])
 
     config_data['pca_file_scores'] = save_file + '.h5'
-    return config_data
+    return config_data, True
 
 def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file):
     '''
