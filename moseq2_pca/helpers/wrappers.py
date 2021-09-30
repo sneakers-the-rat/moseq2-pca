@@ -33,7 +33,6 @@ def load_and_check_data(input_dir, output_dir):
     ----------
     input_dir (str): input directory containing h5 files to find
     output_dir (str): directory name to save pca results
-    changepoints (bool): boolean for whether to find data from the aggregate_results directory
 
     Returns
     -------
@@ -68,7 +67,6 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
-    kwargs (dict): dictionary containing loaded h5s, yamls and dicts found in given input_dir
 
     Returns
     -------
@@ -87,7 +85,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     # Edge Case: Handling pre-existing PCA file
     if not config_data.get('overwrite_pca_train', False):
         if exists(f'{save_file}.h5'):
-            click.echo(f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, else -> exit]\n')
+            click.echo(f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, n -> no]\n')
             ow = input()
             if ow.lower() != 'y':
                 return config_data
@@ -103,9 +101,11 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
 
     logging.basicConfig(filename=f'{output_dir}/train.log', level=logging.ERROR)
 
-    # Load all h5 file references to extracted frames, then read them into chunked Dask arrays
-    dsets = [h5py.File(h5, mode='r')[config_data['h5_path']] for h5 in h5s]
-    arrays = [da.from_array(dset, chunks=config_data['chunk_size']) for dset in dsets]
+    # Load all open h5 file references
+    h5ps = [h5py.File(h5, mode='r') for h5 in h5s]
+
+    # To extracted frames, then read them into chunked Dask arrays
+    arrays = [da.from_array(fp[config_data['h5_path']], chunks=config_data['chunk_size']) for fp in h5ps]
     stacked_array = da.concatenate(arrays, axis=0)
 
     # Filter out depth value extreme values; Generally same values used during extraction
@@ -176,6 +176,9 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
         # After Success or failure: Shutting down Dask client and clearing any residual data
         close_dask(client, cluster, config_data['timeout'])
 
+        # close all open h5 files
+        [fp.close() for fp in h5ps]
+
     try:
         # Plotting training results
         plot_pca_results(output_dict, save_file, output_dir)
@@ -203,7 +206,6 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
-    kwargs (dict): dictionary containing loaded h5s, yamls and dicts found in given input_dir
 
     Returns
     -------
@@ -223,7 +225,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     if not config_data.get('overwrite_pca_apply', False):
         if exists(f'{save_file}.h5'):
             click.echo(
-                f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, else -> exit]\n')
+                f'The file {save_file}.h5 already exists.\nWould you like to overwrite it? [y -> yes, n -> no]\n')
             ow = input()
             if ow.lower() != 'y':
                 return config_data
@@ -297,7 +299,6 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
-    kwargs (dict): dictionary containing loaded h5s, yamls and dicts found in given input_dir
 
     Returns
     -------
@@ -380,7 +381,6 @@ def clip_scores_wrapper(pca_file, clip_samples, from_end=False):
 
     Returns
     -------
-
     '''
 
     with h5py.File(pca_file, 'r') as f:

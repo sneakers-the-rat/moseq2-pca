@@ -26,7 +26,6 @@ def plot_pca_results(output_dict, save_file, output_dir):
 
     Returns
     -------
-    None
     '''
 
     try:
@@ -61,7 +60,7 @@ def display_components(components, cmap='gray', headless=False):
     Parameters
     ----------
     components (2D np.ndarray): components to graph
-    cmap (str): color map to use
+    cmap (str): color map to use; default is 'gray'.
     headless (bool): trim first element in PC list
 
     Returns

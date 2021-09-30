@@ -29,7 +29,17 @@ from os.path import join, exists, abspath, expanduser
 # from https://stackoverflow.com/questions/46358797/
 # python-click-supply-arguments-and-options-from-a-configuration-file
 def command_with_config(config_file_param_name):
-    '''Provides a cli helper function to assign variables from a config file'''
+    '''
+    Provides a cli helper function to assign variables from a config file.
+    Parameters
+    ----------
+    config_file_param_name (str): parameter name to update with config file variable.
+
+    Returns
+    -------
+    custom_command_class (click.Command): updated Click Command containing parameters from inputted config file.
+    '''
+
     class custom_command_class(click.Command):
 
         def invoke(self, ctx):
@@ -236,7 +246,7 @@ def select_strel(string='e', size=(10, 10)):
 
 def insert_nans(timestamps, data, fps=30):
     '''
-    Fills NaN values with 0 in timestamps.
+    Fills NaN values with 0 in given 1D timestamps array. Used to handle dropped frames from the video acquisition.
 
     Parameters
     ----------
@@ -318,15 +328,19 @@ def check_timestamps(h5s):
 
     Returns
     -------
-    None
     '''
 
     for h5 in h5s:
         try:
             h5_timestamp_path = get_timestamp_path(h5)
-            h5_metadata_path = get_metadata_path(h5)
         except:
             warnings.warn(f'Autoload timestamps for session {h5} failed.')
+            h5_timestamp_path = None
+        try:
+            h5_metadata_path = get_metadata_path(h5)
+        except:
+            warnings.warn(f'Autoload metadata for session {h5} failed.')
+            h5_metadata_path = None
 
         if h5_timestamp_path is None:
             warnings.warn(f'Could not located timestamps in {h5}. \
@@ -415,7 +429,7 @@ def set_dask_config(memory={'target': 0.85, 'spill': False, 'pause': False, 'ter
 
     Parameters
     ----------
-    memory (dict)
+    memory (dict): dictionary containing default dask configuration variables to ensure safe amount of resource usage.
 
     Returns
     -------
@@ -475,7 +489,6 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     queue (str): logging mode
     local_processes (bool): flag to use processes or threads when using a local cluster
     cluster_type (str): indicate what cluster to use (local or slurm)
-    scheduler (str): indicate what scheduler to use
     timeout (int): how many minutes to wait for workers to initialize
     cache_path (str or Pathlike): path to store cached data
     dashboard_port (str): port number to find dask statistics
@@ -588,7 +601,6 @@ def close_dask(client, cluster, timeout):
 
     Returns
     -------
-    None
     '''
 
     if client is not None:
