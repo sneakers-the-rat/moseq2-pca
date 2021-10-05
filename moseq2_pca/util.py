@@ -68,6 +68,9 @@ def command_with_config(config_file_param_name):
                         # overwrite the parameter if users specify params with cli options
                         if param_defaults[param] != value:
                             ctx.params[param] = value
+                # write parameters to config_file
+                with open(config_file, 'w') as f:
+                    yaml.safe_dump(ctx.params, f)
 
             return super(custom_command_class, self).invoke(ctx)
 
