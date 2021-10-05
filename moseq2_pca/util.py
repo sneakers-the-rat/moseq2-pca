@@ -30,7 +30,8 @@ from os.path import join, exists, abspath, expanduser
 # python-click-supply-arguments-and-options-from-a-configuration-file
 def command_with_config(config_file_param_name):
     '''
-    Provides a cli helper function to assign variables from a config file.
+    Provides a cli helper function to assign variables from a config file. 
+    Hierachy of prameters: params from cli options > params from config_file > default params
     Parameters
     ----------
     config_file_param_name (str): parameter name to update with config file variable.
@@ -45,13 +46,17 @@ def command_with_config(config_file_param_name):
         def invoke(self, ctx):
             config_file = ctx.params[config_file_param_name]
             param_defaults = {}
+            
+            # put default parameters in param_defaults dictionary
             for param in self.params:
                 if type(param) is click.core.Option:
                     param_defaults[param.human_readable_name] = param.default
 
             if config_file is not None:
+                # read params from config_file
                 config_data = read_yaml(config_file)
                 for param, value in ctx.params.items():
+                    # set params to the params in config file
                     if param in config_data:
                         if type(value) is tuple and type(config_data[param]) is int:
                             ctx.params[param] = tuple([config_data[param]])
@@ -60,6 +65,7 @@ def command_with_config(config_file_param_name):
                         else:
                             ctx.params[param] = config_data[param]
 
+                        # overwrite the parameter if users specify params with cli options
                         if param_defaults[param] != value:
                             ctx.params[param] = value
 
