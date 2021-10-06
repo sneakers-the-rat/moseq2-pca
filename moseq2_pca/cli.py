@@ -109,6 +109,10 @@ def train_pca(input_dir, output_dir, output_file, **cli_args):
     config_data = train_pca_wrapper(input_dir, cli_args, output_dir, output_file)
     # write config_data to config_file if there is one
     if cli_args.get('config_file'):
+        with open (cli_args.get('config_file'), 'r') as f:
+            temp_config = yaml.safe_load(f)
+        # combining config data with the existing config file
+        config_data = {**temp_config, **config_data}
         with open(cli_args.get('config_file'), 'w') as f:
             yaml.safe_dump(config_data, f)
     
@@ -128,8 +132,13 @@ def apply_pca(input_dir, output_dir, output_file, **cli_args):
     config_data, _ = apply_pca_wrapper(input_dir, cli_args, output_dir, output_file)
     # write config_data to config_file if there is one
     if cli_args.get('config_file'):
+        with open (cli_args.get('config_file'), 'r') as f:
+            temp_config = yaml.safe_load(f)
+        # combining config data with the existing config file
+        config_data = {**temp_config, **config_data}
         with open(cli_args.get('config_file'), 'w') as f:
             yaml.safe_dump(config_data, f)
+    
 
 @cli.command('compute-changepoints', cls=command_with_config('config_file'), help='Computes the Model-Free Syllable Changepoints based on the PCA/PCA_Scores')
 @common_pca_options
@@ -149,8 +158,13 @@ def compute_changepoints(input_dir, output_dir, output_file, **cli_args):
     config_data = compute_changepoints_wrapper(input_dir, cli_args, output_dir, output_file)
     # write config_data to config_file if there is one
     if cli_args.get('config_file'):
+        with open (cli_args.get('config_file'), 'r') as f:
+            temp_config = yaml.safe_load(f)
+        # combining config data with the existing config file
+        config_data = {**temp_config, **config_data}
         with open(cli_args.get('config_file'), 'w') as f:
             yaml.safe_dump(config_data, f)
+    
 
 @cli.command('clip-scores',  help='Clips specified number of frames from PCA scores at the beginning or end')
 @click.argument('pca_file', type=click.Path(exists=True, resolve_path=True))
