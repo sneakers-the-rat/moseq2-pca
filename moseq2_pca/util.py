@@ -55,9 +55,15 @@ def command_with_config(config_file_param_name):
             if config_file is not None:
                 # read params from config_file
                 config_data = read_yaml(config_file)
+
+                # set config_data['output_file'] ['output_dir'] ['input_dir'] to None to avoid overwriting previous files
+                config_data['input_dir'] = None
+                config_data['output_dir'] = None
+                config_data['output_file'] = None
+
                 for param, value in ctx.params.items():
-                    # set params to the params in config file
-                    if param in config_data:
+                    # set params to the params in config file when the param is not none
+                    if param in config_data and config_data[param]:
                         if type(value) is tuple and type(config_data[param]) is int:
                             ctx.params[param] = tuple([config_data[param]])
                         elif type(value) is tuple:
@@ -68,9 +74,12 @@ def command_with_config(config_file_param_name):
                         # overwrite the parameter if users specify params with cli options
                         if param_defaults[param] != value:
                             ctx.params[param] = value
+
+                # combine params with config_params
+                config_data = {**config_data, **ctx.params}
                 # write parameters to config_file
                 with open(config_file, 'w') as f:
-                    yaml.safe_dump(ctx.params, f)
+                    yaml.safe_dump(config_data, f)
 
             return super(custom_command_class, self).invoke(ctx)
 
