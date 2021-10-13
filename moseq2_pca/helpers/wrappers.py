@@ -358,6 +358,8 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     with h5py.File(f'{save_file}.h5', 'r') as f:
         cps = h5_to_dict(f, 'cps')
 
+    # add change point path to config file
+    config_data['changepoint_file'] = save_file + '.h5'
     # Plot and save Changepoint PDF histogram
     block_durs = np.concatenate([np.diff(cp, axis=0) for k, cp in cps.items()])
     out = changepoint_dist(block_durs, headless=True)
