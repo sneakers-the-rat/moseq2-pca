@@ -12,7 +12,7 @@ import os
 import click
 import ruamel.yaml as yaml
 from os.path import join, exists, expanduser
-from moseq2_pca.util import command_with_config, read_write_config, combine_new_config
+from moseq2_pca.util import command_with_config, combine_new_config
 from moseq2_pca.helpers.wrappers import (train_pca_wrapper, apply_pca_wrapper,
                                          compute_changepoints_wrapper, clip_scores_wrapper)
 
