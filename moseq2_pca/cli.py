@@ -12,7 +12,7 @@ import os
 import click
 import ruamel.yaml as yaml
 from os.path import join, exists, expanduser
-from moseq2_pca.util import command_with_config
+from moseq2_pca.util import command_with_config, read_write_config, combine_new_config
 from moseq2_pca.helpers.wrappers import (train_pca_wrapper, apply_pca_wrapper,
                                          compute_changepoints_wrapper, clip_scores_wrapper)
 
@@ -106,15 +106,12 @@ def common_dask_parameters(function):
 @click.option('--local-processes', default=False, type=bool, help='Used with a local cluster. If True: use processes, If False: use threads')
 @click.option('--overwrite-pca-train', default=False, type=bool, help='Used to bypass the pca overwrite question. If True: skip question, run automatically')
 def train_pca(input_dir, output_dir, output_file, **cli_args):
+    # function writes output pca path to config_data
     config_data = train_pca_wrapper(input_dir, cli_args, output_dir, output_file)
     # write config_data to config_file if there is one
     if cli_args.get('config_file'):
-        with open (cli_args.get('config_file'), 'r') as f:
-            temp_config = yaml.safe_load(f)
-        # combining config data with the existing config file
-        config_data = {**temp_config, **config_data}
-        with open(cli_args.get('config_file'), 'w') as f:
-            yaml.safe_dump(config_data, f)
+        # combine new config with old config to add output pca path to config.yaml
+        combine_new_config(cli_args.get('config_file'), config_data)
     
 
 @cli.command(name='apply-pca', cls=command_with_config('config_file'), help='Computes PCA Scores of extraction data given a pre-trained PCA')
@@ -129,16 +126,13 @@ def train_pca(input_dir, output_dir, output_file, **cli_args):
 @click.option('--verbose', '-v', is_flag=True, help='Print sessions as they are being loaded.')
 @click.option('--overwrite-pca-apply', default=False, type=bool, help='Used to bypass the pca overwrite question. If True: skip question, run automatically')
 def apply_pca(input_dir, output_dir, output_file, **cli_args):
+    # function writes output pc score path to config_data
     config_data, _ = apply_pca_wrapper(input_dir, cli_args, output_dir, output_file)
     # write config_data to config_file if there is one
     if cli_args.get('config_file'):
-        with open (cli_args.get('config_file'), 'r') as f:
-            temp_config = yaml.safe_load(f)
-        # combining config data with the existing config file
-        config_data = {**temp_config, **config_data}
-        with open(cli_args.get('config_file'), 'w') as f:
-            yaml.safe_dump(config_data, f)
-    
+        # combine new config with old config to add output pc score path to config.yaml
+        combine_new_config(cli_args.get('config_file'), config_data)
+        
 
 @cli.command('compute-changepoints', cls=command_with_config('config_file'), help='Computes the Model-Free Syllable Changepoints based on the PCA/PCA_Scores')
 @common_pca_options
@@ -155,15 +149,12 @@ def apply_pca(input_dir, output_dir, output_file, **cli_args):
 @click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
 @click.option('--verbose', '-v', is_flag=True, help='Print sessions as they are being loaded.')
 def compute_changepoints(input_dir, output_dir, output_file, **cli_args):
+    # function writes output changepoint path to config_data
     config_data = compute_changepoints_wrapper(input_dir, cli_args, output_dir, output_file)
     # write config_data to config_file if there is one
     if cli_args.get('config_file'):
-        with open (cli_args.get('config_file'), 'r') as f:
-            temp_config = yaml.safe_load(f)
-        # combining config data with the existing config file
-        config_data = {**temp_config, **config_data}
-        with open(cli_args.get('config_file'), 'w') as f:
-            yaml.safe_dump(config_data, f)
+        # combine new config with old config to add output pc score path to config.yaml
+        combine_new_config(cli_args.get('config_file'), config_data)
     
 
 @cli.command('clip-scores',  help='Clips specified number of frames from PCA scores at the beginning or end')
