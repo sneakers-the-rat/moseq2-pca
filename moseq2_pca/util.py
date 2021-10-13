@@ -717,3 +717,20 @@ def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1,
         cps = cps[np.argwhere(normed_df[cps] > peak_height)]
 
     return cps, normed_df
+
+
+def combine_new_config(config_file, config_data):
+    '''
+    helper function to read config file and combine new config params with it
+
+    Args:
+        config_file (str): path to config.yaml
+        config_data (dict): dictionary of config data
+    '''
+    # open the config file
+    with open (config_file, 'r') as f:
+        temp_config = yaml.safe_load(f)
+    # combining config data with the existing config file
+    config_data = {**temp_config, **config_data}
+    with open(config_file, 'w') as f:
+        yaml.safe_dump(config_data, f)
