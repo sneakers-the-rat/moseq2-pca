@@ -8,9 +8,10 @@ This is a library for computing PCA components and scores from extracted mouse m
 
 Latest version is `0.4.0`
 
-## Features
-Below are the commands/functionality that moseq2-pca currently affords. 
-They are accessible via CLI or Jupyter Notebook in [moseq2-app](https://github.com/dattalab/moseq2-app/tree/release).
+# [Documentation: MoSeq2 Wiki](https://github.com/dattalab/moseq2-app/wiki)
+You can find more information about MoSeq Pipeline, step-by-step instructions, documentation for Command Line Interface(CLI), tutorials etc in [MoSeq2 Wiki](https://github.com/dattalab/moseq2-app/wiki).
+
+You can run `moseq2-pca --version` to check the current version and `moseq2-pca --help` to see all the commands.
 ```bash
 Usage: moseq2-pca [OPTIONS] COMMAND [ARGS]...
 
@@ -26,51 +27,9 @@ Commands:
 
 ```
 
-### CLI Exclusive Function
-```bash
-  clip-scores           Clips specified number of frames from PCA scores at the beginning or end
-```
-
-Run any command with the `--help` flag to display all available options and their descriptions.
-
-## Documentation
-
-MoSeq2 uses `sphinx` to generate the documentation in HTML and PDF forms. To install `sphinx`, follow the commands below:
-```.bash
-pip install sphinx==3.0.3 sphinx_click==2.5.0
-pip install sphinx-rtd-theme
-pip install rst2pdf
-``` 
-
-All documentation regarding moseq2-extract can be found in the `Documentation.pdf` file in the root directory,
-an HTML ReadTheDocs page can be generated via running the `make html` in the `docs/` directory.
-
-To generate a PDF version of the documentation, simply run `make pdf` in the `docs/` directory.
-
-## Prerequisites
-
-In order to use this package you must have already extracted your data via [moseq2-extract](https://github.com/dattalab/moseq2-extract).
-If you aggregated your results into a single folder `aggregate_results/`, use that directory as your input directory 
-for the `train-pca` command. 
-
-It is also recommended to have also already generated a `moseq2-index.yaml` file to store the path to your `pca_scores` 
-file as well.
- - The index file is generated when aggregating the results in [moseq2-extract](https://github.com/dattalab/moseq2-extract/tree/release) 
-
-## Example Outputs
-
-### Mouse Principal Components
-<img src="https://github.com/dattalab/moseq2-pca/blob/dev/media/Components_Ex.png" width=350 height=350>
-
-### Rat Principal Components
-<img src="https://github.com/dattalab/moseq2-pca/blob/dev/media/rat_components.png" width=350 height=350>
-
-### Scree Plot
-<img src="https://github.com/dattalab/moseq2-pca/blob/dev/media/Scree_Ex.png" width=450 height=350>
-
-### Model-free Changepoint Distribution
-<img src="https://github.com/dattalab/moseq2-pca/blob/dev/media/CP_Ex.png" width=350 height=350>
-
-## Contributing
-
-If you would like to contribute, fork the repository and issue a pull request.
+# Community Support and Contributing
+- Please join [![MoSeq Slack Channel](https://img.shields.io/badge/slack-MoSeq-blue.svg?logo=slack)](https://moseqworkspace.slack.com) to post questions and interactive with MoSeq developers and users.
+- If you encounter bugs, errors or issues, please submit a Bug report [here](https://github.com/dattalab/moseq2-app/issues/new/choose). We encourage you to check out the [troubleshooting and tips section](https://github.com/dattalab/moseq2-app/wiki/Troubleshooting-and-Tips) and search your issues in [the existing issues](https://github.com/dattalab/moseq2-app/issues) first.   
+- If you want to see certain features in MoSeq or you have new ideas, please submit a Feature request [here](https://github.com/dattalab/moseq2-app/issues/new/choose).
+- If you want to contribute to our codebases, please check out our [Developer Guidelines](https://github.com/dattalab/moseq2-app/wiki/MoSeq-Developer-Guidelines).
+- Please tell us what you think by filling out [this user survey](https://forms.gle/FbtEN8E382y8jF3p6).
