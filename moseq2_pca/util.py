@@ -75,12 +75,14 @@ def command_with_config(config_file_param_name):
                         if param_defaults[param] != value:
                             ctx.params[param] = value
 
+                # removed flags
+                flag_list = ['missing_data', 'use_fft', 'verbose', 'from_end']
+                combined = {k:v for k,v in ctx.params.items() if k not in flag_list}
                 # combine params with config_params
-                config_data = {**config_data, **ctx.params}
+                config_data = {**config_data, **combined}
                 # write parameters to config_file
                 with open(config_file, 'w') as f:
                     yaml.safe_dump(config_data, f)
-
             return super(custom_command_class, self).invoke(ctx)
 
     return custom_command_class
