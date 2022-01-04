@@ -10,8 +10,9 @@ CLI functions, then call the corresponding wrapper function with the given input
 
 import warnings
 import ruamel.yaml as yaml
-from .cli import train_pca, apply_pca, compute_changepoints
+from os.path import exists, join
 from moseq2_pca.util import read_yaml
+from .cli import train_pca, apply_pca, compute_changepoints
 from moseq2_pca.helpers.wrappers import train_pca_wrapper, apply_pca_wrapper, compute_changepoints_wrapper
 
 
@@ -27,7 +28,6 @@ def train_pca_command(progress_paths, output_dir, output_file):
 
     Returns
     -------
-    None
     '''
     # Get default CLI params
     default_params = {tmp.name: tmp.default for tmp in train_pca.params if not tmp.required}
@@ -75,26 +75,37 @@ def apply_pca_command(progress_paths, output_file):
     index_file = progress_paths['index_file']
     output_dir = progress_paths['pca_dirname']
 
+    # outputted scores path
+    scores_path = progress_paths.get("scores_path")
+
     config_data = read_yaml(config_file)
     # merge default params with those in config
     config_data = {**default_params, **config_data}
 
-    config_data = apply_pca_wrapper(input_dir, config_data, output_dir, output_file)
+    config_data, success = apply_pca_wrapper(input_dir, config_data, output_dir, output_file)
 
-    with open(config_file, 'w') as f:
-        yaml.safe_dump(config_data, f)
-
+    if success:
+        if config_data is not None:
+            with open(config_file, 'w') as f:
+                yaml.safe_dump(config_data, f)
+    
+    # update the index_file
+    # if pc score is not overwritten, the following will ensure the path in progress.yaml will be written to index_file
+    # if pc score is overwritten, the new path, updated in line 89 will be written to index_file
     index_params = read_yaml(index_file)
     if index_params:
-        index_params['pca_path'] = config_data['pca_file_scores']
+        print(f'Updating index file pca_path: {scores_path}')
+        index_params['pca_path'] = scores_path
 
         with open(index_file, 'w') as f:
             yaml.safe_dump(index_params, f)
-
     else:
         print('moseq2-index not found, did not update paths')
 
-    return 'PCA Scores have been successfully computed.'
+    if success:
+        return 'PCA Scores have been successfully computed.'
+    else:
+        return 'PCA Scores have not been computed'
 
 
 def compute_changepoints_command(input_dir, progress_paths, output_file):

@@ -39,6 +39,6 @@ setup(
                       'click==7.0', 'ruamel.yaml==0.16.5', 'dask==2.19.0', 'bokeh==2.2.1',
                       'distributed==2.19.0', 'chest==0.2.3', 'seaborn==0.11.0', 'dask-jobqueue==0.7.0',
                       'scikit-image==0.16.2', 'psutil==5.6.7'],
-    python_requires='>=3.6',
+    python_requires='>=3.6,<3.8',
     entry_points={'console_scripts': ['moseq2-pca = moseq2_pca.cli:cli']}
 )

@@ -48,9 +48,9 @@ class TestPCAUtils(TestCase):
             config_data = yaml.safe_load(f)
 
         h5s, dicts, yamls = recursive_find_h5s(input_dir)
-        dsets = [h5py.File(h5, mode='r')['/frames'] for h5 in h5s]
 
-        arrays = [da.from_array(dset, chunks=(1000, -1, -1)) for dset in dsets]
+        h5ps = [h5py.File(h5, mode='r') for h5 in h5s]
+        arrays = [da.from_array(fp['/frames'], chunks=(1000, -1, -1)) for fp in h5ps]
         stacked_array = da.concatenate(arrays, axis=0)
 
         stacked_array[stacked_array < 10] = 0
@@ -78,6 +78,9 @@ class TestPCAUtils(TestCase):
                            recon_pcs=config_data['recon_pcs'])
         client.restart()
         client.close()
+        for fp in h5ps:
+            assert fp['frames'].shape == (900, 80, 80)
+            fp.close()
 
         assert 'components' in output_dict.keys()
         assert 'singular_values' in output_dict.keys()
@@ -85,6 +88,13 @@ class TestPCAUtils(TestCase):
         assert 'explained_variance_ratio' in output_dict.keys()
         assert 'mean' in output_dict.keys()
 
+        # check that all the h5 files are closed by ensuring an exception is raised
+        for fp in h5ps:
+            try:
+                print(fp['frames'].keys()) # line that's meant to raise a ValueError
+                assert False, 'h5 File pointer is still open' # added assertion here to fail test in case file is still open
+            except ValueError as e:
+                assert isinstance(e, ValueError)
 
     def test_apply_pca_local(self):
 
@@ -153,6 +163,18 @@ class TestPCAUtils(TestCase):
 
         assert os.path.exists(f'{save_file}.h5')
         os.remove(f'{save_file}.h5')
+
+        # testing list comprehension file closing
+        h5_file_pointers = [h5py.File(h5, 'r') for h5 in h5s]
+
+        [h5p.close() for h5p in h5_file_pointers]
+
+        try:
+            for h5p in h5_file_pointers:
+                print(h5p.keys())
+                assert False, 'h5 File pointer is still open'
+        except TypeError as e:
+            assert isinstance(e, TypeError)
 
     def test_get_changepoints_dask(self):
 
