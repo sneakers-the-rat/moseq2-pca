@@ -532,10 +532,9 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         allowed = max_mem * 0.4 
         max_workers = allowed // overhead
 
-        # set number of workers to optimal workers, or total number of CPUs
-        # if there are fewer CPUs present than optimal workers
+        # set number of workers to maximum workers, or total number of CPUs
         if nworkers > max_workers:
-            click.echo(f'Reducing number of workers to {min(max_workers, max_cpu)} to account for worker base memory')
+            click.echo(f'Reducing number of workers to {min(max_workers, max_cpu)} to account for worker base memory and the number of CPUs')
         nworkers = int(min(max(1, nworkers), max_workers, max_cpu))
 
         # display some diagnostic info
