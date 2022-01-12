@@ -479,7 +479,9 @@ def get_env_cpu_and_mem():
         output = subprocess.check_output(cmd.split(' '))
         output = output.decode('utf-8').strip().split('|')
         cpu, mem, _ = output
-        cpu = int(cpu)
+        cpu = max(1, int(cpu)-1)
+        # account for additional processes that needs memory
+        mem = mem * 0.8
         if 'G' in mem:
             mem = float(mem[:mem.index('G')]) * 1e9
         elif 'M' in mem:
