@@ -22,7 +22,7 @@ from moseq2_pca.pca.util import apply_pca_dask, apply_pca_local, train_pca_dask,
 from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, set_dask_config, close_dask, \
             h5_to_dict, check_timestamps
 
-def load_and_check_data(input_dir, output_dir):
+def load_and_check_data(input_dir, output_dir, config_data):
     '''
 
     Executes initialization functionality that is common among all 3 PCA related operations.
@@ -41,15 +41,18 @@ def load_and_check_data(input_dir, output_dir):
     yamls (list): list of corresponding yaml files
     dicts (list): list of corresponding metadata.json files
     '''
-
-    set_dask_config()
+    # dynamically change the set_dask_config memory setting
+    if config_data['cluster_type']=="local":
+        set_dask_config(memory={'target': 0.85, 'spill': True, 'pause': False, 'terminate': False})
+    else:
+        set_dask_config()
 
     # Set up output directory
     output_dir = abspath(output_dir)
     if not exists(output_dir):
         os.makedirs(output_dir)
 
-    # find directories with .dat files that either have incomplete or no extractions
+    # find directories with .dat files tchat either have incomplete or no extractions
     h5s, dicts, yamls = recursive_find_h5s(input_dir)
 
     check_timestamps(h5s)  # function to check whether timestamp files are found
