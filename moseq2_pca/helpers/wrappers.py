@@ -80,7 +80,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
         raise NotImplementedError("FFT and missing data not implemented yet")
 
     # Get training data
-    output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir)
+    output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir, config_data)
 
     # Setting path to PCA config file
     save_file = join(output_dir, output_file)
@@ -220,7 +220,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     warnings.filterwarnings("ignore", category=UserWarning)
 
     # Set up data
-    output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir)
+    output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir, config_data)
 
     # Set path to PCA Scores file
     save_file = join(output_dir, output_file)
@@ -314,7 +314,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     warnings.filterwarnings("ignore", category=UserWarning)
 
     # Get loaded h5s and yamls
-    output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir)
+    output_dir, h5s, dicts, yamls = load_and_check_data(input_dir, output_dir, config_data)
 
     # Set path to changepoints
     save_file = join(output_dir, output_file)
