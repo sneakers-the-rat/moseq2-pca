@@ -530,7 +530,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
         max_mem, max_cpu = get_env_cpu_and_mem()
         overhead = 0.8e9  # memory overhead for each worker; approximate
-
+        
         allowed = max_mem * 0.4 
         max_workers = allowed // overhead
 
@@ -539,13 +539,16 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
             click.echo(f'Reducing number of workers to {min(max_workers, max_cpu)} to account for worker base memory and the number of CPUs')
         nworkers = int(min(max(1, nworkers), max_workers, max_cpu))
 
+        # compute mem limit per worker
+        mem_limit = max_mem / nworkers
+
         # display some diagnostic info
         click.echo(f'Setting number of workers to: {nworkers}')
-        click.echo(f'Overriding memory per worker to {round(max_mem / 1e9, 2)}GB')
+        click.echo(f'Overriding memory per worker to {round(mem_limit / 1e9, 2)}GB')
 
         client = Client(processes=local_processes,
                         threads_per_worker=1,
-                        memory_limit=max_mem,
+                        memory_limit=mem_limit,
                         n_workers=nworkers,
                         dashboard_address=dashboard_port,
                         local_directory=cache_path,
