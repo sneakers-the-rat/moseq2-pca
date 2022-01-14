@@ -43,7 +43,7 @@ def load_and_check_data(input_dir, output_dir, config_data):
     '''
     # dynamically change the set_dask_config memory setting
     if config_data['cluster_type']=="local":
-        set_dask_config(memory={'target': 0.85, 'spill': True, 'pause': False, 'terminate': False})
+        set_dask_config(memory={'target': 0.85, 'spill': 0.9, 'pause': False, 'terminate': False})
     else:
         set_dask_config()
 
