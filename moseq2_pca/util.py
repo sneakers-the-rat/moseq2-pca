@@ -543,7 +543,8 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         mem_limit = max(1, max_mem / nworkers)
 
         # display some diagnostic info
-        click.echo(f'Dataset size: {round(data_size / 1e9, 2)}GB')
+        if data_size is not None:
+            click.echo(f'Dataset size: {round(data_size / 1e9, 2)}GB')
         click.echo(f'Setting number of workers to: {nworkers}')
         click.echo(f'Overriding memory per worker to {round(mem_limit / 1e9, 2)}GB')
 
