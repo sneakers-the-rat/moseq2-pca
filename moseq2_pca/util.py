@@ -540,7 +540,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         nworkers = int(min(max(1, nworkers), max_workers, max_cpu))
 
         # compute mem limit per worker
-        mem_limit = max_mem / nworkers
+        mem_limit = max(1, max_mem / nworkers)
 
         # display some diagnostic info
         click.echo(f'Setting number of workers to: {nworkers}')
