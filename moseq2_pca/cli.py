@@ -67,7 +67,7 @@ def common_dask_parameters(function):
     function (Click command function): Decorated function now including 7 additional input parameters.
     '''
 
-    function = click.option('--dask-cache-path', '-d', default=expanduser('~/moseq2_pca'), type=click.Path(),
+    function = click.option('--dask-cache-path', '-d', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(),
                             help='Path to spill data to disk for dask local scheduler')(function)
     function = click.option('--dask-port', default='8787', type=str, help="Port to access dask dashboard")(function)
     function = click.option('-q', '--queue', type=str, default='debug',
