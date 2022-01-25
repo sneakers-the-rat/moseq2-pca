@@ -479,7 +479,9 @@ def get_env_cpu_and_mem():
         output = subprocess.check_output(cmd.split(' '))
         output = output.decode('utf-8').strip().split('|')
         cpu, mem, _ = output
-        cpu = int(cpu)
+        cpu = max(1, int(cpu)-1)
+        # account for additional processes that needs memory
+        mem = mem * 0.8
         if 'G' in mem:
             mem = float(mem[:mem.index('G')]) * 1e9
         elif 'M' in mem:
@@ -525,32 +527,31 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     click.echo(f'Access dask dashboard at http://localhost:{dashboard_port}')
 
     if cluster_type == 'local':
-        warnings.simplefilter('ignore')
 
         max_mem, max_cpu = get_env_cpu_and_mem()
         overhead = 0.8e9  # memory overhead for each worker; approximate
+        
+        # allocating 0.4 of the maximum memory to account for overhead per worker
+        allowed = max_mem * 0.4 
+        max_workers = allowed // overhead
 
-        # if we don't know the size of the dataset, fall back onto this
-        if data_size is None:
-            optimal_workers = (max_mem // overhead) - 1
-        else:
-            click.echo(f'Using dataset size ({round(data_size / 1e9, 2)}GB) to set optimal parameters')
-            # set optimal workers to handle incoming data
-            optimal_workers = ((max_mem - data_size) // overhead) - 1
+        # set number of workers to maximum workers, or total number of CPUs
+        if nworkers > max_workers:
+            click.echo(f'Reducing number of workers to {min(max_workers, max_cpu)} to account for worker base memory and the number of CPUs')
+        nworkers = int(min(max(1, nworkers), max_workers, max_cpu))
 
-        optimal_workers = max(1, optimal_workers)
-
-        # set number of workers to optimal workers, or total number of CPUs
-        # if there are fewer CPUs present than optimal workers
-        nworkers = int(min(max(1, max_cpu - 1), optimal_workers))
+        # compute mem limit per worker
+        mem_limit = max(1, max_mem / nworkers)
 
         # display some diagnostic info
+        if data_size is not None:
+            click.echo(f'Dataset size: {round(data_size / 1e9, 2)}GB')
         click.echo(f'Setting number of workers to: {nworkers}')
-        click.echo(f'Overriding memory per worker to {round(max_mem / 1e9, 2)}GB')
+        click.echo(f'Overriding memory per worker to {round(mem_limit / 1e9, 2)}GB')
 
         client = Client(processes=local_processes,
                         threads_per_worker=1,
-                        memory_limit=max_mem,
+                        memory_limit=mem_limit,
                         n_workers=nworkers,
                         dashboard_address=dashboard_port,
                         local_directory=cache_path,
