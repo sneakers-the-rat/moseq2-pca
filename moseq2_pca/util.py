@@ -531,6 +531,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         max_mem, max_cpu = get_env_cpu_and_mem()
         overhead = 0.8e9  # memory overhead for each worker; approximate
         
+        # allocating 0.4 of the maximum memory to account for overhead per worker
         allowed = max_mem * 0.4 
         max_workers = allowed // overhead
 
