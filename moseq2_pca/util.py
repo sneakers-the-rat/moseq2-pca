@@ -735,5 +735,7 @@ def combine_new_config(config_file, config_data):
         temp_config = yaml.safe_load(f)
     # combining config data with the existing config file
     config_data = {**temp_config, **config_data}
+    # ensure output_file and output_dir are not in config_data or reusing config for extraction will fail
+    config_data = {k:v for k, v in config_data.items() if k not in ('output_dir', 'output_file')}
     with open(config_file, 'w') as f:
         yaml.safe_dump(config_data, f)
