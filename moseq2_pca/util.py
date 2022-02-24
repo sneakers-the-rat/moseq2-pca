@@ -567,7 +567,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                                queue=queue,
                                walltime=wall_time,
                                local_directory=cache_path,
-                               dashboard_address=dashboard_port,
+                               scheduler_options={'dashboard_address': dashboard_port},
                                **kwargs)
         client = Client(cluster)
     else:
