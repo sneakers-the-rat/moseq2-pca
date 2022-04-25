@@ -480,12 +480,13 @@ def get_env_cpu_and_mem():
         output = output.decode('utf-8').strip().split('|')
         cpu, mem, _ = output
         cpu = max(1, int(cpu)-1)
-        # account for additional processes that needs memory
-        mem = mem * 0.8
+
         if 'G' in mem:
-            mem = float(mem[:mem.index('G')]) * 1e9
+            # account for additional processes that needs memory
+            mem = float(mem[:mem.index('G')]) * 1e9 * 0.8
         elif 'M' in mem:
-            mem = float(mem[:mem.index('M')]) * 1e6
+            # account for additional processes that needs memory
+            mem = float(mem[:mem.index('M')]) * 1e6 * 0.8
     else:
         mem = psutil.virtual_memory().available * 0.8
         cpu = max(1, psutil.cpu_count() - 1)
