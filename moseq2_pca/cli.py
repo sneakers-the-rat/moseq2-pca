@@ -72,7 +72,7 @@ def common_dask_parameters(function):
     function = click.option('--dask-port', default='8787', type=str, help="Port to access dask dashboard")(function)
     function = click.option('-q', '--queue', type=str, default='debug',
                             help="Cluster queue/partition for submitting jobs")(function)
-    function = click.option('-n', '--nworkers', type=int, default=10, help="Number of workers")(function)
+    function = click.option('-n', '--nworkers', type=int, default=1, help="Number of workers")(function)
     function = click.option('-c', '--cores', type=int, default=1, help="Number of cores per worker")(function)
     function = click.option('-p', '--processes', type=int, default=1, help="Number of processes to run on each worker")(
         function)
