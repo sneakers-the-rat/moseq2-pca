@@ -542,7 +542,10 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         nworkers = int(min(max(1, nworkers), max_workers, max_cpu))
 
         # compute mem limit per worker
-        mem_limit = max(1, max_mem / nworkers)
+        try:
+            mem_limit = max(1, max_mem / nworkers)
+        except:
+            mem_limit = 1
 
         # display some diagnostic info
         if data_size is not None:
