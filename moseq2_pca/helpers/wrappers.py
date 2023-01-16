@@ -15,6 +15,7 @@ import warnings
 import dask.array as da
 import ruamel.yaml as yaml
 from tqdm.auto import tqdm
+import numpy as np
 from moseq2_pca.viz import plot_pca_results, changepoint_dist
 from os.path import abspath, join, exists, splitext, basename, dirname
 from moseq2_pca.helpers.data import get_pca_paths, get_pca_yaml_data, load_pcs_for_cp
@@ -107,9 +108,17 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     # Load all open h5 file references
     h5ps = [h5py.File(h5, mode='r') for h5 in h5s]
 
+    # subset data
+    subset_extracted = []
+    for fp in tqdm(h5ps):
+        temp_extracted = fp[config_data['h5_path']][()]
+        num_frames = int(len(temp_extracted) * config_data.get('train_on_subset', 1))
+        subset_extracted.append(temp_extracted[np.random.permutation(len(temp_extracted))[:num_frames]])
+
     # To extracted frames, then read them into chunked Dask arrays
-    arrays = [da.from_array(fp[config_data['h5_path']], chunks=config_data['chunk_size']) for fp in h5ps]
+    arrays = [da.from_array(extracted, chunks=config_data['chunk_size']) for extracted in subset_extracted]
     stacked_array = da.concatenate(arrays, axis=0)
+    print(stacked_array.shape)
 
     # Filter out depth value extreme values; Generally same values used during extraction
     stacked_array[stacked_array < config_data['min_height']] = 0
