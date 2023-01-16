@@ -108,15 +108,14 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     # Load all open h5 file references
     h5ps = [h5py.File(h5, mode='r') for h5 in h5s]
 
-    # subset data
-    subset_extracted = []
+    # Subset extracted frames, then read them into chunked Dask arrays
+    arrays = []
     for fp in tqdm(h5ps):
         temp_extracted = fp[config_data['h5_path']][()]
         num_frames = int(len(temp_extracted) * config_data.get('train_on_subset', 1))
-        subset_extracted.append(temp_extracted[np.random.permutation(len(temp_extracted))[:num_frames]])
+        arrays.append(da.from_array(temp_extracted[np.random.permutation(len(temp_extracted))[:num_frames]], chunks=config_data['chunk_size']))
 
     # To extracted frames, then read them into chunked Dask arrays
-    arrays = [da.from_array(extracted, chunks=config_data['chunk_size']) for extracted in subset_extracted]
     stacked_array = da.concatenate(arrays, axis=0)
     print(stacked_array.shape)
 
