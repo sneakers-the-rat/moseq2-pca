@@ -12,10 +12,10 @@ import click
 import logging
 import datetime
 import warnings
+import numpy as np
 import dask.array as da
 import ruamel.yaml as yaml
 from tqdm.auto import tqdm
-import numpy as np
 from moseq2_pca.viz import plot_pca_results, changepoint_dist
 from os.path import abspath, join, exists, splitext, basename, dirname
 from moseq2_pca.helpers.data import get_pca_paths, get_pca_yaml_data, load_pcs_for_cp
