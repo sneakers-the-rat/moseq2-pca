@@ -100,7 +100,7 @@ def common_dask_parameters(function):
 @click.option('--tailfilter-size', default=(9, 9), type=(int, int), help='Tail filter size')
 @click.option('--tailfilter-shape', default='ellipse', type=str, help='Tail filter shape')
 @click.option('--use-fft', type=bool, is_flag=True, help='Use 2D fft')
-@click.option('--train-on-subset', default = 1, type=float, help="Train on a subset of the total frames")
+@click.option('--train-on-subset', default = 1, type=float, help="The fraction of the total frames the PCA is trained on; default PCA is trained on all frames")
 @click.option('--recon-pcs', type=int, default=10, help='Number of PCs to use for missing data reconstruction')
 @click.option('--rank', default=25, type=int, help="Rank for compressed SVD (generally>>nPCS)")
 @click.option('--output-file', default='pca', type=str, help='Name of h5 file for storing pca results')
