@@ -111,12 +111,12 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     # Subset extracted frames, then read them into chunked Dask arrays
     arrays = []
     for fp in tqdm(h5ps):
-        temp_extracted = fp[config_data['h5_path']][()]
+        temp_extracted = fp[config_data['h5_path']]
         num_frames = int(len(temp_extracted) * config_data.get('train_on_subset', 1))
         arrays.append(
             da.from_array(
-                temp_extracted[np.sort(np.random.choice(len(temp_extracted), num_frames, replace=False))], chunks=config_data['chunk_size']
-            )
+                temp_extracted, chunks=config_data['chunk_size']
+            )[np.sort(np.random.choice(len(temp_extracted), num_frames, replace=False))]
         )
 
     # To extracted frames, then read them into chunked Dask arrays
