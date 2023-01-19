@@ -12,6 +12,7 @@ import click
 import logging
 import datetime
 import warnings
+import numpy as np
 import dask.array as da
 import ruamel.yaml as yaml
 from tqdm.auto import tqdm
@@ -107,8 +108,18 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     # Load all open h5 file references
     h5ps = [h5py.File(h5, mode='r') for h5 in h5s]
 
+    # Subset extracted frames, then read them into chunked Dask arrays
+    arrays = []
+    for fp in tqdm(h5ps):
+        temp_extracted = fp[config_data['h5_path']]
+        num_frames = int(len(temp_extracted) * config_data.get('train_on_subset', 1))
+        arrays.append(
+            da.from_array(
+                temp_extracted, chunks=config_data['chunk_size']
+            )[np.sort(np.random.choice(len(temp_extracted), num_frames, replace=False))]
+        )
+
     # To extracted frames, then read them into chunked Dask arrays
-    arrays = [da.from_array(fp[config_data['h5_path']], chunks=config_data['chunk_size']) for fp in h5ps]
     stacked_array = da.concatenate(arrays, axis=0)
 
     # Filter out depth value extreme values; Generally same values used during extraction
