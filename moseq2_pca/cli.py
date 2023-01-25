@@ -30,12 +30,10 @@ def common_pca_options(function):
     """
     Decorator function for common Click parameters/dependencies for PCA-related operations.
     
-    Parameters
-    ----------
+    Args:
     function: Function to add enclosed parameters to as click options.
 
-    Returns
-    -------
+    Returns:
     function: Updated function including shared parameters.
     """
 
@@ -56,12 +54,10 @@ def common_dask_parameters(function):
     """
     Decorator function for common Click parameters for Dask-related dependencies.
 
-    Parameters
-    ----------
+    Args:
     function: Function to add enclosed parameters to as click options.
     
-    Returns
-    -------
+    Returns:
     function: Updated function including shared parameters.
     """
 

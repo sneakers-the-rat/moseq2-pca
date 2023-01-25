@@ -14,13 +14,11 @@ def get_pca_paths(config_data, output_dir):
     Helper function for changepoints_wrapper to perform data-path existence checks.
     Returns paths to saved pre-trained PCA components and PCA Scores files.
 
-    Parameters
-    ----------
+    Args:
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
 
-    Returns
-    -------
+    Returns:
     config_data (dict): updated config_data dict with the pc component and pc score paths
     pca_file_components (str): path to trained pca file
     pca_file_scores (str): path to pca_scores file
@@ -46,13 +44,11 @@ def load_pcs_for_cp(pca_file_components, config_data):
     """
     Load computed Principal Components for Model-free Changepoint Analysis.
 
-    Parameters
-    ----------
+    Args:
     pca_file_components (str): path to pca h5 file to read PCs
     config_data (dict): config parameters
 
-    Returns
-    -------
+    Returns:
     pca_components (str): path to pca components
     changepoint_params (dict): dict of relevant changepoint parameters
     missing_data (bool): Indicates whether to use mask_params for missing data pca
@@ -98,12 +94,10 @@ def get_pca_yaml_data(pca_yaml):
     """
     Reads PCA yaml file and returns enclosed metadata.
 
-    Parameters
-    ----------
+    Args:
     pca_yaml (str): path to pca.yaml
 
-    Returns
-    -------
+    Returns:
     use_fft (bool): indicates whether to use FFT
     clean_params (dict): dict of image filtering parameters
     mask_params (dict): dict of mask parameters)

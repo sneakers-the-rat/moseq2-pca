@@ -30,13 +30,11 @@ def load_and_check_data(input_dir, output_dir, config_data):
     Function will load relevant h5 and yaml files found in given input directory, then check for timestamps and
     warn the user if they are missing.
 
-    Parameters
-    ----------
+    Args:
     input_dir (str): input directory containing h5 files to find
     output_dir (str): directory name to save pca results
 
-    Returns
-    -------
+    Returns:
     output_dir (str): absolute output directory path
     h5s (list): list of found h5 files
     yamls (list): list of corresponding yaml files
@@ -65,15 +63,13 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
 
     Wrapper function to train PCA.
 
-    Parameters
-    ----------
+    Args:
     input_dir (int): path to directory containing all h5+yaml files
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
 
-    Returns
-    -------
+    Returns:
     config_data (dict): updated config_data variable to write back in GUI API
     """
 
@@ -214,15 +210,13 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
 
     Wrapper function to obtain PCA Scores.
 
-    Parameters
-    ----------
+    Args:
     input_dir (int): path to directory containing all h5+yaml files
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
 
-    Returns
-    -------
+    Returns:
     config_data (dict): updated config_data variable to write back in GUI API
     success (bool): indicates whether the PCA scores were computed successfully
     """
@@ -309,15 +303,13 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
 
     Wrapper function to compute model-free (PCA based) Changepoints.
 
-    Parameters
-    ----------
+    Args:
     input_dir (int): path to directory containing all h5+yaml files
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
 
-    Returns
-    -------
+    Returns:
     config_data (dict): updated config_data variable to write back in GUI API
     """
 
@@ -391,14 +383,12 @@ def clip_scores_wrapper(pca_file, clip_samples, from_end=False):
     Clips PCA scores from the beginning or end.
     Note that scores are modified *in place*.
 
-    Parameters
-    ----------
+    Args:
     pca_file (str): Path to PCA scores.
     clip_samples (int): number of samples to clip from beginning or end
     from_end (bool): if true clip from end rather than beginning
 
-    Returns
-    -------
+    Returns:
     """
 
     with h5py.File(pca_file, 'r') as f:

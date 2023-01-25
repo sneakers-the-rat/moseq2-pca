@@ -18,14 +18,12 @@ def plot_pca_results(output_dict, save_file, output_dir):
     """
     Convenience function to graph and save Trained PCA results.
 
-    Parameters
-    ----------
+    Args:
     output_dict (dict): Dict object containing PCA training results
     save_file (str): Path to write images to.
     output_dir (str): Directory containing logger
 
-    Returns
-    -------
+    Returns:
     """
 
     try:
@@ -57,14 +55,12 @@ def display_components(components, cmap='gray', headless=False):
     """
     Creates grid of computed Principal Components.
 
-    Parameters
-    ----------
+    Args:
     components (2D np.ndarray): components to graph
     cmap (str): color map to use; default is 'gray'.
     headless (bool): trim first element in PC list
 
-    Returns
-    -------
+    Returns:
     plt (plt.figure): figure to save/graph
     ax (plt.ax): figure axis variable
     """
@@ -90,13 +86,11 @@ def scree_plot(explained_variance_ratio, headless=False):
     """
     Creates Scree plot describing principal components.
 
-    Parameters
-    ----------
+    Args:
     explained_variance_ratio (1D np.array): explained variance ratio of each principal component
     headless (bool): trim first element in PC list
 
-    Returns
-    -------
+    Returns:
     plt (plt.figure): figure to save/graph
     """
 
@@ -129,13 +123,11 @@ def changepoint_dist(cps, headless=False):
     """
     Creates bar plot describing computed Changepoint Distribution.
 
-    Parameters
-    ----------
+    Args:
     cps (np.ndarray): changepoints to graph
     headless (bool): trim first element in PC list
 
-    Returns
-    -------
+    Returns:
     plt (plt.figure): figure to save/graph
     ax (plt.ax): figure axis variable
     """

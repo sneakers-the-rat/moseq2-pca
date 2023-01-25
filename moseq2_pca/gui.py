@@ -20,14 +20,12 @@ def train_pca_command(progress_paths, output_dir, output_file):
     """
     Train PCA through Jupyter notebook, and updates config file.
 
-    Parameters
-    ----------
+    Args:
     progress_paths (dict): dictionary containing notebook progress paths
     output_dir (str): path to output pca directory
     output_file (str): name of output pca file.
 
-    Returns
-    -------
+    Returns:
     """
     # Get default CLI params
     default_params = {tmp.name: tmp.default for tmp in train_pca.params if not tmp.required}
@@ -57,13 +55,11 @@ def apply_pca_command(progress_paths, output_file):
     """
     Compute PCA Scores given trained PCA using Jupyter Notebook.
 
-    Parameters
-    ----------
+    Args:
     progress_paths (dict): dictionary containing notebook progress paths
     output_file (str): name of output pca file.
 
-    Returns
-    -------
+    Returns:
     (str): success string.
     """
     # Get default CLI params
@@ -112,14 +108,12 @@ def compute_changepoints_command(input_dir, progress_paths, output_file):
     """
     Compute Changepoint distribution using Jupyter Notebook.
 
-    Parameters
-    ----------
+    Args:
     input_dir (str): path to directory containing training data
     progress_paths (dict): dictionary containing notebook progress paths
     output_file (str): name of output pca file.
 
-    Returns
-    -------
+    Returns:
     (str): success string.
     """
     # Get default CLI params
