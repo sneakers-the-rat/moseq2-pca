@@ -1,8 +1,8 @@
-'''
+"""
 
 Visualization operations for plotting computed PCs, a Scree Plot, and the Changepoint PDF histogram.
 
-'''
+"""
 
 import click
 import logging
@@ -15,7 +15,7 @@ from scipy.stats import mode
 import matplotlib.pyplot as plt
 
 def plot_pca_results(output_dict, save_file, output_dir):
-    '''
+    """
     Convenience function to graph and save Trained PCA results.
 
     Parameters
@@ -26,7 +26,7 @@ def plot_pca_results(output_dict, save_file, output_dir):
 
     Returns
     -------
-    '''
+    """
 
     try:
         # Plotting PCA Components
@@ -54,7 +54,7 @@ def plot_pca_results(output_dict, save_file, output_dir):
 
 
 def display_components(components, cmap='gray', headless=False):
-    '''
+    """
     Creates grid of computed Principal Components.
 
     Parameters
@@ -67,7 +67,7 @@ def display_components(components, cmap='gray', headless=False):
     -------
     plt (plt.figure): figure to save/graph
     ax (plt.ax): figure axis variable
-    '''
+    """
 
     # Get square image size
     im_size = int(np.sqrt(components.shape[1]))
@@ -87,7 +87,7 @@ def display_components(components, cmap='gray', headless=False):
 
 
 def scree_plot(explained_variance_ratio, headless=False):
-    '''
+    """
     Creates Scree plot describing principal components.
 
     Parameters
@@ -98,7 +98,7 @@ def scree_plot(explained_variance_ratio, headless=False):
     Returns
     -------
     plt (plt.figure): figure to save/graph
-    '''
+    """
 
     csum = np.cumsum(explained_variance_ratio)*1e2
 
@@ -126,7 +126,7 @@ def scree_plot(explained_variance_ratio, headless=False):
 
 
 def changepoint_dist(cps, headless=False):
-    '''
+    """
     Creates bar plot describing computed Changepoint Distribution.
 
     Parameters
@@ -138,7 +138,7 @@ def changepoint_dist(cps, headless=False):
     -------
     plt (plt.figure): figure to save/graph
     ax (plt.ax): figure axis variable
-    '''
+    """
 
     if cps.size > 0:
 

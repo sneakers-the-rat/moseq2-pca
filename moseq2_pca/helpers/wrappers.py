@@ -1,10 +1,10 @@
-'''
+"""
 
 Wrapper functions for all functionality included in MoSeq2-PCA that is accessible via CLI or GUI.
 Each wrapper function executes the functionality from end-to-end given it's dependency parameters are inputted.
 (See CLI Click parameters)
 
-'''
+"""
 
 import os
 import h5py
@@ -24,7 +24,7 @@ from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, s
             h5_to_dict, check_timestamps
 
 def load_and_check_data(input_dir, output_dir, config_data):
-    '''
+    """
 
     Executes initialization functionality that is common among all 3 PCA related operations.
     Function will load relevant h5 and yaml files found in given input directory, then check for timestamps and
@@ -41,7 +41,7 @@ def load_and_check_data(input_dir, output_dir, config_data):
     h5s (list): list of found h5 files
     yamls (list): list of corresponding yaml files
     dicts (list): list of corresponding metadata.json files
-    '''
+    """
     # dynamically change the set_dask_config memory setting
     if config_data['cluster_type']=="local":
         set_dask_config(memory={'target': 0.85, 'spill': True, 'pause': False, 'terminate': False})
@@ -61,7 +61,7 @@ def load_and_check_data(input_dir, output_dir, config_data):
     return output_dir, h5s, dicts, yamls
 
 def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
-    '''
+    """
 
     Wrapper function to train PCA.
 
@@ -75,7 +75,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     Returns
     -------
     config_data (dict): updated config_data variable to write back in GUI API
-    '''
+    """
 
     if config_data['missing_data'] and config_data['use_fft']:
         raise NotImplementedError("FFT and missing data not implemented yet")
@@ -210,7 +210,7 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     return config_data
 
 def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
-    '''
+    """
 
     Wrapper function to obtain PCA Scores.
 
@@ -225,7 +225,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     -------
     config_data (dict): updated config_data variable to write back in GUI API
     success (bool): indicates whether the PCA scores were computed successfully
-    '''
+    """
 
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
@@ -305,7 +305,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     return config_data, True
 
 def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file):
-    '''
+    """
 
     Wrapper function to compute model-free (PCA based) Changepoints.
 
@@ -319,7 +319,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     Returns
     -------
     config_data (dict): updated config_data variable to write back in GUI API
-    '''
+    """
 
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
@@ -386,7 +386,7 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     return config_data
 
 def clip_scores_wrapper(pca_file, clip_samples, from_end=False):
-    '''
+    """
 
     Clips PCA scores from the beginning or end.
     Note that scores are modified *in place*.
@@ -399,7 +399,7 @@ def clip_scores_wrapper(pca_file, clip_samples, from_end=False):
 
     Returns
     -------
-    '''
+    """
 
     with h5py.File(pca_file, 'r') as f:
         store_dir = dirname(pca_file)

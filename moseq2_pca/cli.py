@@ -1,12 +1,6 @@
-'''
-
-CLI front-end operations. This module contains all the functionality and configurable parameters
-users can alter to most accurately process their data.
-
-Note: These functions simply read all the parameters into a dictionary,
- and then call the corresponding wrapper function with the given input parameters.
-
-'''
+"""
+CLI for applying dimensionality reduction to the extracted data.
+"""
 
 import os
 import click
@@ -33,20 +27,22 @@ def cli():
     pass
 
 def common_pca_options(function):
-    '''
-    This is a decorator function that is used to group common Click parameters/dependencies for PCA-related operations.
+    """
+    Decorator function for common Click parameters/dependencies for PCA-related operations.
+    
     Parameters
     ----------
-    function (Click command function): Decorated function to add enclosed parameter options to.
+    function: Function to add enclosed parameters to as click options.
+
     Returns
     -------
-    function (Click command function): Decorated function now including 7 additional input parameters.
-    '''
+    function: Updated function including shared parameters.
+    """
 
     function = click.option('--cluster-type', type=click.Choice(['local', 'slurm', 'nodask']),
-                  default='local', help='Cluster type')(function)
-    function = click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find h5 files')(function)
-    function = click.option('--output-dir', '-o', default=join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store results')(function)
+                  default='local', help='Compute enviornment the command runs in')(function)
+    function = click.option('--input-dir', '-i', type=click.Path(), default=os.getcwd(), help='Directory to find extracted h5 files')(function)
+    function = click.option('--output-dir', '-o', default=join(os.getcwd(), '_pca'), type=click.Path(), help='Directory to store PCA results')(function)
     function = click.option('--config-file', type=click.Path(), help="Path to configuration file")(function)
 
     function = click.option('--h5-path', default='/frames', type=str, help='Path to data in h5 files')(function)
@@ -57,18 +53,20 @@ def common_pca_options(function):
 
 
 def common_dask_parameters(function):
-    '''
-    This is a decorator function that is used to group common Click parameters for Dask-related dependencies.
+    """
+    Decorator function for common Click parameters for Dask-related dependencies.
+
     Parameters
     ----------
-    function (Click command function): Decorated function to add enclosed parameter options to.
+    function: Function to add enclosed parameters to as click options.
+    
     Returns
     -------
-    function (Click command function): Decorated function now including 7 additional input parameters.
-    '''
+    function: Updated function including shared parameters.
+    """
 
     function = click.option('--dask-cache-path', '-d', default=os.path.join(os.getcwd(), '_pca'), type=click.Path(),
-                            help='Path to spill data to disk for dask local scheduler')(function)
+                            help='Path to spill data to disk for dask')(function)
     function = click.option('--dask-port', default='8787', type=str, help="Port to access dask dashboard")(function)
     function = click.option('-q', '--queue', type=str, default='debug',
                             help="Cluster queue/partition for submitting jobs")(function)
@@ -77,7 +75,7 @@ def common_dask_parameters(function):
     function = click.option('-p', '--processes', type=int, default=1, help="Number of processes to run on each worker")(
         function)
     function = click.option('-m', '--memory', type=str, default="15GB", help="Total RAM usage per worker")(function)
-    function = click.option('-w', '--wall-time', type=str, default="06:00:00", help="Wall time for workers")(function)
+    function = click.option('-w', '--wall-time', type=str, default="06:00:00", help="Wall time (compute time) for workers")(function)
     function = click.option('--timeout', type=float, default=5,
                             help="Time to wait for workers to initialize before proceeding (minutes)")(function)
 
@@ -87,13 +85,13 @@ def common_dask_parameters(function):
 @cli.command(name='train-pca', cls=command_with_config('config_file'), help='Trains PCA on all extracted results (h5 files) in input directory')
 @common_pca_options
 @common_dask_parameters
-@click.option('--gaussfilter-space', default=(1.5, 1), type=(float, float), help="Spatial filter for data (Gaussian)")
-@click.option('--gaussfilter-time', default=0, type=float, help="Temporal filter for data (Gaussian)")
-@click.option('--medfilter-space', default=[0], type=int, help="Median spatial filter", multiple=True)
-@click.option('--medfilter-time', default=[0], type=int, help="Median temporal filter", multiple=True)
+@click.option('--gaussfilter-space', default=(1.5, 1), type=(float, float), help="x, y sigma for kernel in Spatial filter for data (Gaussian)")
+@click.option('--gaussfilter-time', default=0, type=float, help="sigma for temporal filter for data (Gaussian)")
+@click.option('--medfilter-space', default=[0], type=int, help="kernel size for median spatial filter", multiple=True)
+@click.option('--medfilter-time', default=[0], type=int, help="kernel size for median temporal filter", multiple=True)
 @click.option('--missing-data', is_flag=True, type=bool, help="Use missing data PCA; will be automatically set to True if cable-filter-iters > 1 from the extract step.")
-@click.option('--missing-data-iters', default=10, type=int, help="Missing data PCA iterations")
-@click.option('--mask-threshold', default=-16, type=float, help="Threshold for mask (missing data only)")
+@click.option('--missing-data-iters', default=10, type=int, help="number of missing data PCA iterations")
+@click.option('--mask-threshold', default=-16, type=float, help="Threshold for mask (missing data PCA only)")
 @click.option('--mask-height-threshold', default=5, type=float, help="Threshold for mask based on floor height")
 @click.option('--min-height', default=10, type=int, help='Min mouse height from floor (mm)')
 @click.option('--max-height', default=120, type=int, help='Max mouse height from floor (mm)')

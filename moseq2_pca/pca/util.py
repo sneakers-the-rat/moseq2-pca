@@ -1,8 +1,8 @@
-'''
+"""
 
 Utility functions for all PCA-related operations.
 
-'''
+"""
 
 import dask
 import h5py
@@ -17,7 +17,7 @@ from moseq2_pca.util import (clean_frames, insert_nans, read_yaml, get_changepoi
 
 
 def mask_data(original_data, mask, new_data):
-    '''
+    """
     Create a mask subregion given a boolean mask if missing data flag is used.
 
     Parameters
@@ -29,7 +29,7 @@ def mask_data(original_data, mask, new_data):
     Returns
     -------
     output (3d np.ndarray): masked data array
-    '''
+    """
 
     # need to make a copy otherwise distributed scheduler barfs
     output = original_data.copy()
@@ -38,7 +38,7 @@ def mask_data(original_data, mask, new_data):
     return output
 
 def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, min_height, max_height, client):
-    '''
+    """
     Runs Singular Vector Decomposition on the inputted frames of shape (nframes, nfeatures).
     Data is centered by subtracting it by the mean value of the data. If missing_data == True,
     It will iteratively recompute the svd on the mean-centered data to reconstruct the PCs from
@@ -63,7 +63,7 @@ def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, mi
     v (2d array): computed principal components (eigen-vectors).
     mean (1d array): updated mean of dask array if missing_data == True.
     total_var (float): total variance captured by principal components.
-    '''
+    """
 
     if not missing_data:
         # Compute PCs
@@ -89,7 +89,7 @@ def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, mi
     return s, v, mean, total_var
 
 def compute_explained_variance(s, nsamples, total_var):
-    '''
+    """
     Computes the explained variance and explained variance ratio contributed
     by each computed Principal Component.
 
@@ -103,7 +103,7 @@ def compute_explained_variance(s, nsamples, total_var):
     -------
     explained_variance (1d-array): list of floats denoting the explained variance per PC.
     explained_variance_ratio (1d-array): list of floats denoting the explained variance ratios per PC.
-    '''
+    """
 
     explained_variance = s ** 2 / (nsamples - 1)
     explained_variance_ratio = explained_variance / total_var
@@ -111,7 +111,7 @@ def compute_explained_variance(s, nsamples, total_var):
     return explained_variance, explained_variance_ratio
 
 def get_timestamps(f, frames, fps=30):
-    '''
+    """
     Reads the timestamps from a given h5 file.
 
     Parameters
@@ -123,7 +123,7 @@ def get_timestamps(f, frames, fps=30):
     Returns
     -------
     timestamps (1d array): array of timestamps for inputted frames variable
-    '''
+    """
 
     if '/timestamps' in f:
         # h5 format post v0.1.3
@@ -138,7 +138,7 @@ def get_timestamps(f, frames, fps=30):
     return timestamps
 
 def copy_metadatas_to_scores(f, f_scores, uuid):
-    '''
+    """
     Copies metadata from individual session extract h5 files to the PCA scores h5 file.
 
     Parameters
@@ -149,7 +149,7 @@ def copy_metadatas_to_scores(f, f_scores, uuid):
 
     Returns
     -------
-    '''
+    """
 
     if '/metadata/acquisition' in f:
         # h5 format post v0.1.3
@@ -162,7 +162,7 @@ def copy_metadatas_to_scores(f, f_scores, uuid):
 
 def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client,
                    mask=None, iters=10, recon_pcs=10, min_height=10, max_height=100):
-    '''
+    """
     Train PCA using dask arrays.
 
     Parameters
@@ -182,7 +182,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client
     Returns
     -------
     output_dict (dict): dictionary containing PCA training results.
-    '''
+    """
 
     missing_data = False
 
@@ -271,7 +271,7 @@ def train_pca_dask(dask_array, clean_params, use_fft, rank, cluster_type, client
 def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
                     save_file, chunk_size, mask_params, missing_data, fps=30,
                     h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
-    '''
+    """
     Multiply input frame data by the transpose of the given PCs to obtain PCA Scores
     using local cluster/platform.
 
@@ -293,7 +293,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 
     Returns
     -------
-    '''
+    """
 
     with h5py.File(f'{save_file}.h5', 'w') as f_scores:
         for h5, yml in tqdm(zip(h5s, yamls), total=len(h5s), desc='Computing scores'):
@@ -356,7 +356,7 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
 def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                    save_file, chunk_size, mask_params, missing_data,
                    client, fps=30, h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
-    '''
+    """
     Multiply input frame data by the transpose of the given PCs to obtain PCA Scores using
     Distributed Dask cluster.
 
@@ -378,7 +378,7 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
 
     Returns
     -------
-    '''
+    """
 
     futures = []
     uuids = []
@@ -476,7 +476,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                           save_file, chunk_size, mask_params, missing_data,
                           client, fps=30, pca_scores=None, progress_bar=False,
                           h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
-    '''
+    """
     Computes model-free changepoint block durations using PCs and PC Scores on distributed dask cluster.
 
     Parameters
@@ -499,7 +499,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
 
     Returns
     -------
-    '''
+    """
 
     futures = []
     uuids = []

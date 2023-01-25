@@ -1,8 +1,8 @@
-'''
+"""
 
 Helper functions for reading files and directories in preparation for changepoint analysis or apply pca.
 
-'''
+"""
 
 import h5py
 import ruamel.yaml as yaml
@@ -10,7 +10,7 @@ from os.path import join, exists, splitext
 from moseq2_pca.util import select_strel, read_yaml
 
 def get_pca_paths(config_data, output_dir):
-    '''
+    """
     Helper function for changepoints_wrapper to perform data-path existence checks.
     Returns paths to saved pre-trained PCA components and PCA Scores files.
 
@@ -21,10 +21,10 @@ def get_pca_paths(config_data, output_dir):
 
     Returns
     -------
-    config_data (dict): updated config_data dict with the proper paths
+    config_data (dict): updated config_data dict with the pc component and pc score paths
     pca_file_components (str): path to trained pca file
     pca_file_scores (str): path to pca_scores file
-    '''
+    """
 
     # Get path to pre-computed PCA file
     pca_file_components = join(output_dir, 'pca.h5')
@@ -43,7 +43,7 @@ def get_pca_paths(config_data, output_dir):
     return config_data, pca_file_components, pca_file_scores
 
 def load_pcs_for_cp(pca_file_components, config_data):
-    '''
+    """
     Load computed Principal Components for Model-free Changepoint Analysis.
 
     Parameters
@@ -55,9 +55,9 @@ def load_pcs_for_cp(pca_file_components, config_data):
     -------
     pca_components (str): path to pca components
     changepoint_params (dict): dict of relevant changepoint parameters
-    missing_data (bool): Indicates whether to use mask_params
+    missing_data (bool): Indicates whether to use mask_params for missing data pca
     mask_params (dict): Mask parameters to use when computing CPs
-    '''
+    """
 
     print(f'Loading PCs from {pca_file_components}')
     with h5py.File(pca_file_components, 'r') as f:
@@ -95,7 +95,7 @@ def load_pcs_for_cp(pca_file_components, config_data):
     return pca_components, changepoint_params, missing_data, mask_params
 
 def get_pca_yaml_data(pca_yaml):
-    '''
+    """
     Reads PCA yaml file and returns enclosed metadata.
 
     Parameters
@@ -108,7 +108,7 @@ def get_pca_yaml_data(pca_yaml):
     clean_params (dict): dict of image filtering parameters
     mask_params (dict): dict of mask parameters)
     missing_data (bool): indicates whether to use mask_params
-    '''
+    """
 
     if exists(pca_yaml):
         # Load pca metadata file
