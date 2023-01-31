@@ -169,11 +169,11 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
                  medfilter_time=None, gaussfilter_time=None, detrend_time=None,
                  tailfilter=None, tail_threshold=5):
     """
-    Filters spatial/temporal noise from frames using Median and Gaussian filters,
+    Filter spatial/temporal noise from frames using Median and Gaussian filters,
     given kernel sizes for each respective requested filter.
 
     Args:
-    frames (3D numpy array): frames to filter.
+    frames (numpy.ndarray): frames to filter.
     medfilter_space (list): median spatial filter kernel.
     gaussfilter_space (list): gaussian spatial filter kernel.
     medfilter_time (list): median temporal filter.
@@ -183,7 +183,7 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
     tail_threshold (int): threshold value to use for tail filtering
 
     Returns:
-    out (3D numpy array): filtered frames.
+    out (numpy.ndarray): filtered frames.
     """
 
     out = np.copy(frames)
@@ -226,15 +226,15 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
 
 def select_strel(string='e', size=(10, 10)):
     """
-    Selects Structuring Element Shape. Accepts shapes ('ellipse', 'rectangle'), if neither
-     are given then 'ellipse' is used.
+    Select Structuring Element Shape. Accepts shapes ('ellipse', 'rectangle'), if neither
+    are given then 'ellipse' is used.
 
     Args:
     string (str): e for Ellipse, r for Rectangle
     size (tuple): size of StructuringElement
 
     Returns:
-    strel (cv2.StructuringElement): returned StructuringElement with specified size.
+    strel (cv2.StructuringElement): StructuringElement with specified size.
     """
     if not isinstance(size, tuple):
         size = tuple(size)
@@ -252,17 +252,17 @@ def select_strel(string='e', size=(10, 10)):
 
 def insert_nans(timestamps, data, fps=30):
     """
-    Fills NaN values with 0 in given 1D timestamps array. Used to handle dropped frames from the video acquisition.
+    Fill NaN values with 0 in given 1D timestamps array. Used to handle dropped frames from the video acquisition.
 
     Args:
-    timestamps (1D array): timestamp values
-    data (1D  or 2D array): additional data to fill with NaN values - can be PC scores
+    timestamps (numpy.array): timestamp values
+    data (np.array): additional data to fill with NaN values - can be PC scores
     fps (int): frames per second
 
     Returns:
-    filled_data (1D array): filled missing timestamp values.
-    data_idx (1D array): indices of inserted 0s
-    filled_timestamps (1D array): filled timestamp-strs
+    filled_data (numpy.array): filled missing timestamp values.
+    data_idx (numpy.array): indices of inserted 0s
+    filled_timestamps (numpy.array): filled timestamp-strs
     """
 
     df_timestamps = np.diff(np.insert(timestamps, 0, timestamps[0] - 1.0 / fps))
@@ -301,7 +301,7 @@ def insert_nans(timestamps, data, fps=30):
 
 def read_yaml(yaml_file):
     """
-    Reads yaml file and returns dictionary representation of file contents.
+    Read yaml file and return dictionary representation of file contents.
 
     Args:
     yaml_file (str): path to yaml file
@@ -326,8 +326,6 @@ def check_timestamps(h5s):
 
     Args:
     h5s (list): List of paths to all extracted h5 files.
-
-    Returns:
     """
 
     for h5 in h5s:
@@ -392,7 +390,7 @@ def get_metadata_path(h5file):
 
 def h5_to_dict(h5file, path):
     """
-    Reads all contents from h5 and returns them in a nested dict object.
+    Read all contents from h5 and returns them in a nested dict object.
 
     Args:
     h5file (str): path to h5 file
@@ -419,12 +417,10 @@ def h5_to_dict(h5file, path):
 
 def set_dask_config(memory={'target': 0.85, 'spill': False, 'pause': False, 'terminate': 0.95}):
     """
-    Sets initial dask configuration parameters
+    Set initial dask configuration parameters
 
     Args:
     memory (dict): dictionary containing default dask configuration variables to ensure safe amount of resource usage.
-
-    Returns:
     """
 
     memory = {f'distributed.worker.memory.{k}': v for k, v in memory.items()}
@@ -434,8 +430,7 @@ def set_dask_config(memory={'target': 0.85, 'spill': False, 'pause': False, 'ter
 
 def get_env_cpu_and_mem():
     """
-    Reads current system environment and returns the amount of available memory
-    and CPUs to allocate to the created cluster.
+    Read current system environment and return the amount of available memory and CPUs to allocate to the created cluster.
 
     Returns:
     mem (float): Optimal number of memory (in bytes) to allocate to initialized dask cluster
@@ -584,8 +579,7 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
 def close_dask(client, cluster, timeout):
     """
-    Shuts down the Dask client and cluster.
-    Dumps all cached data.
+    Shut down the Dask client and cluster, and dump all cache data.
 
     Args:
     client (Dask Client): Client object
@@ -609,7 +603,7 @@ def get_rps(frames, rps=600, normalize=True):
     Get random projections of frames.
 
     Args:
-    frames (2D or 3D numpy array): Frames to get dimensions from.
+    frames (numpy.array): Frames to get dimensions from.
     rps (int): Number of random projections.
     normalize (bool): indicates whether to normalize the random projections.
 
@@ -637,17 +631,17 @@ def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1,
     the magnitude of frame-to-frame changes of mouse pose.
 
     Args:
-    scores (3D numpy array): nframes * r * c
+    scores (numpy.ndarray): nframes * rows * columns
     k (int): klags - Lag to use for derivative calculation.
     sigma (int): Standard deviation of gaussian smoothing filter.
     peak_height (float): user-defined peak Changepoint length.
     peak_neighbors (int): number of peaks in the CP curve.
     baseline (bool): normalize data.
-    timestamps (array): loaded timestamps.
+    timestamps (numpy.array): loaded timestamps.
 
     Returns:
-    cps (2D numpy array): array of changepoint values
-    normed_df (1D numpy array): array of values for bar plot
+    cps (numpy.ndarray): array of changepoint values
+    normed_df (numpy.array): array of values for bar plot
     """
 
     if type(k) is not int:
@@ -691,7 +685,7 @@ def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1,
 
 def combine_new_config(config_file, config_data):
     """
-    helper function to read config file and combine new config params with it
+    Read config file and combine new config params with it
 
     Args:
         config_file (str): path to config.yaml
