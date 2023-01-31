@@ -21,16 +21,14 @@ from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, s
 
 def load_and_check_data(input_dir, output_dir, config_data):
     """
-    Executes initialization functionality that is common among all 3 PCA related operations.
-    Function will load relevant h5 and yaml files found in given input directory, then check for timestamps and
-    warn the user if they are missing.
+    Load relevant h5 and yaml files found in given input directory, then check for timestamps and warn the user if they are missing.
 
     Args:
-    input_dir (str): input directory containing h5 files to find
+    input_dir (str): input directory containing extracted h5 files to find
     output_dir (str): directory name to save pca results
 
     Returns:
-    output_dir (str): absolute output directory path
+    output_dir (str): output directory path
     h5s (list): list of found h5 files
     yamls (list): list of corresponding yaml files
     dicts (list): list of corresponding metadata.json files
@@ -55,7 +53,6 @@ def load_and_check_data(input_dir, output_dir, config_data):
 
 def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     """
-
     Wrapper function to train PCA.
 
     Args:
@@ -202,7 +199,6 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
 
 def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     """
-
     Wrapper function to obtain PCA Scores.
 
     Args:
@@ -213,7 +209,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
 
     Returns:
     config_data (dict): updated config_data variable to write back in GUI API
-    success (bool): indicates whether the PCA scores were computed successfully
+    success (bool): flag to indicate whether the PCA scores were computed successfully
     """
 
     warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -295,8 +291,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
 
 def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file):
     """
-
-    Wrapper function to compute model-free (PCA based) Changepoints.
+    Wrapper function to compute model-free Changepoints.
 
     Args:
     input_dir (int): path to directory containing all h5+yaml files
@@ -374,16 +369,12 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
 
 def clip_scores_wrapper(pca_file, clip_samples, from_end=False):
     """
-
-    Clips PCA scores from the beginning or end.
-    Note that scores are modified *in place*.
+    Clip PCA scores from the beginning or end overwriting the original results.
 
     Args:
     pca_file (str): Path to PCA scores.
     clip_samples (int): number of samples to clip from beginning or end
     from_end (bool): if true clip from end rather than beginning
-
-    Returns:
     """
 
     with h5py.File(pca_file, 'r') as f:
