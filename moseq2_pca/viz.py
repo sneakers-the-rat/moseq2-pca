@@ -52,7 +52,7 @@ def display_components(components, cmap='gray', headless=False):
     Plot computed Principal Components.
 
     Args:
-    components (np.ndarray): components to plot
+    components (numpy.ndarray): components to plot
     cmap (str): color map to use; default is 'gray'.
     headless (bool): bool flag to run in headless environment
 
@@ -83,7 +83,7 @@ def scree_plot(explained_variance_ratio, headless=False):
     Plot a scree plot describing principal components.
 
     Args:
-    explained_variance_ratio (np.array): explained variance ratio of each principal component
+    explained_variance_ratio (numpy.array): explained variance ratio of each principal component
     headless (bool): bool flag to run in headless environment
 
     Returns:
@@ -120,7 +120,7 @@ def changepoint_dist(cps, headless=False):
     Creates bar plot describing computed Changepoint Distribution.
 
     Args:
-    cps (np.ndarray): changepoints to graph
+    cps (numpy.ndarray): changepoints to graph
     headless (bool): bool flag to run in headless environment
 
     Returns:

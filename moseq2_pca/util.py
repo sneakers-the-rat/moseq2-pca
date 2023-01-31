@@ -256,7 +256,7 @@ def insert_nans(timestamps, data, fps=30):
 
     Args:
     timestamps (numpy.array): timestamp values
-    data (np.array): additional data to fill with NaN values - can be PC scores
+    data (numpy.array): additional data to fill with NaN values - can be PC scores
     fps (int): frames per second
 
     Returns:
