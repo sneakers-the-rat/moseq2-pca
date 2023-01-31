@@ -19,12 +19,12 @@ def mask_data(original_data, mask, new_data):
     Create a mask subregion given a boolean mask if missing data flag is used.
 
     Args:
-    original_data (3d np.ndarray): input frames
-    mask (3d boolean np.ndarray): mask array
-    new_data (3d np.ndarray): frames to use
+    original_data (numpy.ndarray): input frames
+    mask (numpy.ndarray): mask array
+    new_data (numpy.ndarray): frames to use
 
     Returns:
-    output (3d np.ndarray): masked data array
+    output (numpy.ndarray): masked data array
     """
 
     # need to make a copy otherwise distributed scheduler barfs
@@ -35,14 +35,11 @@ def mask_data(original_data, mask, new_data):
 
 def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, min_height, max_height, client):
     """
-    Runs Singular Vector Decomposition on the inputted frames of shape (nframes, nfeatures).
-    Data is centered by subtracting it by the mean value of the data. If missing_data == True,
-    It will iteratively recompute the svd on the mean-centered data to reconstruct the PCs from
-    the missing data until it converges.
+    Runs Singular Vector Decomposition on the inputted frames. If missing_data == True, use missing data PCA.
 
     Args:
     dask_array (dask 2d-array): Reshaped input data array of shape (nframes x nfeatures)
-    mean (1d array): Means of each row in dask_array.
+    mean (numpy.array): Means of each row in dask_array.
     rank (int): Rank of the desired thin SVD decomposition.
     iters (int): Number of SVD iterations
     missing_data (bool): Indicates whether to compute SVD with a masked array
@@ -53,9 +50,9 @@ def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, mi
     client (dask Client): Dask client to process batches.
 
     Returns:
-    s (1d array): computed singular values (eigen-values).
-    v (2d array): computed principal components (eigen-vectors).
-    mean (1d array): updated mean of dask array if missing_data == True.
+    s (numpy.array): computed singular values (eigen-values).
+    v (numpy.ndarray): computed principal components (eigen-vectors).
+    mean (numpy.array): updated mean of dask array if missing_data == True.
     total_var (float): total variance captured by principal components.
     """
 
@@ -84,17 +81,16 @@ def compute_svd(dask_array, mean, rank, iters, missing_data, mask, recon_pcs, mi
 
 def compute_explained_variance(s, nsamples, total_var):
     """
-    Computes the explained variance and explained variance ratio contributed
-    by each computed Principal Component.
+    Compute the explained variance and explained variance ratio contributed by each computed Principal Component.
 
     Args:
-    s (1d array): computed singular values.
+    s (numpy.array): computed singular values.
     nsamples (int): number of included samples.
     total_var (float): total variance captured by principal components.
 
     Returns:
-    explained_variance (1d-array): list of floats denoting the explained variance per PC.
-    explained_variance_ratio (1d-array): list of floats denoting the explained variance ratios per PC.
+    explained_variance (numpy.array): list of floats denoting the explained variance per PC.
+    explained_variance_ratio (numpy.array): list of floats denoting the explained variance ratios per PC.
     """
 
     explained_variance = s ** 2 / (nsamples - 1)
@@ -104,15 +100,15 @@ def compute_explained_variance(s, nsamples, total_var):
 
 def get_timestamps(f, frames, fps=30):
     """
-    Reads the timestamps from a given h5 file.
+    Read the timestamps from a given h5 file.
 
     Args:
     f (read-open h5py File): open "results_00.h5" h5py.File object in read-mode
-    frames (3d-array): list of 2d frames contained in opened h5 File.
+    frames (numpy.ndarray): list of 2d frames contained in opened h5 File.
     fps (int): frames per second.
 
     Returns:
-    timestamps (1d array): array of timestamps for inputted frames variable
+    timestamps (numpy.array): array of timestamps for inputted frames variable
     """
 
     if '/timestamps' in f:
@@ -129,14 +125,12 @@ def get_timestamps(f, frames, fps=30):
 
 def copy_metadatas_to_scores(f, f_scores, uuid):
     """
-    Copies metadata from individual session extract h5 files to the PCA scores h5 file.
+    Copy metadata from individual session extract h5 files to the PCA scores h5 file.
 
     Args:
     f (read-open h5py File): open "results_00.h5" h5py.File object in read-mode
     f_scores (read-open h5py File): open "pca_scores.h5" h5py.File object in read-mode
     uuid (str): uuid of inputted session h5 "f".
-
-    Returns:
     """
 
     if '/metadata/acquisition' in f:
@@ -258,11 +252,11 @@ def apply_pca_local(pca_components, h5s, yamls, use_fft, clean_params,
                     save_file, chunk_size, mask_params, missing_data, fps=30,
                     h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
     """
-    Multiply input frame data by the transpose of the given PCs to obtain PCA Scores
+    Project the input frame data by the transpose of the given PCs to obtain PCA Scores
     using local cluster/platform.
 
     Args:
-    pca_components (np.array): array of computed Principal Components
+    pca_components (numpy.array): array of computed Principal Components
     h5s (list): list of h5 files
     yamls (list): list of yaml files
     use_fft (bool): indicate whether to use 2D-FFT
@@ -341,11 +335,10 @@ def apply_pca_dask(pca_components, h5s, yamls, use_fft, clean_params,
                    save_file, chunk_size, mask_params, missing_data,
                    client, fps=30, h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
     """
-    Multiply input frame data by the transpose of the given PCs to obtain PCA Scores using
-    Distributed Dask cluster.
+    Project input frame data by the transpose of the given PCs to obtain PCA Scores using distributed Dask cluster.
 
     Args:
-    pca_components (np.array): array of computed Principal Components
+    pca_components (numpy.array): array of computed Principal Components
     h5s (list): list of h5 files
     yamls (list): list of yaml files
     use_fft (bool): indicate whether to use 2D-FFT
@@ -459,11 +452,11 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
                           client, fps=30, pca_scores=None, progress_bar=False,
                           h5_path='/frames', h5_mask_path='/frames_mask', verbose=False):
     """
-    Computes model-free changepoint block durations using PCs and PC Scores on distributed dask cluster.
+    Compute model-free changepoint block durations using random projections.
 
     Args:
     changepoint_params (dict): dict of changepoint parameters
-    pca_components (np.array): computed principal components
+    pca_components (numpy.array): computed principal components
     h5s (list): list of h5 files
     yamls (list): list of yaml files
     save_file (str): path to save changepoint files
@@ -472,7 +465,7 @@ def get_changepoints_dask(changepoint_params, pca_components, h5s, yamls,
     missing_data (bool): indicate whether to use mask_params
     client (dask Client): initialized Dask Client object
     fps (int): frames per second
-    pca_scores (np.array): computed principal component scores
+    pca_scores (numpy.array): computed principal component scores
     progress_bar (bool): display progress bar
     h5_path (str): path to frames within selected h5 file (default: '/frames')
     h5_mask_path (str): path to masked frames within selected h5 file (default: '/frames_mask')
