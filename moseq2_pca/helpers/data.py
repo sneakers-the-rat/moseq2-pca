@@ -1,7 +1,5 @@
 """
-
-Helper functions for reading files and directories in preparation for changepoint analysis or apply pca.
-
+Helper functions for reading and loading PCA data.
 """
 
 import h5py

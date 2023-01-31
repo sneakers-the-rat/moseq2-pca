@@ -1,10 +1,5 @@
 """
-
-GUI front-end operations. This module contains all the functionality and configurable parameters
-users can alter to most accurately process their data.
-
-Note: These functions perform jupyter notebook specific preprocessing, loads in corresponding parameters from the
-CLI functions, then call the corresponding wrapper function with the given input parameters.
+GUI front-end operations for PCA.
 
 """
 

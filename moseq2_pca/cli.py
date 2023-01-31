@@ -1,5 +1,5 @@
 """
-CLI for applying dimensionality reduction to the extracted data.
+CLI for PCA and model-free changepoint analysis.
 """
 
 import os

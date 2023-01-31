@@ -1,7 +1,5 @@
 """
-
-Utility functions for all PCA-related operations.
-
+Utility functions for PCA.
 """
 
 import dask

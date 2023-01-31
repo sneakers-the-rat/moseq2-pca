@@ -1,8 +1,5 @@
 """
-
-Utility and helper functions for traversing directories to find and read files, filtering operations,
- Dask initialization, and changepoint helper functions.
-
+Utility and helper functions for finding and reading files, filtering operations, Dask initialization, and changepoint helper functions.
 """
 
 import os
@@ -30,8 +27,9 @@ from os.path import join, exists, abspath, expanduser
 # python-click-supply-arguments-and-options-from-a-configuration-file
 def command_with_config(config_file_param_name):
     """
-    Provides a cli helper function to assign variables from a config file. 
-    Hierachy of prameters: params from cli options > params from config_file > default params
+    Helper function to assign variables from a config file. 
+    Hierachy of CLI prameters: params from cli options > params from config_file > default params
+    
     Args:
     config_file_param_name (str): parameter name to update with config file variable.
 
@@ -129,7 +127,7 @@ def gauss_smooth(signal, win_length=None, sig=1.5, kernel=None):
 
     Args:
     signal (1d numpy array): signal to perform smoothing
-    win_length (int): window_size for gaussian kernel filter
+    win_length (int): window size for gaussian kernel filter
     sig (float): variance of 1d gaussian kernel.
     kernel (tuple): kernel size to use for smoothing
 
@@ -149,7 +147,7 @@ def gaussian_kernel1d(n=None, sig=3):
     Get 1D gaussian kernel.
 
     Args:
-    n (int): number of points to use.
+    n (int): window size.
     sig (int): variance of kernel to use.
 
     Returns:
