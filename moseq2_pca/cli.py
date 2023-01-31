@@ -141,8 +141,8 @@ def apply_pca(input_dir, output_dir, output_file, **cli_args):
 @click.option('-k', '--klags', type=int, default=6, help="Lag to use for derivative calculation")
 @click.option('-s', '--sigma', type=float, default=3.5, help="Standard deviation of gaussian smoothing filter")
 @click.option('-d', '--dims', type=int, default=300, help="Number of random projections to use")
-@click.option('--fps', default=30, type=int, help='Frames per second (frame rate)')
-@click.option('--verbose', '-v', is_flag=True, help='Print sessions as they are being loaded.')
+@click.option('--fps', default=30, type=int, help="Frames per second (frame rate)")
+@click.option('--verbose', '-v', is_flag=True, help="Print sessions as they are being loaded.")
 def compute_changepoints(input_dir, output_dir, output_file, **cli_args):
     # function writes output changepoint path to config_data
     config_data = compute_changepoints_wrapper(input_dir, cli_args, output_dir, output_file)
@@ -153,8 +153,8 @@ def compute_changepoints(input_dir, output_dir, output_file, **cli_args):
     
 
 @cli.command('clip-scores',  help='Clip specified number of frames from PCA scores at the beginning or end')
-@click.argument('pca_file', type=click.Path(exists=True, resolve_path=True), help="Path to PCA score h5 file")
-@click.argument('clip_samples', type=int, help="number of samples to clip from")
+@click.argument('pca_file', type=click.Path(exists=True, resolve_path=True))
+@click.argument('clip_samples', type=int)
 @click.option('--from-end', type=bool, is_flag=True, help="if true clip from end rather than beginning")
 def clip_scores(pca_file, clip_samples, from_end):
     clip_scores_wrapper(pca_file, clip_samples, from_end)
