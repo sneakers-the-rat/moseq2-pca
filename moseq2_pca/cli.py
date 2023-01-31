@@ -52,7 +52,7 @@ def common_pca_options(function):
 
 def common_dask_parameters(function):
     """
-    Decorator function for common Click parameters for Dask-related dependencies.
+    Decorator function for common Click parameters for dask.
 
     Args:
     function: Function to add enclosed parameters to as click options.
@@ -78,7 +78,7 @@ def common_dask_parameters(function):
     return function
 
 
-@cli.command(name='train-pca', cls=command_with_config('config_file'), help='Trains PCA on all extracted results (h5 files) in input directory')
+@cli.command(name='train-pca', cls=command_with_config('config_file'), help='Train PCA on all extracted results (h5 files) in input directory')
 @common_pca_options
 @common_dask_parameters
 @click.option('--gaussfilter-space', default=(1.5, 1), type=(float, float), help="x, y sigma for kernel in Spatial filter for data (Gaussian)")
@@ -96,7 +96,7 @@ def common_dask_parameters(function):
 @click.option('--use-fft', type=bool, is_flag=True, help='Use 2D fft')
 @click.option('--train-on-subset', default=1, type=float, help="The fraction of the total frames the PCA is trained on; default PCA is trained on all frames")
 @click.option('--recon-pcs', type=int, default=10, help='Number of PCs to use for missing data reconstruction')
-@click.option('--rank', default=25, type=int, help="Rank for compressed SVD (generally>>nPCS)")
+@click.option('--rank', default=25, type=int, help="Rank for compressed SVD")
 @click.option('--output-file', default='pca', type=str, help='Name of h5 file for storing pca results')
 @click.option('--local-processes', default=False, type=bool, help='Used with a local cluster. If True: use processes, If False: use threads')
 @click.option('--overwrite-pca-train', default=False, type=bool, help='Used to bypass the pca overwrite question. If True: skip question, run automatically')
@@ -109,14 +109,14 @@ def train_pca(input_dir, output_dir, output_file, **cli_args):
         combine_new_config(cli_args.get('config_file'), config_data)
     
 
-@cli.command(name='apply-pca', cls=command_with_config('config_file'), help='Computes PCA Scores of extraction data given a pre-trained PCA')
+@cli.command(name='apply-pca', cls=command_with_config('config_file'), help='Compute PCA Scores of extraction data given a pre-trained PCA')
 @common_pca_options
 @common_dask_parameters
 @click.option('--output-file', default='pca_scores', type=str, help='Name of h5 file for storing pca results')
-@click.option('--pca-path', default='/components', type=str, help='Path to pca components')
+@click.option('--pca-path', default='/components', type=str, help='Path to pca components in h5 file')
 @click.option('--pca-file', default=None, type=click.Path(), help='Path to PCA results')
 @click.option('--fill-gaps', default=True, type=bool, help='Fill dropped frames with nans')
-@click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
+@click.option('--fps', default=30, type=int, help='Frames per second (frame rate)')
 @click.option('--detrend-window', default=0, type=float, help="Length of detrend window (in seconds, 0 for no detrending)")
 @click.option('--verbose', '-v', is_flag=True, help='Print sessions as they are being loaded.')
 @click.option('--overwrite-pca-apply', default=False, type=bool, help='Used to bypass the pca overwrite question. If True: skip question, run automatically')
@@ -129,7 +129,7 @@ def apply_pca(input_dir, output_dir, output_file, **cli_args):
         combine_new_config(cli_args.get('config_file'), config_data)
         
 
-@cli.command('compute-changepoints', cls=command_with_config('config_file'), help='Computes the Model-Free Syllable Changepoints based on the PCA/PCA_Scores')
+@cli.command('compute-changepoints', cls=command_with_config('config_file'), help='Compute the Model-Free Syllable Changepoints based on the PCA/PCA_Scores')
 @common_pca_options
 @common_dask_parameters
 @click.option('--output-file', default='changepoints', type=str, help='Name of h5 file for storing pca results')
@@ -141,7 +141,7 @@ def apply_pca(input_dir, output_dir, output_file, **cli_args):
 @click.option('-k', '--klags', type=int, default=6, help="Lag to use for derivative calculation")
 @click.option('-s', '--sigma', type=float, default=3.5, help="Standard deviation of gaussian smoothing filter")
 @click.option('-d', '--dims', type=int, default=300, help="Number of random projections to use")
-@click.option('--fps', default=30, type=int, help='Fps (only used if no timestamps found)')
+@click.option('--fps', default=30, type=int, help='Frames per second (frame rate)')
 @click.option('--verbose', '-v', is_flag=True, help='Print sessions as they are being loaded.')
 def compute_changepoints(input_dir, output_dir, output_file, **cli_args):
     # function writes output changepoint path to config_data
@@ -152,10 +152,10 @@ def compute_changepoints(input_dir, output_dir, output_file, **cli_args):
         combine_new_config(cli_args.get('config_file'), config_data)
     
 
-@cli.command('clip-scores',  help='Clips specified number of frames from PCA scores at the beginning or end')
-@click.argument('pca_file', type=click.Path(exists=True, resolve_path=True))
-@click.argument('clip_samples', type=int)
-@click.option('--from-end', type=bool, is_flag=True)
+@cli.command('clip-scores',  help='Clip specified number of frames from PCA scores at the beginning or end')
+@click.argument('pca_file', type=click.Path(exists=True, resolve_path=True), help="Path to PCA score h5 file")
+@click.argument('clip_samples', type=int, help="number of samples to clip from")
+@click.option('--from-end', type=bool, is_flag=True, help="if true clip from end rather than beginning")
 def clip_scores(pca_file, clip_samples, from_end):
     clip_scores_wrapper(pca_file, clip_samples, from_end)
 
