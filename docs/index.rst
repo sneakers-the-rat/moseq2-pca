@@ -7,7 +7,7 @@ Welcome to moseq2-pca's documentation!
 ======================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
    modules

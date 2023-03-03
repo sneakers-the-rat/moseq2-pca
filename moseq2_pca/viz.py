@@ -1,8 +1,6 @@
-'''
-
+"""
 Visualization operations for plotting computed PCs, a Scree Plot, and the Changepoint PDF histogram.
-
-'''
+"""
 
 import click
 import logging
@@ -15,18 +13,14 @@ from scipy.stats import mode
 import matplotlib.pyplot as plt
 
 def plot_pca_results(output_dict, save_file, output_dir):
-    '''
-    Convenience function to graph and save Trained PCA results.
+    """
+    Plot and save trained PCA results.
 
-    Parameters
-    ----------
+    Args:
     output_dict (dict): Dict object containing PCA training results
-    save_file (str): Path to write images to.
+    save_file (str): Path to save the plots to.
     output_dir (str): Directory containing logger
-
-    Returns
-    -------
-    '''
+    """
 
     try:
         # Plotting PCA Components
@@ -54,20 +48,18 @@ def plot_pca_results(output_dict, save_file, output_dir):
 
 
 def display_components(components, cmap='gray', headless=False):
-    '''
-    Creates grid of computed Principal Components.
+    """
+    Plot computed Principal Components.
 
-    Parameters
-    ----------
-    components (2D np.ndarray): components to graph
+    Args:
+    components (numpy.ndarray): components to plot
     cmap (str): color map to use; default is 'gray'.
-    headless (bool): trim first element in PC list
+    headless (bool): bool flag to run in headless environment
 
-    Returns
-    -------
-    plt (plt.figure): figure to save/graph
+    Returns:
+    plt (plt.figure): figure to save
     ax (plt.ax): figure axis variable
-    '''
+    """
 
     # Get square image size
     im_size = int(np.sqrt(components.shape[1]))
@@ -87,18 +79,16 @@ def display_components(components, cmap='gray', headless=False):
 
 
 def scree_plot(explained_variance_ratio, headless=False):
-    '''
-    Creates Scree plot describing principal components.
+    """
+    Plot a scree plot describing principal components.
 
-    Parameters
-    ----------
-    explained_variance_ratio (1D np.array): explained variance ratio of each principal component
-    headless (bool): trim first element in PC list
+    Args:
+    explained_variance_ratio (numpy.array): explained variance ratio of each principal component
+    headless (bool): bool flag to run in headless environment
 
-    Returns
-    -------
-    plt (plt.figure): figure to save/graph
-    '''
+    Returns:
+    plt (plt.figure): figure to save
+    """
 
     csum = np.cumsum(explained_variance_ratio)*1e2
 
@@ -126,19 +116,17 @@ def scree_plot(explained_variance_ratio, headless=False):
 
 
 def changepoint_dist(cps, headless=False):
-    '''
+    """
     Creates bar plot describing computed Changepoint Distribution.
 
-    Parameters
-    ----------
-    cps (np.ndarray): changepoints to graph
-    headless (bool): trim first element in PC list
+    Args:
+    cps (numpy.ndarray): changepoints to graph
+    headless (bool): bool flag to run in headless environment
 
-    Returns
-    -------
-    plt (plt.figure): figure to save/graph
+    Returns:
+    plt (plt.figure): figure to save
     ax (plt.ax): figure axis variable
-    '''
+    """
 
     if cps.size > 0:
 
