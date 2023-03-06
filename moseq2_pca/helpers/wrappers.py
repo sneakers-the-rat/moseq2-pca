@@ -1,10 +1,6 @@
-'''
-
-Wrapper functions for all functionality included in MoSeq2-PCA that is accessible via CLI or GUI.
-Each wrapper function executes the functionality from end-to-end given it's dependency parameters are inputted.
-(See CLI Click parameters)
-
-'''
+"""
+Wrapper functions for PCA.
+"""
 
 import os
 import h5py
@@ -12,6 +8,7 @@ import click
 import logging
 import datetime
 import warnings
+import numpy as np
 import dask.array as da
 import ruamel.yaml as yaml
 from tqdm.auto import tqdm
@@ -23,24 +20,19 @@ from moseq2_pca.util import recursive_find_h5s, select_strel, initialize_dask, s
             h5_to_dict, check_timestamps
 
 def load_and_check_data(input_dir, output_dir, config_data):
-    '''
+    """
+    Load relevant h5 and yaml files found in given input directory, then check for timestamps and warn the user if they are missing.
 
-    Executes initialization functionality that is common among all 3 PCA related operations.
-    Function will load relevant h5 and yaml files found in given input directory, then check for timestamps and
-    warn the user if they are missing.
-
-    Parameters
-    ----------
-    input_dir (str): input directory containing h5 files to find
+    Args:
+    input_dir (str): input directory containing extracted h5 files to find
     output_dir (str): directory name to save pca results
 
-    Returns
-    -------
-    output_dir (str): absolute output directory path
+    Returns:
+    output_dir (str): output directory path
     h5s (list): list of found h5 files
     yamls (list): list of corresponding yaml files
     dicts (list): list of corresponding metadata.json files
-    '''
+    """
     # dynamically change the set_dask_config memory setting
     if config_data['cluster_type']=="local":
         set_dask_config(memory={'target': 0.85, 'spill': True, 'pause': False, 'terminate': False})
@@ -60,21 +52,18 @@ def load_and_check_data(input_dir, output_dir, config_data):
     return output_dir, h5s, dicts, yamls
 
 def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
-    '''
-
+    """
     Wrapper function to train PCA.
 
-    Parameters
-    ----------
+    Args:
     input_dir (int): path to directory containing all h5+yaml files
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
 
-    Returns
-    -------
+    Returns:
     config_data (dict): updated config_data variable to write back in GUI API
-    '''
+    """
 
     if config_data['missing_data'] and config_data['use_fft']:
         raise NotImplementedError("FFT and missing data not implemented yet")
@@ -107,8 +96,18 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     # Load all open h5 file references
     h5ps = [h5py.File(h5, mode='r') for h5 in h5s]
 
+    # Subset extracted frames, then read them into chunked Dask arrays
+    arrays = []
+    for fp in tqdm(h5ps):
+        temp_extracted = fp[config_data['h5_path']]
+        num_frames = int(len(temp_extracted) * config_data.get('train_on_subset', 1))
+        arrays.append(
+            da.from_array(
+                temp_extracted, chunks=config_data['chunk_size']
+            )[np.sort(np.random.choice(len(temp_extracted), num_frames, replace=False))]
+        )
+
     # To extracted frames, then read them into chunked Dask arrays
-    arrays = [da.from_array(fp[config_data['h5_path']], chunks=config_data['chunk_size']) for fp in h5ps]
     stacked_array = da.concatenate(arrays, axis=0)
 
     # Filter out depth value extreme values; Generally same values used during extraction
@@ -199,22 +198,19 @@ def train_pca_wrapper(input_dir, config_data, output_dir, output_file):
     return config_data
 
 def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
-    '''
-
+    """
     Wrapper function to obtain PCA Scores.
 
-    Parameters
-    ----------
+    Args:
     input_dir (int): path to directory containing all h5+yaml files
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
 
-    Returns
-    -------
+    Returns:
     config_data (dict): updated config_data variable to write back in GUI API
-    success (bool): indicates whether the PCA scores were computed successfully
-    '''
+    success (bool): flag to indicate whether the PCA scores were computed successfully
+    """
 
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
@@ -294,21 +290,18 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     return config_data, True
 
 def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file):
-    '''
+    """
+    Wrapper function to compute model-free Changepoints.
 
-    Wrapper function to compute model-free (PCA based) Changepoints.
-
-    Parameters
-    ----------
+    Args:
     input_dir (int): path to directory containing all h5+yaml files
     config_data (dict): dict of relevant PCA parameters (image filtering etc.)
     output_dir (str): path to directory to store PCA data
     output_file (str): pca model filename
 
-    Returns
-    -------
+    Returns:
     config_data (dict): updated config_data variable to write back in GUI API
-    '''
+    """
 
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
@@ -375,20 +368,14 @@ def compute_changepoints_wrapper(input_dir, config_data, output_dir, output_file
     return config_data
 
 def clip_scores_wrapper(pca_file, clip_samples, from_end=False):
-    '''
+    """
+    Clip PCA scores from the beginning or end overwriting the original results.
 
-    Clips PCA scores from the beginning or end.
-    Note that scores are modified *in place*.
-
-    Parameters
-    ----------
+    Args:
     pca_file (str): Path to PCA scores.
     clip_samples (int): number of samples to clip from beginning or end
     from_end (bool): if true clip from end rather than beginning
-
-    Returns
-    -------
-    '''
+    """
 
     with h5py.File(pca_file, 'r') as f:
         store_dir = dirname(pca_file)

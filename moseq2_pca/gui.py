@@ -1,12 +1,7 @@
-'''
+"""
+GUI front-end operations for PCA.
 
-GUI front-end operations. This module contains all the functionality and configurable parameters
-users can alter to most accurately process their data.
-
-Note: These functions perform jupyter notebook specific preprocessing, loads in corresponding parameters from the
-CLI functions, then call the corresponding wrapper function with the given input parameters.
-
-'''
+"""
 
 import warnings
 import ruamel.yaml as yaml
@@ -17,18 +12,16 @@ from moseq2_pca.helpers.wrappers import train_pca_wrapper, apply_pca_wrapper, co
 
 
 def train_pca_command(progress_paths, output_dir, output_file):
-    '''
+    """
     Train PCA through Jupyter notebook, and updates config file.
 
-    Parameters
-    ----------
+    Args:
     progress_paths (dict): dictionary containing notebook progress paths
     output_dir (str): path to output pca directory
     output_file (str): name of output pca file.
 
-    Returns
-    -------
-    '''
+    Returns:
+    """
     # Get default CLI params
     default_params = {tmp.name: tmp.default for tmp in train_pca.params if not tmp.required}
 
@@ -54,18 +47,16 @@ def train_pca_command(progress_paths, output_dir, output_file):
 
 
 def apply_pca_command(progress_paths, output_file):
-    '''
+    """
     Compute PCA Scores given trained PCA using Jupyter Notebook.
 
-    Parameters
-    ----------
+    Args:
     progress_paths (dict): dictionary containing notebook progress paths
     output_file (str): name of output pca file.
 
-    Returns
-    -------
+    Returns:
     (str): success string.
-    '''
+    """
     # Get default CLI params
     default_params = {tmp.name: tmp.default for tmp in apply_pca.params if not tmp.required}
 
@@ -109,19 +100,17 @@ def apply_pca_command(progress_paths, output_file):
 
 
 def compute_changepoints_command(input_dir, progress_paths, output_file):
-    '''
+    """
     Compute Changepoint distribution using Jupyter Notebook.
 
-    Parameters
-    ----------
+    Args:
     input_dir (str): path to directory containing training data
     progress_paths (dict): dictionary containing notebook progress paths
     output_file (str): name of output pca file.
 
-    Returns
-    -------
+    Returns:
     (str): success string.
-    '''
+    """
     # Get default CLI params
     default_params = {tmp.name: tmp.default for tmp in compute_changepoints.params
                       if not tmp.required}

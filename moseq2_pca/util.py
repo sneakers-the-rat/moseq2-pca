@@ -1,9 +1,6 @@
-'''
-
-Utility and helper functions for traversing directories to find and read files, filtering operations,
- Dask initialization, and changepoint helper functions.
-
-'''
+"""
+Utility and helper functions for finding and reading files, filtering operations, Dask initialization, and changepoint helper functions.
+"""
 
 import os
 import cv2
@@ -29,17 +26,16 @@ from os.path import join, exists, abspath, expanduser
 # from https://stackoverflow.com/questions/46358797/
 # python-click-supply-arguments-and-options-from-a-configuration-file
 def command_with_config(config_file_param_name):
-    '''
-    Provides a cli helper function to assign variables from a config file. 
-    Hierachy of prameters: params from cli options > params from config_file > default params
-    Parameters
-    ----------
+    """
+    Helper function to assign variables from a config file. 
+    Hierachy of CLI prameters: params from cli options > params from config_file > default params
+    
+    Args:
     config_file_param_name (str): parameter name to update with config file variable.
 
-    Returns
-    -------
+    Returns:
     custom_command_class (click.Command): updated Click Command containing parameters from inputted config file.
-    '''
+    """
 
     class custom_command_class(click.Command):
 
@@ -91,21 +87,19 @@ def command_with_config(config_file_param_name):
 def recursive_find_h5s(root_dir=os.getcwd(),
                        ext='.h5',
                        yaml_string='{}.yaml'):
-    '''
+    """
     Recursively find h5 files, along with yaml files with the same basename
 
-    Parameters
-    ----------
+    Args:
     root_dir (str): path to base directory to begin recursive search in.
     ext (str): extension to search for
     yaml_string (str): string for filename formatting when saving data
 
-    Returns
-    -------
+    Returns:
     h5s (list): list of found h5 files
     dicts (list): list of found metadata files
     yamls (list): list of found yaml files
-    '''
+    """
 
     if not ext.startswith('.'):
         ext = '.' + ext
@@ -128,20 +122,18 @@ def recursive_find_h5s(root_dir=os.getcwd(),
 
 
 def gauss_smooth(signal, win_length=None, sig=1.5, kernel=None):
-    '''
+    """
     Perform Gaussian Smoothing on a 1D signal.
 
-    Parameters
-    ----------
+    Args:
     signal (1d numpy array): signal to perform smoothing
-    win_length (int): window_size for gaussian kernel filter
+    win_length (int): window size for gaussian kernel filter
     sig (float): variance of 1d gaussian kernel.
     kernel (tuple): kernel size to use for smoothing
 
-    Returns
-    -------
+    Returns:
     result (1d numpy array): smoothed signal
-    '''
+    """
     if kernel is None:
         kernel = gaussian_kernel1d(n=win_length, sig=sig)
 
@@ -151,18 +143,16 @@ def gauss_smooth(signal, win_length=None, sig=1.5, kernel=None):
 
 
 def gaussian_kernel1d(n=None, sig=3):
-    '''
+    """
     Get 1D gaussian kernel.
 
-    Parameters
-    ----------
-    n (int): number of points to use.
+    Args:
+    n (int): window size.
     sig (int): variance of kernel to use.
 
-    Returns
-    -------
+    Returns:
     kernel (1d array): 1D numpy kernel.
-    '''
+    """
 
     if n is None:
         n = np.ceil(sig * 4)
@@ -178,13 +168,12 @@ def gaussian_kernel1d(n=None, sig=3):
 def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
                  medfilter_time=None, gaussfilter_time=None, detrend_time=None,
                  tailfilter=None, tail_threshold=5):
-    '''
-    Filters spatial/temporal noise from frames using Median and Gaussian filters,
+    """
+    Filter spatial/temporal noise from frames using Median and Gaussian filters,
     given kernel sizes for each respective requested filter.
 
-    Parameters
-    ----------
-    frames (3D numpy array): frames to filter.
+    Args:
+    frames (numpy.ndarray): frames to filter.
     medfilter_space (list): median spatial filter kernel.
     gaussfilter_space (list): gaussian spatial filter kernel.
     medfilter_time (list): median temporal filter.
@@ -193,10 +182,9 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
     tailfilter (int): size of tail-filter kernel.
     tail_threshold (int): threshold value to use for tail filtering
 
-    Returns
-    -------
-    out (3D numpy array): filtered frames.
-    '''
+    Returns:
+    out (numpy.ndarray): filtered frames.
+    """
 
     out = np.copy(frames)
 
@@ -237,19 +225,17 @@ def clean_frames(frames, medfilter_space=None, gaussfilter_space=None,
 
 
 def select_strel(string='e', size=(10, 10)):
-    '''
-    Selects Structuring Element Shape. Accepts shapes ('ellipse', 'rectangle'), if neither
-     are given then 'ellipse' is used.
+    """
+    Select Structuring Element Shape. Accepts shapes ('ellipse', 'rectangle'), if neither
+    are given then 'ellipse' is used.
 
-    Parameters
-    ----------
+    Args:
     string (str): e for Ellipse, r for Rectangle
     size (tuple): size of StructuringElement
 
-    Returns
-    -------
-    strel (cv2.StructuringElement): returned StructuringElement with specified size.
-    '''
+    Returns:
+    strel (cv2.StructuringElement): StructuringElement with specified size.
+    """
     if not isinstance(size, tuple):
         size = tuple(size)
 
@@ -265,21 +251,19 @@ def select_strel(string='e', size=(10, 10)):
 
 
 def insert_nans(timestamps, data, fps=30):
-    '''
-    Fills NaN values with 0 in given 1D timestamps array. Used to handle dropped frames from the video acquisition.
+    """
+    Fill NaN values with 0 in given 1D timestamps array. Used to handle dropped frames from the video acquisition.
 
-    Parameters
-    ----------
-    timestamps (1D array): timestamp values
-    data (1D  or 2D array): additional data to fill with NaN values - can be PC scores
+    Args:
+    timestamps (numpy.array): timestamp values
+    data (numpy.array): additional data to fill with NaN values - can be PC scores
     fps (int): frames per second
 
-    Returns
-    -------
-    filled_data (1D array): filled missing timestamp values.
-    data_idx (1D array): indices of inserted 0s
-    filled_timestamps (1D array): filled timestamp-strs
-    '''
+    Returns:
+    filled_data (numpy.array): filled missing timestamp values.
+    data_idx (numpy.array): indices of inserted 0s
+    filled_timestamps (numpy.array): filled timestamp-strs
+    """
 
     df_timestamps = np.diff(np.insert(timestamps, 0, timestamps[0] - 1.0 / fps))
     missing_frames = np.floor(df_timestamps / (1.0 / fps))
@@ -316,17 +300,15 @@ def insert_nans(timestamps, data, fps=30):
 
 
 def read_yaml(yaml_file):
-    '''
-    Reads yaml file and returns dictionary representation of file contents.
+    """
+    Read yaml file and return dictionary representation of file contents.
 
-    Parameters
-    ----------
+    Args:
     yaml_file (str): path to yaml file
 
-    Returns
-    -------
+    Returns:
     return_dict (dict): dict of yaml file contents
-    '''
+    """
 
     try:
         with open(yaml_file, 'r') as f:
@@ -338,17 +320,13 @@ def read_yaml(yaml_file):
 
 
 def check_timestamps(h5s):
-    '''
+    """
     Helper function to determine whether timestamps and/or metadata is missing from
     extracted files. Function will emit a warning if either pieces of data are missing.
 
-    Parameters
-    ----------
+    Args:
     h5s (list): List of paths to all extracted h5 files.
-
-    Returns
-    -------
-    '''
+    """
 
     for h5 in h5s:
         try:
@@ -371,17 +349,15 @@ def check_timestamps(h5s):
 
 
 def get_timestamp_path(h5file):
-    '''
+    """
     Return path within h5 file that contains the kinect timestamps
 
-    Parameters
-    ----------
+    Args:
     h5file (str): path to h5 file.
 
-    Returns
-    -------
+    Returns:
     (str): path to metadata timestamps within h5 file
-    '''
+    """
 
     with h5py.File(h5file, 'r') as f:
         if '/timestamps' in f:
@@ -393,17 +369,15 @@ def get_timestamp_path(h5file):
 
 
 def get_metadata_path(h5file):
-    '''
+    """
     Return path within h5 file that contains the kinect extraction metadata.
 
-    Parameters
-    ----------
+    Args:
     h5file (str): path to h5 file.
 
-    Returns
-    -------
+    Returns:
     (str): path to acquistion metadata within h5 file.
-    '''
+    """
 
     with h5py.File(h5file, 'r') as f:
         if '/metadata/acquisition' in f:
@@ -415,18 +389,16 @@ def get_metadata_path(h5file):
 
 
 def h5_to_dict(h5file, path):
-    '''
-    Reads all contents from h5 and returns them in a nested dict object.
+    """
+    Read all contents from h5 and returns them in a nested dict object.
 
-    Parameters
-    ----------
+    Args:
     h5file (str): path to h5 file
     path (str): path to group within h5 file
 
-    Returns
-    -------
+    Returns:
     ans (dict): dictionary of all h5 group contents
-    '''
+    """
 
     ans = {}
 
@@ -444,16 +416,12 @@ def h5_to_dict(h5file, path):
 
 
 def set_dask_config(memory={'target': 0.85, 'spill': False, 'pause': False, 'terminate': 0.95}):
-    '''
-    Sets initial dask configuration parameters
+    """
+    Set initial dask configuration parameters
 
-    Parameters
-    ----------
+    Args:
     memory (dict): dictionary containing default dask configuration variables to ensure safe amount of resource usage.
-
-    Returns
-    -------
-    '''
+    """
 
     memory = {f'distributed.worker.memory.{k}': v for k, v in memory.items()}
     dask.config.set(memory)
@@ -461,15 +429,13 @@ def set_dask_config(memory={'target': 0.85, 'spill': False, 'pause': False, 'ter
 
 
 def get_env_cpu_and_mem():
-    '''
-    Reads current system environment and returns the amount of available memory
-    and CPUs to allocate to the created cluster.
+    """
+    Read current system environment and return the amount of available memory and CPUs to allocate to the created cluster.
 
-    Returns
-    -------
+    Returns:
     mem (float): Optimal number of memory (in bytes) to allocate to initialized dask cluster
     cpu (int): Optimal number of CPUs to allocate to dask
-    '''
+    """
 
     is_slurm = os.environ.get('SLURM_JOBID', False)
 
@@ -499,11 +465,10 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
                     cluster_type='local', timeout=10,
                     cache_path=expanduser('~/moseq2_pca'),
                     dashboard_port='8787', data_size=None, **kwargs):
-    '''
+    """
     Initialize dask client, cluster, workers, etc.
 
-    Parameters
-    ----------
+    Args:
     nworkers (int): number of dask workers to initialize
     processes (int): number of processes per worker
     memory (str): amount of memory to allocate to dask cluster
@@ -518,12 +483,11 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
     data_size (float): size of the dask array in number of bytes.
     kwargs: extra keyward arguments
 
-    Returns
-    -------
+    Returns:
     client (dask Client): initialized Client
     cluster (dask Cluster): initialized Cluster
     workers (dask Workers): intialized workers
-    '''
+    """
 
     click.echo(f'Access dask dashboard at http://localhost:{dashboard_port}')
 
@@ -542,7 +506,10 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
         nworkers = int(min(max(1, nworkers), max_workers, max_cpu))
 
         # compute mem limit per worker
-        mem_limit = max(1, max_mem / nworkers)
+        try:
+            mem_limit = max(1, max_mem / nworkers)
+        except:
+            mem_limit = 1
 
         # display some diagnostic info
         if data_size is not None:
@@ -611,19 +578,16 @@ def initialize_dask(nworkers=50, processes=1, memory='4GB', cores=1,
 
 
 def close_dask(client, cluster, timeout):
-    '''
-    Shuts down the Dask client and cluster.
-    Dumps all cached data.
+    """
+    Shut down the Dask client and cluster, and dump all cache data.
 
-    Parameters
-    ----------
+    Args:
     client (Dask Client): Client object
     cluster (dask Cluster): initialized Cluster
     timeout (int): Time to wait for client to close gracefully (minutes)
 
-    Returns
-    -------
-    '''
+    Returns:
+    """
 
     if client is not None:
         try:
@@ -635,19 +599,17 @@ def close_dask(client, cluster, timeout):
 
 
 def get_rps(frames, rps=600, normalize=True):
-    '''
+    """
     Get random projections of frames.
 
-    Parameters
-    ----------
-    frames (2D or 3D numpy array): Frames to get dimensions from.
+    Args:
+    frames (numpy.array): Frames to get dimensions from.
     rps (int): Number of random projections.
     normalize (bool): indicates whether to normalize the random projections.
 
-    Returns
-    -------
+    Returns:
     rproj (2D or 3D numpy array): Computed random projections with same shape as frames
-    '''
+    """
 
     if frames.ndim == 3:
         use_frames = frames.reshape(-1, np.prod(frames.shape[1:]))
@@ -664,25 +626,23 @@ def get_rps(frames, rps=600, normalize=True):
 
 def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1,
                      baseline=True, timestamps=None):
-    '''
+    """
     Compute changepoints and its corresponding distribution. Changepoints describe
     the magnitude of frame-to-frame changes of mouse pose.
 
-    Parameters
-    ----------
-    scores (3D numpy array): nframes * r * c
+    Args:
+    scores (numpy.ndarray): nframes * rows * columns
     k (int): klags - Lag to use for derivative calculation.
     sigma (int): Standard deviation of gaussian smoothing filter.
     peak_height (float): user-defined peak Changepoint length.
     peak_neighbors (int): number of peaks in the CP curve.
     baseline (bool): normalize data.
-    timestamps (array): loaded timestamps.
+    timestamps (numpy.array): loaded timestamps.
 
-    Returns
-    -------
-    cps (2D numpy array): array of changepoint values
-    normed_df (1D numpy array): array of values for bar plot
-    '''
+    Returns:
+    cps (numpy.ndarray): array of changepoint values
+    normed_df (numpy.array): array of values for bar plot
+    """
 
     if type(k) is not int:
         k = int(k)
@@ -724,13 +684,13 @@ def get_changepoints(scores, k=5, sigma=3, peak_height=.5, peak_neighbors=1,
 
 
 def combine_new_config(config_file, config_data):
-    '''
-    helper function to read config file and combine new config params with it
+    """
+    Read config file and combine new config params with it
 
     Args:
         config_file (str): path to config.yaml
         config_data (dict): dictionary of config data
-    '''
+    """
     # open the config file
     with open (config_file, 'r') as f:
         temp_config = yaml.safe_load(f)
