@@ -100,8 +100,17 @@ def common_dask_parameters(function):
 @click.option('--output-file', default='pca', type=str, help='Name of h5 file for storing pca results')
 @click.option('--local-processes', default=False, type=bool, help='Used with a local cluster. If True: use processes, If False: use threads')
 @click.option('--overwrite-pca-train', default=False, type=bool, help='Used to bypass the pca overwrite question. If True: skip question, run automatically')
+@click.option('--camera-type', default='k2', type=str, help='specify the camera type (k2 or azure), default is k2')
 def train_pca(input_dir, output_dir, output_file, **cli_args):
     # function writes output pca path to config_data
+    if cli_args.get('camera_type') == 'azure':
+        # check if parameters are set to k2 default, change to azure default
+        print('Updating parameters for Azure Kinect camera...')
+        if cli_args['gaussfilter_space'] == (1.5, 1):
+            cli_args['gaussfilter_space'] = (2.25, 1.5)
+        if cli_args['tailfilter_size'] == (9, 9):
+            cli_args['tailfilter_size'] = (13, 13)
+
     config_data = train_pca_wrapper(input_dir, cli_args, output_dir, output_file)
     # write config_data to config_file if there is one
     if cli_args.get('config_file'):
