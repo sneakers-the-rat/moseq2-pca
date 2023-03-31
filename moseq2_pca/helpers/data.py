@@ -59,7 +59,7 @@ def load_pcs_for_cp(pca_file, config_data):
         pca_components = f[config_data['pca_path']][()]
 
     # get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
-    pca_yaml = splitext(pca_files)[0] + '.yaml'
+    pca_yaml = splitext(pca_file)[0] + '.yaml'
 
     if exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
