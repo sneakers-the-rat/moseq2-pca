@@ -39,27 +39,27 @@ def get_pca_paths(config_data, output_dir):
 
     return config_data, pca_file, pca_file_scores
 
-def load_pcs_for_cp(pca_file_components, config_data):
+def load_pcs_for_cp(pca_file, config_data):
     """
     Load computed Principal Components for Model-free Changepoint Analysis.
 
     Args:
-    pca_file_components (str): path to pca h5 file to read PCs
+    pca_file (str): path to pca h5 file to read PCs
     config_data (dict): config parameters
 
     Returns:
-    pca_components (str): path to pca components
+    pca_file (str): path to pca components
     changepoint_params (dict): dict of relevant changepoint parameters
     missing_data (bool): Indicates whether to use mask_params for missing data pca
     mask_params (dict): Mask parameters to use when computing CPs
     """
 
-    print(f'Loading PCs from {pca_file_components}')
-    with h5py.File(pca_file_components, 'r') as f:
+    print(f'Loading PCs from {pca_file}')
+    with h5py.File(pca_file, 'r') as f:
         pca_components = f[config_data['pca_path']][()]
 
     # get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
-    pca_yaml = splitext(pca_file_components)[0] + '.yaml'
+    pca_yaml = splitext(pca_files)[0] + '.yaml'
 
     if exists(pca_yaml):
         with open(pca_yaml, 'r') as f:
