@@ -22,21 +22,22 @@ def get_pca_paths(config_data, output_dir):
     pca_file_scores (str): path to pca_scores file
     """
 
-    # Get path to pre-computed PCA file
-    pca_file_components = join(output_dir, 'pca.h5')
-    if 'pca_file_components' not in config_data:
-        config_data['pca_file_components'] = pca_file_components
-    elif config_data['pca_file_components'] is not None:
-        pca_file_components = config_data['pca_file_components']
+    # Check if there is PCA file from config_data
+    if config_data.get('pca_file', None) is not None:
+        pca_file = config_data['pca_file']
+    else:
+        # Assume PCA file is in output_dir
+        pca_file = join(output_dir, 'pca.h5')
+        config_data['pca_file'] = pca_file
 
-    if not exists(pca_file_components):
-        raise IOError(f'Could not find PCA components file {pca_file_components}')
+    if not exists(pca_file):
+        raise IOError(f'Could not find PCA components file {pca_file}')
 
     # Get path to PCA Scores
     pca_file_scores = config_data.get('pca_file_scores', join(output_dir, 'pca_scores.h5'))
     config_data['pca_file_scores'] = pca_file_scores
 
-    return config_data, pca_file_components, pca_file_scores
+    return config_data, pca_file, pca_file_scores
 
 def load_pcs_for_cp(pca_file_components, config_data):
     """

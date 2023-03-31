@@ -235,7 +235,7 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
     config_data, pca_file, pca_file_scores = get_pca_paths(config_data, output_dir)
 
     print('Loading PCs from', pca_file)
-    with h5py.File(config_data['pca_file_components'], 'r') as f:
+    with h5py.File(config_data['pca_file'], 'r') as f:
         pca_components = f[config_data['pca_path']][()]
 
     # Get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
