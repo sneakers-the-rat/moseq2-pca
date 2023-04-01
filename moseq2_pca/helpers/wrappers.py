@@ -240,7 +240,6 @@ def apply_pca_wrapper(input_dir, config_data, output_dir, output_file):
 
     # Get the yaml for pca, check parameters, if we used fft, be sure to turn on here...
     pca_yaml = splitext(pca_file)[0] + '.yaml'
-    print('pca_yaml here',pca_yaml)
 
     # Get filtering parameters and optional PCA reconstruction parameters (if missing_data == True)
     use_fft, clean_params, mask_params, missing_data = get_pca_yaml_data(pca_yaml)
