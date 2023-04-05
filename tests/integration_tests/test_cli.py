@@ -113,7 +113,7 @@ class TestCli(TestCase):
         with open(config, 'r') as f:
             config_data = yaml.safe_load(f)
 
-        config_data['pca_file_components'] = None
+        config_data['pca_file'] = None
         config_data['pca_file_scores'] = None
 
         with open(config, 'w') as f:
