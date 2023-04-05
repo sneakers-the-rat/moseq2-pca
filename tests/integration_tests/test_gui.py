@@ -97,7 +97,7 @@ class TestGUI(TestCase):
 
         with open(config_file, 'r') as f:
             config_data = yaml.safe_load(f)
-            config_data['pca_file_components'] = join(outpath, 'pca.h5')
+            config_data['pca_file'] = join(outpath, 'pca.h5')
 
             config_data['use_fft'] = True
             config_data['missing_data'] = False
@@ -132,7 +132,7 @@ class TestGUI(TestCase):
 
         with open(config_file, 'r') as f:
             config_data = yaml.safe_load(f)
-            config_data['pca_file_components'] = join(outpath, 'pca.h5')
+            config_data['pca_file'] = join(outpath, 'pca.h5')
 
             config_data['use_fft'] = True
             config_data['missing_data'] = False
